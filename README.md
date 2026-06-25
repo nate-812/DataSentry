@@ -32,4 +32,5 @@ knowledge/
 
 ## 设计文档
 
+- [`项目当前状态`](docs/PROJECT_STATUS.md)
 - [`DataSentry 总体架构与开发路线设计`](docs/superpowers/specs/2026-06-25-datasentry-overall-architecture-design.md)
