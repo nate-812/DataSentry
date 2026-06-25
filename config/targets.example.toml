@@ -1,0 +1,60 @@
+[limits]
+connect_timeout_seconds = 3
+read_timeout_seconds = 5
+max_output_bytes = 65536
+max_log_lines = 200
+max_log_minutes = 30
+retry_attempts = 1
+
+[hosts.data1]
+address = "192.0.2.10"
+
+[hosts.data2]
+address = "192.0.2.20"
+
+[hosts.data3]
+address = "192.0.2.30"
+
+[ssh.data1]
+host = "data1"
+port = 22
+username = "datasentry-readonly"
+private_key_path = "/path/to/local/datasentry-readonly"
+known_hosts = "/path/to/local/known_hosts"
+
+[http.flink]
+base_url = "http://192.0.2.10:8081"
+
+[http.spring_api]
+base_url = "http://192.0.2.10:8080"
+
+[http.ai_engine]
+base_url = "http://192.0.2.10:8000"
+
+[mysql.doris]
+host = "data1"
+port = 9030
+database = "streamlake"
+username = "datasentry_readonly"
+password_env = "DATASENTRY_DORIS_PASSWORD"
+timezone = "UTC"
+
+[mysql.mysql]
+host = "data1"
+port = 3306
+database = "streamlake"
+username = "datasentry_readonly"
+password_env = "DATASENTRY_MYSQL_PASSWORD"
+timezone = "UTC"
+
+[redis.redis]
+host = "data1"
+port = 6379
+database = 0
+username = "datasentry_readonly"
+password_env = "DATASENTRY_REDIS_PASSWORD"
+
+[logs.spring_api]
+host = "data1"
+kind = "file"
+path = "/opt/StreamLake-Binance/api-server/logs/app.log"

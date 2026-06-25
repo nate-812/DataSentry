@@ -18,5 +18,6 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "test", "production"] = "development"
     database_path: Path = Path("var/datasentry.db")
+    targets_file: Path = Path("config/targets.toml")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "json"
