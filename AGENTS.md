@@ -32,6 +32,14 @@
 - 状态文档应保持“当前快照 + 关键变更日志”结构；已失效信息应更新或移入变更日志，不能留下相互冲突的当前状态。
 - 完成工作时报告：改动摘要、验证结果、提交哈希、当前分支及 GitHub 同步状态。
 
+## 语言与命名
+
+- 所有代码标识符必须使用语义清晰、拼写正确的英文，包括包名、类名、方法名、变量名、常量名、文件名、数据库表名与字段名、API URL、Git 分支名、配置项、环境变量、JSON 字段、枚举值、稳定错误码和日志结构化字段。
+- 禁止使用中文标识符、拼音命名或拼音与英文混合命名。
+- 面向开发者、用户或业务人员阅读的内容使用中文，包括代码注释、docstring、CLI 帮助、异常 `message`、页面文案、README、接口文档和业务说明。
+- Spring Boot、Vue、MySQL、Kafka、Flink、Redis、Doris、SQLite、API、DTO、VO、Controller、Service、Mapper、Repository、CLI、JSON、UUID、UTC 等技术名词保留英文原名。
+- Git 提交信息保留 Conventional Commits 类型，冒号后的说明使用中文，例如 `feat: 增加模拟巡检 CLI`。
+
 ## StreamLake 运维 Agent 边界
 
 - 第一版聚焦主题知识加载、白名单只读查询、SQLite 巡检快照、证据化诊断和缺失组件提醒。
