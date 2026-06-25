@@ -29,3 +29,7 @@ knowledge/
 ```
 
 第一版开发范围：主题知识加载、白名单只读查询、SQLite巡检快照和证据化诊断。暂不需要RAG或自动写操作。
+
+## 设计文档
+
+- [`DataSentry 总体架构与开发路线设计`](docs/superpowers/specs/2026-06-25-datasentry-overall-architecture-design.md)
