@@ -65,3 +65,7 @@ allowed-confusables = ["，", "："]
 python_version = "3.12"
 strict = true
 packages = ["datasentry"]
+
+[[tool.mypy.overrides]]
+module = ["paramiko", "pymysql", "pymysql.*"]
+ignore_missing_imports = true

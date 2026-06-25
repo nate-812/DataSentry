@@ -11,7 +11,11 @@ from datasentry.diagnosis.rules import (
     RuleContext,
     evidence_from_observation,
 )
-from datasentry.diagnosis.service import DiagnosisResult, DiagnosisService
+from datasentry.diagnosis.service import (
+    DiagnosisResult,
+    DiagnosisService,
+    PreparedDiagnosis,
+)
 
 __all__ = [
     "ComponentDownRule",
@@ -21,6 +25,7 @@ __all__ = [
     "DiagnosisService",
     "FlinkBackpressureRule",
     "KlineStalledAtFlinkRule",
+    "PreparedDiagnosis",
     "RuleContext",
     "evidence_from_observation",
 ]

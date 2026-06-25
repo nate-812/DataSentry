@@ -28,7 +28,7 @@ class ReadOnlyTool(Protocol):
         target: str,
         arguments: Mapping[str, JsonValue],
     ) -> list[Observation]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 class ToolGateway:

@@ -22,7 +22,7 @@ class InspectionAggregate:
 
 class Repository(Protocol):
     def start_inspection(self, inspection: Inspection) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def complete_inspection(
         self,
@@ -30,46 +30,46 @@ class Repository(Protocol):
         observations: list[Observation],
         findings: list[Finding],
     ) -> InspectionAggregate:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def fail_inspection(self, inspection: Inspection) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def save_inspection(self, inspection: Inspection) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def add_observation(self, observation: Observation) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def add_finding(self, finding: Finding) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def get_inspection(self, inspection_id: str) -> InspectionAggregate:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def save_tool_invocation(self, invocation: ToolInvocation) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def list_tool_invocations(self, inspection_id: str) -> list[ToolInvocation]:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def save_incident(self, incident: Incident) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def update_incident(self, incident: Incident) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def get_incident(self, incident_id: str) -> Incident:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def save_operation(self, operation: Operation) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def update_operation(self, operation: Operation) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def get_operation(self, operation_id: str) -> Operation:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def close(self) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover

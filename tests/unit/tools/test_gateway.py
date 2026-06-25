@@ -15,7 +15,7 @@ from datasentry.errors import ConfigurationError
 from datasentry.storage import SQLiteRepository
 from datasentry.tools.errors import ToolError
 from datasentry.tools.gateway import ToolGateway
-from datasentry.tools.models import ToolCall
+from datasentry.tools.models import ToolCall, ToolFailure, ToolOutcome
 
 NOW = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)
 
@@ -60,6 +60,20 @@ class FailingTool:
             message="目标读取超时",
             retryable=True,
         )
+
+
+class BrokenTool:
+    name = ToolName.GET_HOST_STATUS
+
+    def execute(
+        self,
+        *,
+        inspection_id: str,
+        target: str,
+        arguments: Mapping[str, JsonValue],
+    ) -> list[Observation]:
+        del inspection_id, target, arguments
+        raise RuntimeError("password=must-not-leak")
 
 
 @pytest.fixture
@@ -141,3 +155,50 @@ def test_gateway_rejects_duplicate_or_missing_tool_registration(
     assert outcome.status is ToolStatus.FAILED
     assert outcome.failure is not None
     assert outcome.failure.code == "tool.not_registered"
+
+
+def test_gateway_hides_unexpected_exception_details(
+    repository: SQLiteRepository,
+) -> None:
+    _clock.current = NOW
+    outcome = ToolGateway(repository, (BrokenTool(),), clock=_clock).execute(
+        "inspection-1",
+        ToolCall(name=ToolName.GET_HOST_STATUS, target="data1"),
+    )
+
+    assert outcome.status is ToolStatus.FAILED
+    assert outcome.failure is not None
+    assert outcome.failure.code == "tool.internal_error"
+    assert "must-not-leak" not in outcome.failure.message
+
+
+def test_tool_outcome_enforces_status_failure_consistency() -> None:
+    call = ToolCall(name=ToolName.GET_HOST_STATUS, target="data1")
+
+    with pytest.raises(ValueError):
+        ToolOutcome(
+            call=call,
+            status=ToolStatus.SUCCEEDED,
+            failure=ToolFailure(
+                code="tool.timeout",
+                message="超时",
+            ),
+            started_at=NOW,
+            finished_at=NOW,
+        )
+
+    with pytest.raises(ValueError):
+        ToolOutcome(
+            call=call,
+            status=ToolStatus.FAILED,
+            started_at=NOW,
+            finished_at=NOW,
+        )
+
+    with pytest.raises(ValueError):
+        ToolOutcome(
+            call=call,
+            status=ToolStatus.SUCCEEDED,
+            started_at=NOW + timedelta(seconds=1),
+            finished_at=NOW,
+        )

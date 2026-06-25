@@ -1,0 +1,16 @@
+{
+  "jobs": [
+    {
+      "jid": "kline-job-id",
+      "name": "streamlake-kline-aggregation",
+      "state": "RUNNING",
+      "start-time": 1750850000000
+    },
+    {
+      "jid": "whale-job-id",
+      "name": "streamlake-whale-cep",
+      "state": "RUNNING",
+      "start-time": 1750850001000
+    }
+  ]
+}

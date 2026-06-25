@@ -100,7 +100,7 @@ class LogSource(DomainModel):
                 raise ValueError("file 日志源必须只配置 path")
             resolved = self.path.resolve()
             if not self.path.is_absolute() or not any(
-                resolved.is_relative_to(root) for root in ALLOWED_LOG_ROOTS
+                resolved.is_relative_to(root.resolve()) for root in ALLOWED_LOG_ROOTS
             ):
                 raise ValueError("日志路径不在允许目录")
         return self

@@ -138,3 +138,12 @@ def test_secret_resolver_reads_value_without_exposing_it(
     monkeypatch.setenv("TEST_DORIS_PASSWORD", "secret-value")
 
     assert EnvironmentSecretResolver().require("TEST_DORIS_PASSWORD") == "secret-value"
+
+
+def test_target_catalog_reports_missing_alias(tmp_path: Path) -> None:
+    catalog = TargetCatalog.load(_write_targets(tmp_path, _valid_targets()))
+
+    with pytest.raises(ConfigurationError) as raised:
+        catalog.host("missing")
+
+    assert raised.value.code == "configuration.target_missing"

@@ -6,11 +6,11 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M2 真实只读工具已进入功能分支实施 |
+| 总体状态 | M2 真实只读工具本地实现与自动测试已完成，等待云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | 在 `feat/m2-real-readonly-tools` 实现工具安全基础与 Inspection 原子生命周期，尚未连接生产 |
-| 下一里程碑 | 完成工具审计、目标配置、统一脱敏和受控传输的本地自动测试 |
-| 生产权限 | 尚未接入生产服务器；只读工具和写操作均未实现 |
+| 当前工作 | 已完成白名单网关、受控传输、全部组件适配器、真实巡检编排和 CLI；尚未连接生产 |
+| 下一里程碑 | 用户开启可丢弃云端实例后，按 Flink、API、主机、Kafka、Doris、Redis/MySQL、日志顺序执行真实只读契约探测 |
+| 生产权限 | 只读工具已完成本地实现但尚未接入生产服务器；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
 | 最近状态更新时间 | 2026-06-25 |
@@ -34,14 +34,15 @@
 
 ## 正在进行
 
-- 在 `feat/m2-real-readonly-tools` 实施 M2 本地基础能力。
-- 当前只使用模拟响应和本地测试，不需要云端服务器或生产凭据。
+- M2 本地代码与自动测试已完成，当前停在首次云端只读契约探测前。
+- 尚未读取或保存任何生产凭据，尚未连接生产服务器。
 
 ## 下一步
 
-1. 实现 Inspection 原子生命周期、工具审计、目标配置和统一脱敏。
-2. 实现受控 HTTP、SSH、MySQL 和 Redis 传输及各组件适配器。
-3. 完成本地契约测试后停止，等待用户开启可丢弃云端实例进行真实只读契约探测。
+1. 用户开启可丢弃云端实例，并准备最小权限 SSH、Doris/MySQL 和 Redis 只读账号。
+2. 在本机配置 ignored `config/targets.toml` 和秘密环境变量，不在聊天或 Git 中发送秘密。
+3. 逐项执行真实只读契约探测，将脱敏响应固化为本地 fixture。
+4. 完成端到端 Kline 只读影子巡检后更新 M2 状态。
 
 ## 阻塞与风险
 
@@ -55,7 +56,6 @@
 - 生产连接方式、只读账号和监控组件尚未进入实现阶段。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka Consumer Group 不可见原因、真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
-- Inspection 聚合目前通过多次 Repository 调用写入，缺少跨聚合 Unit of Work；中途存储失败可能留下不完整记录，应在异步 Worker 或真实工具接入前处理。
 
 ## 已确认的关键决策
 
@@ -77,7 +77,7 @@
 | 总体设计 | 已完成 | 架构、边界、安全模型和路线获得确认 |
 | M0 工程基础 | 已完成 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
-| M2 真实只读工具 | 功能分支实施中 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
+| M2 真实只读工具 | 本地实现完成，等待云端契约探测 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 未开始 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
@@ -90,6 +90,7 @@
 - [M0 工程基础实施计划](superpowers/plans/2026-06-25-m0-engineering-foundation.md)
 - [M1 知识驱动诊断实施计划](superpowers/plans/2026-06-25-m1-knowledge-driven-diagnosis.md)
 - [M2 真实只读工具实施计划](superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
+- [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
 - [工程协作规则](../AGENTS.md)
@@ -115,3 +116,7 @@
 - M1 已通过 Pull Request #1 合并到 `main`，本地 `main` 与 `origin/main` 同步。
 - 起草 M2 真实只读工具详细实施计划，明确 Inspection 原子生命周期、工具审计、目标与秘密分离、统一脱敏、固定 HTTP/SSH/数据库/Redis 工具、失败隔离、契约测试和生产只读影子验收。
 - 创建 `feat/m2-real-readonly-tools` 隔离工作区并通过 M2 实施前基线验证：75 个测试通过，覆盖率 90.49%，Ruff 与 mypy 通过。
+- 完成 Inspection 原子生命周期、工具调用审计、目标与秘密分离、统一脱敏和白名单工具网关。
+- 完成受控 HTTP、SSH、MySQL、Redis 传输，以及 Flink、API、主机、Kafka、Doris、MySQL、Redis 和有限日志适配器。
+- 完成确定性工具计划、局部失败隔离、真实巡检服务和 `inspection run` CLI。
+- M2 本地全量验证通过：159 个测试通过，覆盖率 90.25%，Ruff 与 mypy 通过；尚未执行云端现场验证。

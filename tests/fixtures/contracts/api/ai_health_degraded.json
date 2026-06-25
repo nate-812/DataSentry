@@ -1,0 +1,6 @@
+{
+  "status": "degraded",
+  "dependencies": {
+    "milvus": "unavailable"
+  }
+}

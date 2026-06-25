@@ -1,0 +1,9 @@
+{
+  "jid": "kline-job-id",
+  "name": "streamlake-kline-aggregation",
+  "state": "RUNNING",
+  "vertices": [
+    {"id": "source-vertex", "name": "Kafka Source", "status": "RUNNING"},
+    {"id": "sink-vertex", "name": "Doris Sink", "status": "RUNNING"}
+  ]
+}

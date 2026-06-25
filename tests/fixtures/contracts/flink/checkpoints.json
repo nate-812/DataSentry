@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "completed": 12,
+    "failed": 3,
+    "in_progress": 0
+  },
+  "latest": {
+    "completed": {
+      "id": 12,
+      "status": "COMPLETED",
+      "trigger_timestamp": 1750850100000,
+      "latest_ack_timestamp": 1750850101500,
+      "end_to_end_duration": 1500,
+      "state_size": 4096
+    },
+    "failed": {
+      "id": 11,
+      "status": "FAILED",
+      "trigger_timestamp": 1750850070000
+    }
+  },
+  "history": [
+    {"id": 12, "status": "COMPLETED"},
+    {"id": 11, "status": "FAILED"},
+    {"id": 10, "status": "FAILED"},
+    {"id": 9, "status": "FAILED"}
+  ]
+}
