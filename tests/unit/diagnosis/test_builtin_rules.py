@@ -19,13 +19,14 @@ def _observation(
     value: object,
     *,
     target: str = "local",
+    source: str = "simulation_fixture",
 ) -> Observation:
     return Observation(
         inspection_id="fixture",
         component=component,
         metric_or_fact=metric_or_fact,
         value=value,
-        source="simulation_fixture",
+        source=source,
         target=target,
         observed_at=NOW,
     )
@@ -128,3 +129,41 @@ def test_kline_rule_returns_unknown_when_required_observation_is_missing() -> No
         "Kline Job 当前状态未知",
         "Doris kline_1min 数据新鲜度未知",
     ]
+
+
+def test_component_down_rule_keeps_historical_finding_status() -> None:
+    context = _context(
+        _observation(
+            "collector",
+            "service_state",
+            {"state": "NOT_RUNNING"},
+            source="knowledge:07-runtime-baseline-2026-06-25.md",
+        ),
+        question_type=QuestionType.COMPONENT_DOWN,
+    )
+
+    finding = ComponentDownRule().evaluate(context)
+
+    assert finding is not None
+    assert finding.status is EvidenceStatus.HISTORICAL
+    assert finding.evidence[0].status is EvidenceStatus.HISTORICAL
+
+
+def test_kline_rule_does_not_infer_current_failure_from_historical_inputs() -> None:
+    source = "knowledge:07-runtime-baseline-2026-06-25.md"
+    context = _context(
+        _observation("kafka", "topic_advancing", True, source=source),
+        _observation(
+            "flink",
+            "kline_job_state",
+            {"state": "MISSING"},
+            source=source,
+        ),
+        _observation("doris", "kline_freshness_seconds", 900, source=source),
+        question_type=QuestionType.DATA_STALE,
+    )
+
+    finding = KlineStalledAtFlinkRule().evaluate(context)
+
+    assert finding is not None
+    assert finding.status is EvidenceStatus.HISTORICAL

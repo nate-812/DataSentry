@@ -26,6 +26,19 @@ def _unknown_evidence(context: RuleContext, claim: str) -> Evidence:
     )
 
 
+def _finding_status(
+    evidence: list[Evidence],
+    *,
+    current_status: EvidenceStatus,
+) -> EvidenceStatus:
+    historical_count = sum(item.status is EvidenceStatus.HISTORICAL for item in evidence)
+    if historical_count == len(evidence):
+        return EvidenceStatus.HISTORICAL
+    if historical_count:
+        return EvidenceStatus.UNKNOWN
+    return current_status
+
+
 class KlineStalledAtFlinkRule:
     """识别 Kafka 推进但 Kline Job 缺失的链路中断。"""
 
@@ -78,19 +91,28 @@ class KlineStalledAtFlinkRule:
             and not isinstance(freshness, bool)
             and freshness >= 300
         ):
+            evidence = [
+                evidence_from_observation(kafka, claim="Kafka 原始 Topic 当前仍在推进"),
+                evidence_from_observation(flink, claim="Kline Job 当前未正常运行"),
+                evidence_from_observation(
+                    doris,
+                    claim="Doris kline_1min 数据新鲜度已落后",
+                ),
+            ]
+            status = _finding_status(
+                evidence,
+                current_status=EvidenceStatus.INFERRED,
+            )
             return Finding(
                 inspection_id=context.inspection_id,
                 severity=Severity.CRITICAL,
-                status=EvidenceStatus.INFERRED,
-                claim="K线链路停在 Flink 计算层",
-                evidence=[
-                    evidence_from_observation(kafka, claim="Kafka 原始 Topic 当前仍在推进"),
-                    evidence_from_observation(flink, claim="Kline Job 当前未正常运行"),
-                    evidence_from_observation(
-                        doris,
-                        claim="Doris kline_1min 数据新鲜度已落后",
-                    ),
-                ],
+                status=status,
+                claim=(
+                    "历史快照显示 K线链路曾停在 Flink 计算层"
+                    if status is EvidenceStatus.HISTORICAL
+                    else "K线链路停在 Flink 计算层"
+                ),
+                evidence=evidence,
                 impact="新的交易数据无法形成 K 线结果并供 API 查询",
                 recommendation="读取有限 JobManager 日志，确认无重复 Job 后再申请恢复",
                 unknowns=["Kline Job 上次退出原因尚未确认"],
@@ -129,13 +151,25 @@ class ComponentDownRule:
         if state not in {"NOT_RUNNING", "MISSING", "FAILED"}:
             return None
         label = self._labels.get(observation.component, observation.component)
-        claim = f"{label} 当前未运行"
+        evidence = evidence_from_observation(
+            observation,
+            claim=f"{label} 当前未运行",
+        )
+        status = _finding_status(
+            [evidence],
+            current_status=EvidenceStatus.CONFIRMED,
+        )
+        claim = (
+            f"历史快照显示 {label} 未运行"
+            if status is EvidenceStatus.HISTORICAL
+            else f"{label} 当前未运行"
+        )
         return Finding(
             inspection_id=context.inspection_id,
             severity=Severity.CRITICAL,
-            status=EvidenceStatus.CONFIRMED,
+            status=status,
             claim=claim,
-            evidence=[evidence_from_observation(observation, claim=claim)],
+            evidence=[evidence],
             impact=f"{label} 负责的链路能力当前不可用",
             recommendation="读取部署知识与有限日志，确认启动依据后再请求人工处理",
             unknowns=["组件退出原因尚未确认"],
@@ -163,18 +197,22 @@ class FlinkBackpressureRule:
             and not isinstance(failure_count, bool)
             and failure_count >= 3
         ):
+            evidence = [
+                evidence_from_observation(pressure, claim="Flink 当前反压等级为 high"),
+                evidence_from_observation(
+                    failures,
+                    claim="Flink 已连续发生至少 3 次 Checkpoint 失败",
+                ),
+            ]
             return Finding(
                 inspection_id=context.inspection_id,
                 severity=Severity.WARNING,
-                status=EvidenceStatus.INFERRED,
+                status=_finding_status(
+                    evidence,
+                    current_status=EvidenceStatus.INFERRED,
+                ),
                 claim="Flink 链路存在持续反压并伴随 Checkpoint 失败",
-                evidence=[
-                    evidence_from_observation(pressure, claim="Flink 当前反压等级为 high"),
-                    evidence_from_observation(
-                        failures,
-                        claim="Flink 已连续发生至少 3 次 Checkpoint 失败",
-                    ),
-                ],
+                evidence=evidence,
                 impact="处理延迟可能继续扩大，故障恢复点也可能变旧",
                 recommendation="继续检查 Source 吞吐、Vertex 忙碌度和 Sink 耗时",
                 unknowns=["反压最早出现的 Vertex 尚未确认"],
@@ -208,12 +246,16 @@ class ConfigurationMismatchRule:
             and expected != effective
         ):
             claim = f"配置 {key} 的生效来源与预期不一致"
+            evidence = evidence_from_observation(observation, claim=claim)
             return Finding(
                 inspection_id=context.inspection_id,
                 severity=Severity.WARNING,
-                status=EvidenceStatus.CONFIRMED,
+                status=_finding_status(
+                    [evidence],
+                    current_status=EvidenceStatus.CONFIRMED,
+                ),
                 claim=claim,
-                evidence=[evidence_from_observation(observation, claim=claim)],
+                evidence=[evidence],
                 impact="运行中的 Job 可能使用了非预期配置",
                 recommendation="按环境变量、配置文件、代码默认值顺序核对生效来源",
                 unknowns=["配置内容已脱敏，具体值需要在受限工具中复核"],
