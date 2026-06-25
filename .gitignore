@@ -15,6 +15,7 @@
 *.sqlite3
 *.log
 logs/
+var/
 
 # Language and tool caches
 __pycache__/

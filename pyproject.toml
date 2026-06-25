@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "datasentry-agent"
+version = "0.1.0"
+description = "Evidence-driven operations agent for StreamLake"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.9,<3",
+  "structlog>=25.1,<26",
+  "typer>=0.16,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.16,<2",
+  "pytest>=8.4,<9",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+datasentry = "datasentry.cli.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/datasentry"]
+
+[tool.hatch.build]
+include = [
+  "src/datasentry/**/*.py",
+  "src/datasentry/storage/sql/*.sql",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["datasentry"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["datasentry"]
