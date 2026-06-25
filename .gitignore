@@ -1,0 +1,35 @@
+.DS_Store
+
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+logs/
+
+# Language and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+dist/
+build/
+.coverage
+coverage/
+
+# IDE files
+.idea/
+.vscode/
