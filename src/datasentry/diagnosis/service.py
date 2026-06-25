@@ -1,6 +1,7 @@
 """知识、血缘、规则和 Repository 的本地诊断编排。"""
 
 from collections.abc import Callable, Sequence
+from contextlib import suppress
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
@@ -61,6 +62,7 @@ class DiagnosisService:
         self,
         question: str,
         observations: list[Observation],
+        collection_unknowns: tuple[str, ...] = (),
     ) -> DiagnosisResult:
         """路由问题、执行规则并保存巡检聚合。"""
         route = self._router.route(question)
@@ -77,43 +79,56 @@ class DiagnosisService:
             status=InspectionStatus.RUNNING,
             started_at=started_at,
         )
-        rebound = [
-            item.model_copy(update={"inspection_id": inspection.id}) for item in observations
-        ]
-        context = RuleContext(
-            inspection_id=inspection.id,
-            question_type=route.question_type,
-            observations=tuple(rebound),
-            lineage_checkpoints=tuple(checkpoints),
-            created_at=started_at,
-        )
-        findings = [
-            finding
-            for rule in self._rules
-            if route.question_type in rule.supported_question_types
-            if (finding := rule.evaluate(context)) is not None
-        ]
-        if not findings:
-            findings = [self._unknown_finding(context)]
-        completed = inspection.model_copy(
-            update={
-                "status": InspectionStatus.COMPLETED,
-                "summary": findings[0].claim,
-                "finished_at": self._clock(),
-            }
-        )
-        self._repository.save_inspection(completed)
-        for observation in rebound:
-            self._repository.add_observation(observation)
-        for finding in findings:
-            self._repository.add_finding(finding)
-        aggregate = self._repository.get_inspection(completed.id)
-        return DiagnosisResult(
-            route=route,
-            knowledge=knowledge,
-            lineage_checkpoints=list(checkpoints),
-            aggregate=aggregate,
-        )
+        self._repository.start_inspection(inspection)
+        try:
+            rebound = [
+                item.model_copy(update={"inspection_id": inspection.id}) for item in observations
+            ]
+            context = RuleContext(
+                inspection_id=inspection.id,
+                question_type=route.question_type,
+                observations=tuple(rebound),
+                lineage_checkpoints=tuple(checkpoints),
+                created_at=started_at,
+            )
+            findings = [
+                finding
+                for rule in self._rules
+                if route.question_type in rule.supported_question_types
+                if (finding := rule.evaluate(context)) is not None
+            ]
+            if not findings:
+                findings = [self._unknown_finding(context)]
+            findings = self._append_unknowns(findings, collection_unknowns)
+            completed = inspection.model_copy(
+                update={
+                    "status": InspectionStatus.COMPLETED,
+                    "summary": findings[0].claim,
+                    "finished_at": self._clock(),
+                }
+            )
+            aggregate = self._repository.complete_inspection(
+                completed,
+                rebound,
+                findings,
+            )
+            return DiagnosisResult(
+                route=route,
+                knowledge=knowledge,
+                lineage_checkpoints=list(checkpoints),
+                aggregate=aggregate,
+            )
+        except Exception:
+            failed = inspection.model_copy(
+                update={
+                    "status": InspectionStatus.FAILED,
+                    "summary": "诊断未能完成",
+                    "finished_at": self._clock(),
+                }
+            )
+            with suppress(Exception):
+                self._repository.fail_inspection(failed)
+            raise
 
     def _knowledge_reference(self, topic_id: str) -> KnowledgeReference:
         topic = self._knowledge_index.topic(topic_id)
@@ -157,3 +172,17 @@ class DiagnosisService:
             unknowns=["现场状态证据不足"],
             created_at=context.created_at,
         )
+
+    @staticmethod
+    def _append_unknowns(
+        findings: list[Finding],
+        collection_unknowns: tuple[str, ...],
+    ) -> list[Finding]:
+        if not collection_unknowns:
+            return findings
+        return [
+            finding.model_copy(
+                update={"unknowns": list(dict.fromkeys((*finding.unknowns, *collection_unknowns)))}
+            )
+            for finding in findings
+        ]

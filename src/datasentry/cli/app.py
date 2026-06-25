@@ -300,10 +300,20 @@ def inspection_simulate(
             created_at=observed_at,
         )
         with SQLiteRepository(path) as repository:
-            repository.save_inspection(inspection)
-            repository.add_observation(observation)
-            repository.add_finding(finding)
-            return _aggregate_payload(repository.get_inspection(inspection.id))
+            running = inspection.model_copy(
+                update={
+                    "status": InspectionStatus.RUNNING,
+                    "summary": None,
+                    "finished_at": None,
+                }
+            )
+            repository.start_inspection(running)
+            aggregate = repository.complete_inspection(
+                inspection,
+                [observation],
+                [finding],
+            )
+            return _aggregate_payload(aggregate)
 
     _run_json(simulate)
 

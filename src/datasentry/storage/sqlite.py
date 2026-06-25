@@ -16,7 +16,9 @@ from datasentry.domain import (
     Inspection,
     Observation,
     Operation,
+    ToolInvocation,
 )
+from datasentry.domain.enums import InspectionStatus
 from datasentry.errors import NotFoundError, StorageError
 from datasentry.storage.migrations import connect, upgrade_database
 from datasentry.storage.repository import InspectionAggregate
@@ -106,28 +108,47 @@ class SQLiteRepository:
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
 
+    def start_inspection(self, inspection: Inspection) -> None:
+        """插入一条运行中的巡检记录。"""
+        if inspection.status is not InspectionStatus.RUNNING:
+            raise self._invalid_inspection_transition()
+        self.save_inspection(inspection)
+
+    def complete_inspection(
+        self,
+        inspection: Inspection,
+        observations: list[Observation],
+        findings: list[Finding],
+    ) -> InspectionAggregate:
+        """原子更新巡检并写入全部 Observation 与 Finding。"""
+        if inspection.status is not InspectionStatus.COMPLETED:
+            raise self._invalid_inspection_transition()
+        self._validate_children(inspection, observations, findings)
+        connection = self._require_open()
+        try:
+            with connection:
+                self._update_running_inspection(connection, inspection)
+                for observation in observations:
+                    self._insert_observation(connection, observation)
+                for finding in findings:
+                    self._insert_finding(connection, finding)
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+        return self.get_inspection(inspection.id)
+
+    def fail_inspection(self, inspection: Inspection) -> None:
+        """将运行中的巡检更新为失败状态。"""
+        if inspection.status is not InspectionStatus.FAILED:
+            raise self._invalid_inspection_transition()
+        connection = self._require_open()
+        with connection:
+            self._update_running_inspection(connection, inspection)
+
     def add_observation(self, observation: Observation) -> None:
         connection = self._require_open()
         try:
             with connection:
-                connection.execute(
-                    """
-                    INSERT INTO observations (
-                        id, inspection_id, component, metric_or_fact,
-                        value_json, source, target, observed_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        observation.id,
-                        observation.inspection_id,
-                        observation.component,
-                        observation.metric_or_fact,
-                        _dump_json(observation.value),
-                        observation.source,
-                        observation.target,
-                        _dump_datetime(observation.observed_at),
-                    ),
-                )
+                self._insert_observation(connection, observation)
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
 
@@ -135,29 +156,7 @@ class SQLiteRepository:
         connection = self._require_open()
         try:
             with connection:
-                connection.execute(
-                    """
-                    INSERT INTO findings (
-                        id, inspection_id, severity, status, claim,
-                        evidence_json, impact, recommendation,
-                        unknowns_json, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        finding.id,
-                        finding.inspection_id,
-                        finding.severity.value,
-                        finding.status.value,
-                        finding.claim,
-                        _dump_json(
-                            [evidence.model_dump(mode="json") for evidence in finding.evidence]
-                        ),
-                        finding.impact,
-                        finding.recommendation,
-                        _dump_json(finding.unknowns),
-                        _dump_datetime(finding.created_at),
-                    ),
-                )
+                self._insert_finding(connection, finding)
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
 
@@ -194,6 +193,50 @@ class SQLiteRepository:
             observations=[self._row_to_observation(row) for row in observation_rows],
             findings=[self._row_to_finding(row) for row in finding_rows],
         )
+
+    def save_tool_invocation(self, invocation: ToolInvocation) -> None:
+        """保存已脱敏的工具调用审计。"""
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO tool_invocations (
+                        id, inspection_id, tool_name, target, parameters_json,
+                        status, observation_count, error_code, error_message,
+                        started_at, finished_at, duration_ms
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        invocation.id,
+                        invocation.inspection_id,
+                        invocation.tool_name.value,
+                        invocation.target,
+                        _dump_json(invocation.parameters),
+                        invocation.status.value,
+                        invocation.observation_count,
+                        invocation.error_code,
+                        invocation.error_message,
+                        _dump_datetime(invocation.started_at),
+                        _dump_datetime(invocation.finished_at),
+                        invocation.duration_ms,
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_tool_invocations(self, inspection_id: str) -> list[ToolInvocation]:
+        """返回指定巡检的工具调用审计。"""
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT * FROM tool_invocations
+            WHERE inspection_id = ?
+            ORDER BY started_at, id
+            """,
+            (inspection_id,),
+        ).fetchall()
+        return [self._row_to_tool_invocation(row) for row in rows]
 
     def save_incident(self, incident: Incident) -> None:
         connection = self._require_open()
@@ -323,6 +366,104 @@ class SQLiteRepository:
         return self._connection
 
     @staticmethod
+    def _invalid_inspection_transition() -> StorageError:
+        return StorageError(
+            code="storage.invalid_inspection_transition",
+            message="巡检状态转换无效",
+        )
+
+    @classmethod
+    def _update_running_inspection(
+        cls,
+        connection: sqlite3.Connection,
+        inspection: Inspection,
+    ) -> None:
+        cursor = connection.execute(
+            """
+            UPDATE inspections SET
+                question = ?, scope_json = ?, status = ?, summary = ?,
+                started_at = ?, finished_at = ?
+            WHERE id = ? AND status = 'running'
+            """,
+            (
+                inspection.question,
+                _dump_json(inspection.scope),
+                inspection.status.value,
+                inspection.summary,
+                _dump_datetime(inspection.started_at),
+                _dump_datetime(inspection.finished_at),
+                inspection.id,
+            ),
+        )
+        if cursor.rowcount == 0:
+            raise cls._invalid_inspection_transition()
+
+    @staticmethod
+    def _validate_children(
+        inspection: Inspection,
+        observations: list[Observation],
+        findings: list[Finding],
+    ) -> None:
+        invalid_observation = any(item.inspection_id != inspection.id for item in observations)
+        invalid_finding = any(item.inspection_id != inspection.id for item in findings)
+        if invalid_observation or invalid_finding:
+            raise StorageError(
+                code="storage.invalid_inspection_child",
+                message="巡检子记录引用了不同的巡检 ID",
+            )
+
+    @staticmethod
+    def _insert_observation(
+        connection: sqlite3.Connection,
+        observation: Observation,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO observations (
+                id, inspection_id, component, metric_or_fact,
+                value_json, source, target, observed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                observation.id,
+                observation.inspection_id,
+                observation.component,
+                observation.metric_or_fact,
+                _dump_json(observation.value),
+                observation.source,
+                observation.target,
+                _dump_datetime(observation.observed_at),
+            ),
+        )
+
+    @staticmethod
+    def _insert_finding(
+        connection: sqlite3.Connection,
+        finding: Finding,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO findings (
+                id, inspection_id, severity, status, claim,
+                evidence_json, impact, recommendation,
+                unknowns_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                finding.id,
+                finding.inspection_id,
+                finding.severity.value,
+                finding.status.value,
+                finding.claim,
+                _dump_json([evidence.model_dump(mode="json") for evidence in finding.evidence]),
+                finding.impact,
+                finding.recommendation,
+                _dump_json(finding.unknowns),
+                _dump_datetime(finding.created_at),
+            ),
+        )
+
+    @staticmethod
     def _integrity_error(error: sqlite3.IntegrityError) -> StorageError:
         message = str(error).lower()
         if "unique constraint failed" in message:
@@ -443,4 +584,21 @@ class SQLiteRepository:
             approved_at=_load_datetime(row["approved_at"]),
             executed_at=_load_datetime(row["executed_at"]),
             verified_at=_load_datetime(row["verified_at"]),
+        )
+
+    @staticmethod
+    def _row_to_tool_invocation(row: sqlite3.Row) -> ToolInvocation:
+        return ToolInvocation(
+            id=row["id"],
+            inspection_id=row["inspection_id"],
+            tool_name=row["tool_name"],
+            target=row["target"],
+            parameters=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["parameters_json"])),
+            status=row["status"],
+            observation_count=row["observation_count"],
+            error_code=row["error_code"],
+            error_message=row["error_message"],
+            started_at=_load_required_datetime(row["started_at"]),
+            finished_at=_load_required_datetime(row["finished_at"]),
+            duration_ms=row["duration_ms"],
         )

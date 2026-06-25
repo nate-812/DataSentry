@@ -3,7 +3,14 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from datasentry.domain import Finding, Incident, Inspection, Observation, Operation
+from datasentry.domain import (
+    Finding,
+    Incident,
+    Inspection,
+    Observation,
+    Operation,
+    ToolInvocation,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +21,20 @@ class InspectionAggregate:
 
 
 class Repository(Protocol):
+    def start_inspection(self, inspection: Inspection) -> None:
+        raise NotImplementedError
+
+    def complete_inspection(
+        self,
+        inspection: Inspection,
+        observations: list[Observation],
+        findings: list[Finding],
+    ) -> InspectionAggregate:
+        raise NotImplementedError
+
+    def fail_inspection(self, inspection: Inspection) -> None:
+        raise NotImplementedError
+
     def save_inspection(self, inspection: Inspection) -> None:
         raise NotImplementedError
 
@@ -24,6 +45,12 @@ class Repository(Protocol):
         raise NotImplementedError
 
     def get_inspection(self, inspection_id: str) -> InspectionAggregate:
+        raise NotImplementedError
+
+    def save_tool_invocation(self, invocation: ToolInvocation) -> None:
+        raise NotImplementedError
+
+    def list_tool_invocations(self, inspection_id: str) -> list[ToolInvocation]:
         raise NotImplementedError
 
     def save_incident(self, incident: Incident) -> None:
