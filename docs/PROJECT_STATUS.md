@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M1 知识驱动诊断已在功能分支完成，等待集成 |
-| 当前阶段 | M1：知识驱动诊断 |
-| 当前工作 | 知识索引、路由、血缘、确定性规则和模拟诊断 CLI 已完成并通过本地验证 |
-| 下一里程碑 | 集成 M1 后创建 M2 真实只读工具详细实施计划 |
+| 总体状态 | M1 已合并到 `main`；M2 真实只读工具详细实施计划已起草 |
+| 当前阶段 | M2：真实只读工具规划 |
+| 当前工作 | 已完成 M2 范围、工具契约、安全边界、测试矩阵和分阶段实施步骤设计，暂未编码 |
+| 下一里程碑 | 评审 M2 实施计划后，在独立功能分支开始工具安全基础与 Inspection 原子生命周期实现 |
 | 生产权限 | 尚未接入生产服务器；只读工具和写操作均未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -34,12 +34,13 @@
 
 ## 正在进行
 
-- M1 功能分支等待最终集成与 GitHub CI 验证。
+- 评审 M2 真实只读工具详细实施计划。
 
 ## 下一步
 
-1. 集成 `feat/m1-knowledge-diagnosis`。
-2. 创建 M2 真实只读工具详细实施计划。
+1. 评审并确认 M2 真实只读工具详细实施计划。
+2. 创建 `feat/m2-real-readonly-tools` 功能分支。
+3. 先实现 Inspection 原子生命周期、工具审计、目标配置和统一脱敏，再按 Flink、API、主机、Kafka、Doris、Redis/MySQL、有限日志的顺序接入。
 
 ## 阻塞与风险
 
@@ -74,8 +75,8 @@
 |---|---|---|
 | 总体设计 | 已完成 | 架构、边界、安全模型和路线获得确认 |
 | M0 工程基础 | 已完成 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
-| M1 知识驱动诊断 | 功能分支已完成，等待集成 | 知识路由、血缘模型和确定性规则 |
-| M2 真实只读工具 | 未开始 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
+| M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
+| M2 真实只读工具 | 详细计划已起草，等待评审 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 未开始 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
@@ -87,6 +88,7 @@
 - [总体架构与开发路线](superpowers/specs/2026-06-25-datasentry-overall-architecture-design.md)
 - [M0 工程基础实施计划](superpowers/plans/2026-06-25-m0-engineering-foundation.md)
 - [M1 知识驱动诊断实施计划](superpowers/plans/2026-06-25-m1-knowledge-driven-diagnosis.md)
+- [M2 真实只读工具实施计划](superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
 - [工程协作规则](../AGENTS.md)
@@ -109,3 +111,5 @@
 - 起草 M1 知识驱动诊断详细实施计划，明确知识索引解析、确定性路由、显式血缘、规则引擎、模拟诊断 CLI、测试和九个提交检查点。
 - 在 `feat/m1-knowledge-diagnosis` 完成 M1：知识索引、问题路由、显式血缘、四条确定性规则、诊断编排、模拟 Observation fixtures 和诊断 CLI。
 - M1 保持本地模拟边界，未接入生产服务器、LLM、FastAPI、Web 或任何写操作。
+- M1 已通过 Pull Request #1 合并到 `main`，本地 `main` 与 `origin/main` 同步。
+- 起草 M2 真实只读工具详细实施计划，明确 Inspection 原子生命周期、工具审计、目标与秘密分离、统一脱敏、固定 HTTP/SSH/数据库/Redis 工具、失败隔离、契约测试和生产只读影子验收。
