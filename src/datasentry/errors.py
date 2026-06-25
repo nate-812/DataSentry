@@ -45,3 +45,7 @@ class KnowledgeError(DataSentryError):
 
 class LineageError(DataSentryError):
     """血缘目录或遍历失败时抛出。"""
+
+
+class DiagnosisError(DataSentryError):
+    """诊断输入或确定性编排失败时抛出。"""

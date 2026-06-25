@@ -1,0 +1,15 @@
+[
+  {
+    "inspection_id": "fixture",
+    "component": "flink",
+    "metric_or_fact": "configuration_resolution",
+    "value": {
+      "key": "WHALE_THRESHOLD",
+      "expected_source": "mysql",
+      "effective_source": "default"
+    },
+    "source": "simulation_fixture",
+    "target": "streamlake-whale-cep",
+    "observed_at": "2026-06-25T12:00:00Z"
+  }
+]
