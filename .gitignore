@@ -33,3 +33,6 @@ coverage/
 # IDE files
 .idea/
 .vscode/
+
+# Local Git worktrees
+.worktrees/
