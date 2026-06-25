@@ -1,0 +1,1 @@
+"""DataSentry command-line interface."""
