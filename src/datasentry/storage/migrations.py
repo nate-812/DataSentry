@@ -29,7 +29,8 @@ def current_schema_version(connection: sqlite3.Connection) -> int:
 
 def upgrade_database(database_path: Path) -> int:
     """Apply all pending bundled migrations and return the current version."""
-    with connect(database_path) as connection:
+    connection = connect(database_path)
+    try:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -77,3 +78,5 @@ def upgrade_database(database_path: Path) -> int:
                 ) from error
             applied = version
         return applied
+    finally:
+        connection.close()
