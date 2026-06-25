@@ -37,3 +37,15 @@ class StorageError(DataSentryError):
 
 class NotFoundError(DataSentryError):
     """请求的领域对象不存在时抛出。"""
+
+
+class KnowledgeError(DataSentryError):
+    """知识加载、校验或路由失败时抛出。"""
+
+
+class LineageError(DataSentryError):
+    """血缘目录或遍历失败时抛出。"""
+
+
+class DiagnosisError(DataSentryError):
+    """诊断输入或确定性编排失败时抛出。"""

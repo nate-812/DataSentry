@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M0 工程基础已合并到 `main`，尚未推送 GitHub |
-| 当前阶段 | M0：工程规范完善 |
-| 当前工作 | 语言规范调整已合并到本地 `main`，等待推送 |
-| 下一里程碑 | 推送 M0 后启动 M1 知识驱动诊断 |
+| 总体状态 | M1 知识驱动诊断已在功能分支完成，等待集成 |
+| 当前阶段 | M1：知识驱动诊断 |
+| 当前工作 | 知识索引、路由、血缘、确定性规则和模拟诊断 CLI 已完成并通过本地验证 |
+| 下一里程碑 | 集成 M1 后创建 M2 真实只读工具详细实施计划 |
 | 生产权限 | 尚未接入生产服务器；只读工具和写操作均未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -27,15 +27,19 @@
 - 完成 Observation、Evidence、Finding、Incident、Operation 领域模型。
 - 完成 SQLite 迁移、Repository、模拟巡检 CLI 和 GitHub CI。
 - CLI 可创建模拟巡检，并将巡检、观察和结论写入 SQLite 后读回。
+- 完成 `knowledge/INDEX.md` 解析、1～3 份主题知识加载和路径安全校验。
+- 完成数据不更新、组件宕机、延迟/反压和配置问题的确定性路由。
+- 完成 Collector → Kafka → Flink → Doris/Redis/API 的显式血缘与检查路径。
+- 完成首批确定性规则、历史证据隔离、诊断编排和本地模拟诊断 CLI。
 
 ## 正在进行
 
-- 语言规范和现有代码中文化调整已合并到本地 `main`。
+- M1 功能分支等待最终集成与 GitHub CI 验证。
 
 ## 下一步
 
-1. 推送本地 `main` 并确认 GitHub CI。
-2. 创建 M1 详细实施计划。
+1. 集成 `feat/m1-knowledge-diagnosis`。
+2. 创建 M2 真实只读工具详细实施计划。
 
 ## 阻塞与风险
 
@@ -45,10 +49,11 @@
 
 ### 已知风险
 
-- 本地 `main` 尚未推送 GitHub，远端仍缺少 M0 实现和语言规范调整。
+- 尚未现场确认 GitHub CI 对当前 `main` 的最近一次运行结果。
 - 生产连接方式、只读账号和监控组件尚未进入实现阶段。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka Consumer Group 不可见原因、真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
+- Inspection 聚合目前通过多次 Repository 调用写入，缺少跨聚合 Unit of Work；中途存储失败可能留下不完整记录，应在异步 Worker 或真实工具接入前处理。
 
 ## 已确认的关键决策
 
@@ -68,8 +73,8 @@
 | 阶段 | 状态 | 目标 |
 |---|---|---|
 | 总体设计 | 已完成 | 架构、边界、安全模型和路线获得确认 |
-| M0 工程基础 | 已合并本地 `main`，待推送 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
-| M1 知识驱动诊断 | 未开始 | 知识路由、血缘模型和确定性规则 |
+| M0 工程基础 | 已完成 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
+| M1 知识驱动诊断 | 功能分支已完成，等待集成 | 知识路由、血缘模型和确定性规则 |
 | M2 真实只读工具 | 未开始 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 未开始 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
@@ -81,6 +86,7 @@
 
 - [总体架构与开发路线](superpowers/specs/2026-06-25-datasentry-overall-architecture-design.md)
 - [M0 工程基础实施计划](superpowers/plans/2026-06-25-m0-engineering-foundation.md)
+- [M1 知识驱动诊断实施计划](superpowers/plans/2026-06-25-m1-knowledge-driven-diagnosis.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
 - [工程协作规则](../AGENTS.md)
@@ -100,3 +106,6 @@
 - M0 保持本地模拟边界，未接入生产服务器、LLM、FastAPI 或 Web。
 - 确认工程语言边界：所有技术标识符使用英文；注释、用户提示、异常 message 和业务说明使用中文；技术名词保留英文原名。
 - 将语言与命名规则浓缩写入 `AGENTS.md`，并中文化现有 docstring、CLI 帮助、异常 message、业务文本和脱敏提示；机器契约保持英文。
+- 起草 M1 知识驱动诊断详细实施计划，明确知识索引解析、确定性路由、显式血缘、规则引擎、模拟诊断 CLI、测试和九个提交检查点。
+- 在 `feat/m1-knowledge-diagnosis` 完成 M1：知识索引、问题路由、显式血缘、四条确定性规则、诊断编排、模拟 Observation fixtures 和诊断 CLI。
+- M1 保持本地模拟边界，未接入生产服务器、LLM、FastAPI、Web 或任何写操作。

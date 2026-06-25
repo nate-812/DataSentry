@@ -1,0 +1,31 @@
+[
+  {
+    "inspection_id": "fixture",
+    "component": "kafka",
+    "metric_or_fact": "topic_advancing",
+    "value": true,
+    "source": "simulation_fixture",
+    "target": "binance.trade.raw",
+    "observed_at": "2026-06-25T12:00:00Z"
+  },
+  {
+    "inspection_id": "fixture",
+    "component": "flink",
+    "metric_or_fact": "kline_job_state",
+    "value": {
+      "state": "MISSING"
+    },
+    "source": "simulation_fixture",
+    "target": "streamlake-kline-aggregation",
+    "observed_at": "2026-06-25T12:00:00Z"
+  },
+  {
+    "inspection_id": "fixture",
+    "component": "doris",
+    "metric_or_fact": "kline_freshness_seconds",
+    "value": 900,
+    "source": "simulation_fixture",
+    "target": "kline_1min",
+    "observed_at": "2026-06-25T12:00:00Z"
+  }
+]

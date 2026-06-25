@@ -1,0 +1,20 @@
+[
+  {
+    "inspection_id": "fixture",
+    "component": "flink",
+    "metric_or_fact": "backpressure_level",
+    "value": "high",
+    "source": "simulation_fixture",
+    "target": "streamlake-kline-aggregation",
+    "observed_at": "2026-06-25T12:00:00Z"
+  },
+  {
+    "inspection_id": "fixture",
+    "component": "flink",
+    "metric_or_fact": "checkpoint_consecutive_failures",
+    "value": 3,
+    "source": "simulation_fixture",
+    "target": "streamlake-kline-aggregation",
+    "observed_at": "2026-06-25T12:00:00Z"
+  }
+]

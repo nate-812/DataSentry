@@ -1,0 +1,11 @@
+[
+  {
+    "inspection_id": "fixture",
+    "component": "kafka",
+    "metric_or_fact": "topic_advancing",
+    "value": true,
+    "source": "simulation_fixture",
+    "target": "binance.trade.raw",
+    "observed_at": "2026-06-25T12:00:00Z"
+  }
+]

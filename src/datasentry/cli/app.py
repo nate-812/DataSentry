@@ -2,16 +2,26 @@
 
 import json
 from collections.abc import Callable
+from json import JSONDecodeError
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from pydantic import TypeAdapter, ValidationError
 from typer import rich_utils
 from typer._click.core import Context
 from typer._click.formatting import HelpFormatter
 from typer.core import TyperCommand, TyperGroup, TyperOption
 
 from datasentry.config import Settings
+from datasentry.diagnosis import (
+    ComponentDownRule,
+    ConfigurationMismatchRule,
+    DiagnosisResult,
+    DiagnosisService,
+    FlinkBackpressureRule,
+    KlineStalledAtFlinkRule,
+)
 from datasentry.domain import (
     Evidence,
     EvidenceStatus,
@@ -22,7 +32,12 @@ from datasentry.domain import (
     Severity,
 )
 from datasentry.domain.common import utc_now
-from datasentry.errors import DataSentryError
+from datasentry.errors import DataSentryError, DiagnosisError
+from datasentry.knowledge import (
+    KnowledgeIndex,
+    KnowledgeRouter,
+    build_streamlake_lineage,
+)
 from datasentry.logging import configure_logging, get_logger
 from datasentry.storage import InspectionAggregate, SQLiteRepository, upgrade_database
 
@@ -126,6 +141,29 @@ DatabasePathOption = Annotated[
         help="SQLite 数据库路径，默认使用 DATASENTRY_DATABASE_PATH。",
     ),
 ]
+ObservationsFileOption = Annotated[
+    Path,
+    typer.Option(
+        "--observations-file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="本地模拟 Observation JSON 文件。",
+    ),
+]
+KnowledgeRootOption = Annotated[
+    Path,
+    typer.Option(
+        "--knowledge-root",
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="知识库根目录，目录内必须包含 INDEX.md。",
+    ),
+]
+
+OBSERVATION_LIST_ADAPTER = TypeAdapter(list[Observation])
 
 
 def _database_path(value: Path | None) -> Path:
@@ -154,6 +192,28 @@ def _aggregate_payload(aggregate: InspectionAggregate) -> dict[str, object]:
         ],
         "findings": [finding.model_dump(mode="json") for finding in aggregate.findings],
     }
+
+
+def _diagnosis_payload(result: DiagnosisResult) -> dict[str, object]:
+    return {
+        "route": result.route.model_dump(mode="json"),
+        "knowledge": [item.model_dump(mode="json") for item in result.knowledge],
+        "lineage_checkpoints": [
+            item.model_dump(mode="json") for item in result.lineage_checkpoints
+        ],
+        "aggregate": _aggregate_payload(result.aggregate),
+    }
+
+
+def _load_observations(path: Path) -> list[Observation]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return OBSERVATION_LIST_ADAPTER.validate_python(value)
+    except (OSError, JSONDecodeError, ValidationError) as error:
+        raise DiagnosisError(
+            code="diagnosis.invalid_observations",
+            message="模拟 Observation 文件无效",
+        ) from error
 
 
 def _run_json(action: Callable[[], object]) -> None:
@@ -261,6 +321,41 @@ def inspection_show(
             return _aggregate_payload(repository.get_inspection(inspection_id))
 
     _run_json(show)
+
+
+@inspection_app.command("diagnose", cls=ChineseTyperCommand)
+def inspection_diagnose(
+    question: Annotated[
+        str,
+        typer.Option("--question", help="需要执行知识驱动诊断的问题。"),
+    ],
+    observations_file: ObservationsFileOption,
+    knowledge_root: KnowledgeRootOption,
+    database_path: DatabasePathOption = None,
+) -> None:
+    """使用本地模拟 Observation 执行 M1 知识驱动诊断。"""
+    path = _database_path(database_path)
+
+    def diagnose() -> dict[str, object]:
+        knowledge_index = KnowledgeIndex.load(knowledge_root)
+        observations = _load_observations(observations_file)
+        with SQLiteRepository(path) as repository:
+            service = DiagnosisService(
+                repository=repository,
+                knowledge_index=knowledge_index,
+                router=KnowledgeRouter(knowledge_index),
+                lineage_graph=build_streamlake_lineage(),
+                rules=(
+                    KlineStalledAtFlinkRule(),
+                    ComponentDownRule(),
+                    FlinkBackpressureRule(),
+                    ConfigurationMismatchRule(),
+                ),
+            )
+            result = service.diagnose(question, observations)
+            return _diagnosis_payload(result)
+
+    _run_json(diagnose)
 
 
 def main() -> None:
