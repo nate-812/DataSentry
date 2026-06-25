@@ -1,4 +1,4 @@
-"""Evidence and diagnostic finding models."""
+"""证据与诊断结论模型。"""
 
 from datetime import datetime
 

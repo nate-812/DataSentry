@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "datasentry-agent"
 version = "0.1.0"
-description = "Evidence-driven operations agent for StreamLake"
+description = "面向 StreamLake 的证据驱动运维 Agent"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
@@ -55,6 +55,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+allowed-confusables = ["，", "："]
 
 [tool.mypy]
 python_version = "3.12"

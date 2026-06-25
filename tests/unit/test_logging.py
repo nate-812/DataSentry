@@ -18,13 +18,13 @@ def test_redact_sensitive_values_recursively() -> None:
     }
 
     assert redact_sensitive_values(event) == {
-        "token": "[REDACTED]",
+        "token": "[已脱敏]",
         "nested": {
-            "authorization": "[REDACTED]",
+            "authorization": "[已脱敏]",
             "component": "flink",
         },
-        "items": [{"password": "[REDACTED]"}],
-        "tuple": ({"api_key": "[REDACTED]"}, "visible"),
+        "items": [{"password": "[已脱敏]"}],
+        "tuple": ({"api_key": "[已脱敏]"}, "visible"),
     }
 
 
@@ -44,7 +44,7 @@ def test_configure_logging_emits_redacted_json(
     assert payload["event"] == "inspection.created"
     assert payload["level"] == "info"
     assert payload["component"] == "datasentry"
-    assert payload["token"] == "[REDACTED]"
+    assert payload["token"] == "[已脱敏]"
     assert "timestamp" in payload
 
     logging.shutdown()

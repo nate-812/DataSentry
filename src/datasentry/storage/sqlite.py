@@ -1,4 +1,4 @@
-"""SQLite implementation of the DataSentry repository."""
+"""DataSentry Repository 的 SQLite 实现。"""
 
 import json
 import sqlite3
@@ -57,13 +57,13 @@ def _load_required_datetime(value: str | None) -> datetime:
     if loaded is None:
         raise StorageError(
             code="storage.invalid_data",
-            message="Stored datetime is missing",
+            message="数据库中的时间字段缺失",
         )
     return loaded
 
 
 class SQLiteRepository:
-    """Persist immutable domain snapshots in a local SQLite database."""
+    """将不可变领域快照持久化到本地 SQLite。"""
 
     def __init__(self, database_path: Path) -> None:
         upgrade_database(database_path)
@@ -170,7 +170,7 @@ class SQLiteRepository:
         if inspection_row is None:
             raise NotFoundError(
                 code="storage.inspection_not_found",
-                message="Inspection was not found",
+                message="未找到指定巡检记录",
                 details={"inspection_id": inspection_id},
             )
         observation_rows = connection.execute(
@@ -236,7 +236,7 @@ class SQLiteRepository:
         if cursor.rowcount == 0:
             raise NotFoundError(
                 code="storage.incident_not_found",
-                message="Incident was not found",
+                message="未找到指定 Incident",
                 details={"incident_id": incident.id},
             )
 
@@ -249,7 +249,7 @@ class SQLiteRepository:
         if row is None:
             raise NotFoundError(
                 code="storage.incident_not_found",
-                message="Incident was not found",
+                message="未找到指定 Incident",
                 details={"incident_id": incident_id},
             )
         return self._row_to_incident(row)
@@ -291,7 +291,7 @@ class SQLiteRepository:
         if cursor.rowcount == 0:
             raise NotFoundError(
                 code="storage.operation_not_found",
-                message="Operation was not found",
+                message="未找到指定 Operation",
                 details={"operation_id": operation.id},
             )
 
@@ -304,7 +304,7 @@ class SQLiteRepository:
         if row is None:
             raise NotFoundError(
                 code="storage.operation_not_found",
-                message="Operation was not found",
+                message="未找到指定 Operation",
                 details={"operation_id": operation_id},
             )
         return self._row_to_operation(row)
@@ -318,7 +318,7 @@ class SQLiteRepository:
         if self._closed:
             raise StorageError(
                 code="storage.closed",
-                message="Repository is closed",
+                message="Repository 已关闭",
             )
         return self._connection
 
@@ -327,10 +327,10 @@ class SQLiteRepository:
         message = str(error).lower()
         if "unique constraint failed" in message:
             code = "storage.conflict"
-            safe_message = "A record with the same identifier already exists"
+            safe_message = "已存在相同 ID 的记录"
         else:
             code = "storage.constraint"
-            safe_message = "A storage constraint was violated"
+            safe_message = "数据违反存储约束"
         return StorageError(code=code, message=safe_message)
 
     @staticmethod

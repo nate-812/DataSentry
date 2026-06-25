@@ -1,4 +1,4 @@
-"""Versioned SQLite schema migrations bundled with the package."""
+"""随 Python 包分发的版本化 SQLite Schema 迁移。"""
 
 import sqlite3
 from importlib import resources
@@ -8,7 +8,7 @@ from datasentry.errors import StorageError
 
 
 def connect(database_path: Path) -> sqlite3.Connection:
-    """Create a configured SQLite connection."""
+    """创建已完成基础配置的 SQLite 连接。"""
     database_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(database_path)
     connection.row_factory = sqlite3.Row
@@ -18,7 +18,7 @@ def connect(database_path: Path) -> sqlite3.Connection:
 
 
 def current_schema_version(connection: sqlite3.Connection) -> int:
-    """Return the latest applied migration version."""
+    """返回当前已应用的最新迁移版本。"""
     row = connection.execute(
         "SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations"
     ).fetchone()
@@ -28,7 +28,7 @@ def current_schema_version(connection: sqlite3.Connection) -> int:
 
 
 def upgrade_database(database_path: Path) -> int:
-    """Apply all pending bundled migrations and return the current version."""
+    """应用所有待执行迁移并返回当前 Schema 版本。"""
     connection = connect(database_path)
     try:
         connection.execute(
@@ -70,7 +70,7 @@ def upgrade_database(database_path: Path) -> int:
                     connection.rollback()
                 raise StorageError(
                     code="storage.migration_failed",
-                    message="Database migration failed",
+                    message="数据库迁移失败",
                     details={
                         "database_path": str(database_path),
                         "version": version,

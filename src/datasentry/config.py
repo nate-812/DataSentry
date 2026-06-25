@@ -1,4 +1,4 @@
-"""Application configuration loaded from safe local defaults and environment variables."""
+"""从安全的本地默认值和环境变量加载应用配置。"""
 
 from pathlib import Path
 from typing import Literal
@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """DataSentry runtime settings."""
+    """DataSentry 运行时配置。"""
 
     model_config = SettingsConfigDict(
         env_prefix="DATASENTRY_",

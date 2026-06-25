@@ -1,4 +1,4 @@
-"""Storage abstraction used by application services."""
+"""应用 Service 使用的存储抽象。"""
 
 from dataclasses import dataclass
 from typing import Protocol

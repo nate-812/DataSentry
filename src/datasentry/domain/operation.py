@@ -1,4 +1,4 @@
-"""Controlled operation request and outcome model."""
+"""受控操作请求与执行结果模型。"""
 
 from datetime import datetime
 from typing import Self
@@ -48,9 +48,9 @@ class Operation(DomainModel):
     @model_validator(mode="after")
     def validate_operation(self) -> Self:
         if self.risk is OperationRisk.FORBIDDEN and self.status in ACTIVE_OR_SUCCESSFUL_STATUSES:
-            raise ValueError("forbidden operation cannot be approved or executed")
+            raise ValueError("禁止操作不能进入批准或执行状态")
         if self.approved_at is not None and self.approver is None:
-            raise ValueError("approved_at requires approver")
+            raise ValueError("存在 approved_at 时必须提供 approver")
 
         times = [
             value
@@ -63,5 +63,5 @@ class Operation(DomainModel):
             if value is not None
         ]
         if times != sorted(times):
-            raise ValueError("operation timestamps must be chronological")
+            raise ValueError("操作时间必须按先后顺序排列")
         return self

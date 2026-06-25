@@ -7,7 +7,7 @@ from datasentry.domain import Inspection, InspectionStatus, Observation
 
 
 def test_completed_inspection_requires_finished_at(observed_at: datetime) -> None:
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="已完成的巡检必须包含 finished_at"):
         Inspection(
             id="11111111-1111-4111-8111-111111111111",
             question="M0 inspection",

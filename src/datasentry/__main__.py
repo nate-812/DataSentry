@@ -1,4 +1,4 @@
-"""Run DataSentry as a Python module."""
+"""以 Python 模块方式运行 DataSentry。"""
 
 from datasentry.cli.app import main
 

@@ -1,4 +1,4 @@
-"""Incident lifecycle snapshot model."""
+"""Incident 生命周期快照模型。"""
 
 from datetime import datetime
 from typing import Self
@@ -33,9 +33,9 @@ class Incident(DomainModel):
     @model_validator(mode="after")
     def validate_lifecycle_times(self) -> Self:
         if self.updated_at < self.opened_at:
-            raise ValueError("updated_at must not be before opened_at")
+            raise ValueError("updated_at 不能早于 opened_at")
         if self.status is IncidentStatus.RESOLVED and self.resolved_at is None:
-            raise ValueError("resolved incident requires resolved_at")
+            raise ValueError("已解决的 Incident 必须包含 resolved_at")
         if self.resolved_at is not None and self.resolved_at < self.opened_at:
-            raise ValueError("resolved_at must not be before opened_at")
+            raise ValueError("resolved_at 不能早于 opened_at")
         return self

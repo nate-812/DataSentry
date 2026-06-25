@@ -1,10 +1,10 @@
-"""Stable application errors safe to expose at process boundaries."""
+"""可安全暴露到进程边界的稳定应用异常。"""
 
 from collections.abc import Mapping
 
 
 class DataSentryError(Exception):
-    """Base class for expected DataSentry failures."""
+    """DataSentry 预期异常的基类。"""
 
     def __init__(
         self,
@@ -19,7 +19,7 @@ class DataSentryError(Exception):
         self.details = dict(details or {})
 
     def to_dict(self) -> dict[str, object]:
-        """Return the stable, user-safe error payload."""
+        """返回稳定且可安全展示给用户的异常数据。"""
         return {
             "code": self.code,
             "message": self.message,
@@ -28,12 +28,12 @@ class DataSentryError(Exception):
 
 
 class ConfigurationError(DataSentryError):
-    """Raised when runtime configuration is invalid."""
+    """运行时配置无效时抛出。"""
 
 
 class StorageError(DataSentryError):
-    """Raised when persistence cannot complete safely."""
+    """持久化操作无法安全完成时抛出。"""
 
 
 class NotFoundError(DataSentryError):
-    """Raised when a requested domain object does not exist."""
+    """请求的领域对象不存在时抛出。"""

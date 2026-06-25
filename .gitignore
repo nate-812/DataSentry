@@ -1,13 +1,13 @@
 .DS_Store
 
-# Local secrets and environment overrides
+# 本地秘密和环境覆盖配置
 .env
 .env.*
 !.env.example
 *.pem
 *.key
 
-# Runtime data
+# 运行时数据
 *.db
 *.db-shm
 *.db-wal
@@ -17,7 +17,7 @@
 logs/
 var/
 
-# Language and tool caches
+# 语言与工具缓存
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -31,9 +31,9 @@ build/
 .coverage
 coverage/
 
-# IDE files
+# IDE 文件
 .idea/
 .vscode/
 
-# Local Git worktrees
+# 本地 Git Worktree
 .worktrees/

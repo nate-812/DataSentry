@@ -1,4 +1,4 @@
-"""Public DataSentry domain model API."""
+"""DataSentry 领域模型公共 API。"""
 
 from datasentry.domain.enums import (
     EvidenceStatus,

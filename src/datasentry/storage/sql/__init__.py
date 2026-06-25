@@ -1,1 +1,1 @@
-"""Bundled SQLite migration resources."""
+"""随 Python 包分发的 SQLite 迁移资源。"""

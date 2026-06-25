@@ -1,4 +1,4 @@
-"""Inspection and live observation models."""
+"""巡检与实时观察模型。"""
 
 from datetime import datetime
 from typing import Self
@@ -30,9 +30,9 @@ class Inspection(DomainModel):
     @model_validator(mode="after")
     def validate_completion(self) -> Self:
         if self.status is InspectionStatus.COMPLETED and self.finished_at is None:
-            raise ValueError("completed inspection requires finished_at")
+            raise ValueError("已完成的巡检必须包含 finished_at")
         if self.finished_at is not None and self.finished_at < self.started_at:
-            raise ValueError("finished_at must not be before started_at")
+            raise ValueError("finished_at 不能早于 started_at")
         return self
 
 

@@ -1,4 +1,4 @@
-"""Closed domain vocabularies."""
+"""封闭的领域枚举定义。"""
 
 from enum import StrEnum
 

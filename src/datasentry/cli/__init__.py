@@ -1,1 +1,1 @@
-"""DataSentry command-line interface."""
+"""DataSentry CLI。"""

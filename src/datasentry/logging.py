@@ -1,4 +1,4 @@
-"""Structured logging with recursive secret redaction."""
+"""支持递归脱敏的结构化日志。"""
 
 import logging
 import sys
@@ -27,9 +27,9 @@ def redact_sensitive_values(
     *,
     parent_key: str | None = None,
 ) -> object:
-    """Return a recursively redacted copy of a structured value."""
+    """返回递归脱敏后的结构化数据副本。"""
     if parent_key is not None and parent_key.lower() in SENSITIVE_KEYS:
-        return "[REDACTED]"
+        return "[已脱敏]"
     if isinstance(value, Mapping):
         return {
             str(key): redact_sensitive_values(item, parent_key=str(key))
@@ -50,12 +50,12 @@ def _redact_event(
     del logger, method_name
     redacted = redact_sensitive_values(event_dict)
     if not isinstance(redacted, MutableMapping):
-        raise TypeError("structured log event must be a mutable mapping")
+        raise TypeError("结构化日志事件必须是可变映射")
     return redacted
 
 
 def configure_logging(*, level: str, log_format: Literal["json", "console"]) -> None:
-    """Configure structlog and the standard-library logging bridge."""
+    """配置 structlog 与 Python 标准日志桥接。"""
     renderer: structlog.types.Processor
     if log_format == "json":
         renderer = structlog.processors.JSONRenderer(sort_keys=True)
@@ -83,5 +83,5 @@ def configure_logging(*, level: str, log_format: Literal["json", "console"]) -> 
 
 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
-    """Return a configured structured logger."""
+    """返回已配置的结构化 Logger。"""
     return cast(structlog.stdlib.BoundLogger, structlog.get_logger(name))

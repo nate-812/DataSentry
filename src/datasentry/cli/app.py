@@ -1,11 +1,15 @@
-"""Typer command tree for local development and emergency inspection access."""
+"""用于本地开发和应急巡检的 Typer 命令树。"""
 
 import json
 from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
+from typer import rich_utils
+from typer._click.core import Context
+from typer._click.formatting import HelpFormatter
+from typer.core import TyperCommand, TyperGroup, TyperOption
 
 from datasentry.config import Settings
 from datasentry.domain import (
@@ -22,9 +26,96 @@ from datasentry.errors import DataSentryError
 from datasentry.logging import configure_logging, get_logger
 from datasentry.storage import InspectionAggregate, SQLiteRepository, upgrade_database
 
-app = typer.Typer(no_args_is_help=True)
-db_app = typer.Typer(no_args_is_help=True)
-inspection_app = typer.Typer(no_args_is_help=True)
+
+def _show_help(ctx: Context, parameter: object, value: bool) -> None:
+    """输出帮助页面并退出。"""
+    del parameter
+    if value and not ctx.resilient_parsing:
+        typer.echo(ctx.get_help(), color=ctx.color)
+        ctx.exit()
+
+
+def _get_chinese_help_option(
+    command: TyperCommand | TyperGroup,
+    ctx: Context,
+) -> TyperOption | None:
+    """创建中文说明的帮助选项。"""
+    help_option_names = command.get_help_option_names(ctx)
+    if not help_option_names or not command.add_help_option:
+        return None
+    if command._help_option is None:
+        command._help_option = TyperOption(
+            param_decls=help_option_names,
+            is_flag=True,
+            expose_value=False,
+            is_eager=True,
+            help="显示帮助信息并退出。",
+            callback=_show_help,
+            required=False,
+        )
+    return command._help_option
+
+
+class ChineseTyperCommand(TyperCommand):
+    """使用中文帮助文案的 Typer Command。"""
+
+    def get_help_option(self, ctx: Context) -> TyperOption | None:
+        """返回中文帮助选项。"""
+        return _get_chinese_help_option(self, ctx)
+
+    def format_usage(self, ctx: Context, formatter: HelpFormatter) -> None:
+        """输出中文用法标题。"""
+        pieces = self.collect_usage_pieces(ctx)
+        formatter.write_usage(ctx.command_path, " ".join(pieces), prefix="用法: ")
+
+
+class ChineseTyperGroup(TyperGroup):
+    """使用中文帮助文案的 Typer Group。"""
+
+    def get_help_option(self, ctx: Context) -> TyperOption | None:
+        """返回中文帮助选项。"""
+        return _get_chinese_help_option(self, ctx)
+
+    def format_usage(self, ctx: Context, formatter: HelpFormatter) -> None:
+        """输出中文用法标题。"""
+        pieces = self.collect_usage_pieces(ctx)
+        formatter.write_usage(ctx.command_path, " ".join(pieces), prefix="用法: ")
+
+
+def _configure_chinese_help_text() -> None:
+    """配置 Typer Rich 帮助页面中的中文固定文案。"""
+    translations: dict[str, Any] = {
+        "ARGUMENTS_PANEL_TITLE": "参数",
+        "OPTIONS_PANEL_TITLE": "选项",
+        "COMMANDS_PANEL_TITLE": "命令",
+        "ERRORS_PANEL_TITLE": "错误",
+        "ABORTED_TEXT": "已中止。",
+        "REQUIRED_LONG_STRING": "[必填]",
+        "DEFAULT_STRING": "[默认值：{}]",
+        "ENVVAR_STRING": "[环境变量：{}]",
+        "RICH_HELP": "可运行 [blue]'{command_path} {help_option}'[/] 查看帮助。",
+    }
+    for name, value in translations.items():
+        setattr(rich_utils, name, value)
+
+
+_configure_chinese_help_text()
+
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    cls=ChineseTyperGroup,
+)
+db_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    cls=ChineseTyperGroup,
+)
+inspection_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    cls=ChineseTyperGroup,
+)
 app.add_typer(db_app, name="db")
 app.add_typer(inspection_app, name="inspection")
 
@@ -32,7 +123,7 @@ DatabasePathOption = Annotated[
     Path | None,
     typer.Option(
         "--database-path",
-        help="SQLite database path. Defaults to DATASENTRY_DATABASE_PATH.",
+        help="SQLite 数据库路径，默认使用 DATASENTRY_DATABASE_PATH。",
     ),
 ]
 
@@ -80,16 +171,16 @@ def _run_json(action: Callable[[], object]) -> None:
             {
                 "code": "internal.error",
                 "details": {},
-                "message": "An unexpected error occurred",
+                "message": "发生未预期的内部错误",
             },
             error=True,
         )
         raise typer.Exit(code=1) from error
 
 
-@db_app.command("upgrade")
+@db_app.command("upgrade", cls=ChineseTyperCommand)
 def db_upgrade(database_path: DatabasePathOption = None) -> None:
-    """Apply pending SQLite migrations."""
+    """执行尚未应用的 SQLite 迁移。"""
     path = _database_path(database_path)
     _run_json(
         lambda: {
@@ -99,15 +190,15 @@ def db_upgrade(database_path: DatabasePathOption = None) -> None:
     )
 
 
-@inspection_app.command("simulate")
+@inspection_app.command("simulate", cls=ChineseTyperCommand)
 def inspection_simulate(
     question: Annotated[
         str,
-        typer.Option("--question", help="Question recorded for the simulated inspection."),
+        typer.Option("--question", help="记录到模拟巡检中的问题。"),
     ],
     database_path: DatabasePathOption = None,
 ) -> None:
-    """Create, persist, and read back a local simulated inspection."""
+    """创建模拟巡检，将其持久化后从本地 SQLite 读回。"""
     path = _database_path(database_path)
 
     def simulate() -> dict[str, object]:
@@ -116,7 +207,7 @@ def inspection_simulate(
             question=question,
             scope=["simulation"],
             status=InspectionStatus.COMPLETED,
-            summary="M0 local persistence simulation completed",
+            summary="M0 本地持久化模拟巡检已完成",
             started_at=observed_at,
             finished_at=observed_at,
         )
@@ -130,22 +221,22 @@ def inspection_simulate(
             observed_at=observed_at,
         )
         evidence = Evidence(
-            claim="M0 local simulation completed",
+            claim="M0 本地模拟巡检已完成",
             status=EvidenceStatus.CONFIRMED,
             source="datasentry_cli",
             target="local",
             observed_at=observed_at,
-            summary="The CLI created and read back a local SQLite inspection",
+            summary="CLI 已创建本地 SQLite 巡检记录，并从数据库中成功读回",
         )
         finding = Finding(
             inspection_id=inspection.id,
             severity=Severity.INFO,
             status=EvidenceStatus.CONFIRMED,
-            claim="DataSentry M0 persistence path is operational",
+            claim="DataSentry M0 持久化链路运行正常",
             evidence=[evidence],
-            impact="Local engineering foundation only; no production system was queried",
-            recommendation="Proceed with M1 after M0 review",
-            unknowns=["Production connectivity is outside M0 scope"],
+            impact="仅验证本地工程基础，未查询生产系统",
+            recommendation="M0 评审通过后进入 M1",
+            unknowns=["生产连接能力不在 M0 范围内"],
             created_at=observed_at,
         )
         with SQLiteRepository(path) as repository:
@@ -157,12 +248,12 @@ def inspection_simulate(
     _run_json(simulate)
 
 
-@inspection_app.command("show")
+@inspection_app.command("show", cls=ChineseTyperCommand)
 def inspection_show(
-    inspection_id: Annotated[str, typer.Argument(help="Inspection identifier.")],
+    inspection_id: Annotated[str, typer.Argument(help="巡检记录 ID。")],
     database_path: DatabasePathOption = None,
 ) -> None:
-    """Read a persisted inspection aggregate."""
+    """读取已持久化的巡检聚合记录。"""
     path = _database_path(database_path)
 
     def show() -> dict[str, object]:
@@ -173,7 +264,7 @@ def inspection_show(
 
 
 def main() -> None:
-    """Configure process logging and run the CLI."""
+    """配置进程日志并运行 CLI。"""
     settings = Settings()
     configure_logging(level=settings.log_level, log_format=settings.log_format)
     app()
