@@ -138,4 +138,3 @@ Redis黑名单按交易对`SYMBOL`组织，不是账户级黑名单。
 - Whale/Risk事件使用随机UUID写DUPLICATE KEY表。
 - 故障恢复时，相同业务事件可能生成新UUID并重复落库。
 - 2026-06-25按`alert_id`和`trigger_id`抽样未发现相同ID重复，只能证明相同UUID未重复，不能排除同一业务事件被赋予新UUID。
-
