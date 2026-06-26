@@ -287,3 +287,23 @@ def test_ssh_transport_rejects_stderr(
         )
 
     assert raised.value.code == "tool.upstream_error"
+
+
+def test_ssh_transport_allows_kafka_group_no_active_members_warning(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEST_SSH_PASSWORD", "secret")
+    stdout = (
+        b"GROUP TOPIC PARTITION CURRENT-OFFSET LOG-END-OFFSET LAG CONSUMER-ID HOST CLIENT-ID\n"
+        b"flink-kline-group binance.trade.raw 0 41621 41630 9 - - -\n"
+    )
+    stderr = b"Consumer group 'flink-kline-group' has no active members.\n"
+
+    output = _transport(tmp_path, FakeClient(stdout=stdout, stderr=stderr)).execute(
+        "data1",
+        SshCommandId.KAFKA_GROUP,
+        ("flink-kline-group",),
+    )
+
+    assert "flink-kline-group" in output

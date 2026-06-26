@@ -66,6 +66,24 @@ def _offsets(value: str) -> dict[str, JsonValue]:
     return offsets
 
 
+def _group_lag_values(value: str) -> list[int]:
+    lag_values: list[int] = []
+    lag_index: int | None = None
+    for line in value.splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        if fields[0] == "GROUP":
+            lag_index = fields.index("LAG") if "LAG" in fields else None
+            continue
+        if lag_index is None or lag_index >= len(fields):
+            continue
+        lag = fields[lag_index]
+        if lag.isdigit():
+            lag_values.append(int(lag))
+    return lag_values
+
+
 class _KafkaTool:
     def __init__(
         self,
@@ -251,11 +269,7 @@ class KafkaGroupTool(_KafkaTool):
             )
         ]
         if not not_visible:
-            lag_values = [
-                int(match.group(1))
-                for line in output.splitlines()
-                if (match := re.search(r"\s(\d+)\s*$", line)) is not None
-            ]
+            lag_values = _group_lag_values(output)
             if lag_values:
                 observations.append(
                     self._observation(

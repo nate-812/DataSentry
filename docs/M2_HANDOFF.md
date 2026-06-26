@@ -4,16 +4,15 @@
 
 ## 0. 当前阶段
 
-M2 本地实现已完成全量验证，当前处于云端只读契约探测后段。HTTP、SSH 主机/服务状态、
-Kafka Topic/Offset、Doris、Redis 和 `spring_api` 有限日志已完成首轮现场契约探测；Kline 端到端只读影子巡检
-已完成且 9/9 工具成功；MySQL 可连接 `risk_control`，但缺少预期规则表且仅看到异常表
-`RECOVER_YOUR_DATA_info`。
+M2 本地实现已完成全量验证，当前处于云端只读契约探测收尾。HTTP、SSH 主机/服务状态、
+Kafka Topic/Offset/Consumer Group、Doris、Redis、MySQL 规则表和 `spring_api` 有限日志已完成首轮现场契约探测；
+Kline 端到端只读影子巡检已完成且 9/9 工具成功。MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘。
 下个会话开始现场探测前必须：
 
 1. 进入现有 M2 worktree。
 2. 确认工作树干净。
 3. 确认本机 ignored `config/targets.toml`、known_hosts 和临时测试 SSH key 仍存在。
-4. 优先完成全量验证和提交；MySQL 规则表恢复前不要读取异常表内容。
+4. 优先完成全量验证、提交、远端同步和 PR；不要读取异常表 `RECOVER_YOUR_DATA_info` 内容。
 
 不得在工作树存在未解释修改时开始云端适配，也不得丢弃、重置或覆盖该 worktree。
 
@@ -32,7 +31,7 @@ git diff --check
 
 - 分支：`feat/m2-real-readonly-tools`
 - 当前 `git status --short --branch`：本检查点提交后应为 `## feat/m2-real-readonly-tools`；若仍有修改需先核查来源。
-- 本文件更新前最新提交：`916b6fe docs: 更新M2会话交接状态`。
+- 本文件更新前最新提交：`5590c0e fix: 兼容Doris现场契约并完成Kline影子巡检`。
 - GitHub 同步状态：当前功能分支尚未推送到 GitHub。
 - 本文件更新后应产生新的代码与文档检查点提交；下个会话以 `git log -1 --oneline` 为准。
 - 最近检查点：
@@ -46,8 +45,8 @@ git diff --check
   - `aced0de fix: 兼容SSH主机状态契约`
   - `e76c8d9 docs: 更新HTTP契约探测状态`
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步优先跑全量测试、Ruff、mypy、秘密检查并提交；MySQL 规则表缺失需人工核查或恢复后再继续规则表契约探测。
-- Kafka Consumer Group `flink-kline-group` 当前 `FIND_COORDINATOR` 超时，可先记录为 unknown，不阻塞 Kline 首个场景。
+- 下一步优先跑全量测试、Ruff、mypy、秘密检查并提交，然后拉取远端检查分叉、推送功能分支并创建 PR。
+- Kafka Consumer Group `flink-kline-group` 已恢复，固定 group 工具复测为 `VISIBLE` 并可读取 lag。
 - ignored `config/targets.toml` 当前现场探测值：
   - Doris：`data1:9030`，database `streamlake`，username `root`，无密码。
   - MySQL：`data1:3306`，database `risk_control`，username `root`，password env `DATASENTRY_MYSQL_PASSWORD`。
@@ -75,6 +74,7 @@ git diff --check
   - `437e607 fix: 归一数据库认证失败错误`
   - `1edb57e docs: 更新M2数据库与日志探测状态`
   - `916b6fe docs: 更新M2会话交接状态`
+  - `5590c0e fix: 兼容Doris现场契约并完成Kline影子巡检`
 
 不要删除、重建或覆盖该 worktree。下个会话若看到未解释改动，先停止并确认来源。
 
@@ -139,8 +139,8 @@ git diff --check
 
 最近结果：
 
-- 178 个测试通过。
-- 覆盖率 90.05%。
+- 182 个测试通过。
+- 覆盖率 90.17%。
 - Ruff 通过。
 - mypy strict 通过。
 - `git diff --check` 通过。
@@ -148,6 +148,7 @@ git diff --check
 - 已执行固定 SSH 白名单命令探测主机资源、时间同步、服务进程指纹和 Kafka Topic/Offset。
 - 已按用户确认用临时测试密码做数据库/Redis 只读契约探测；密码只做进程内注入，未写入文件、未打印、未提交。
 - 已执行 Kline 端到端只读影子巡检，9 个工具调用全部成功并持久化。
+- 已执行 Kafka Consumer Group 和 MySQL 规则表固定工具复测。
 - 尚未读取或保存任何生产秘密。
 
 ## 3.1 云端只读契约探测进度
@@ -194,7 +195,7 @@ git diff --check
   - 新鲜度比较应使用数据库会话 `NOW()`，不能用 `UTC_TIMESTAMP()` 与本地业务时间列直接比较。
   - `whale_alert` 时间字段为 `alert_time`，不是 `event_time`。
   - `ai_diagnosis` 时间字段为 `create_time`，不是 `created_at`。
-- MySQL 使用 root 测试密码不指定库可连接；`SHOW DATABASES` 可见 `risk_control`，但 `risk_control` 中没有 `risk_rules` 或 `whale_thresholds`，只看到 `RECOVER_YOUR_DATA_info`，未读取该表内容。
+- MySQL 使用 root 测试密码可连接 `risk_control`；用户手工补回 `risk_rules` 和 `whale_thresholds` 后，固定样本工具复测通过；异常表 `RECOVER_YOUR_DATA_info` 根因仍未确认，未读取该表内容。
 - Redis 使用 ACL 用户 `default` 和临时测试密码后固定样本工具通过，生成 `redis_info`、`redis_dbsize` 和 `redis_key_sample` Observation。
 - `spring_api` 有限日志路径已发现为 `/opt/StreamLake-Binance/api-server/api.log`，固定日志工具通过，最近 30 分钟读取到 2 行。
 
@@ -242,6 +243,19 @@ git diff --check
 - 测试：
   - 增加无密码数据库目标、datetime 传输、未知库、缺失表和 Doris 现场字段名回归测试。
 
+## 3.2.2 本会话 Kafka/MySQL 复测代码改动
+
+- `src/datasentry/tools/transports/ssh.py`
+  - Kafka Consumer Group 查询在 stdout 有有效结果且 stderr 仅为 `has no active members` warning 时不再失败。
+- `src/datasentry/tools/adapters/kafka.py`
+  - Consumer Group lag 改为按表头中的 `LAG` 列解析，兼容无 active members 时后续列为 `-` 的输出。
+- `src/datasentry/tools/transports/mysql.py`
+  - `risk_rules.max_single_qty` 和 `whale_thresholds.threshold_quote` 通过 SQL alias 统一为 `threshold`。
+- `src/datasentry/tools/adapters/mysql.py`
+  - MySQL `Decimal` 阈值转换为字符串后进入 Observation，避免数据库原生类型破坏 JSON 契约。
+- 测试：
+  - 增加 Kafka group warning、lag 表头解析、MySQL 现场列名 alias、Decimal 转 JSON 回归测试。
+
 ## 3.3 本会话云端探测事实
 
 所有现场调用均为固定只读 HTTP GET、固定 SSH 白名单命令或固定 Kafka CLI 查询；没有执行启动、停止、重启、
@@ -275,7 +289,7 @@ git diff --check
 未完成：
 
 - MySQL `risk_control.whale_thresholds`、`risk_control.risk_rules` 样本查询：当前表不存在，无法完成。
-- Kafka Consumer Group `flink-kline-group` 查询：当前 `FIND_COORDINATOR` 超时，仍未确认根因。
+- MySQL 异常表 `RECOVER_YOUR_DATA_info` 的来源与业务表消失原因仍未确认。
 
 ## 3.4 本会话继续探测结果
 
@@ -345,6 +359,25 @@ git diff --check
   - `risk_rules` 与 `whale_thresholds` 固定样本查询均返回 1146 表不存在；已归一为 `tool.configuration`。
   - `SHOW TABLES` 仅见 `RECOVER_YOUR_DATA_info`；未读取该表内容。
   - 该状态高度可疑，应优先人工核查实例安全组、MySQL 账户、root 密码、备份和应用配置来源。
+
+## 3.7.1 Kafka Group 与 MySQL 规则表复测
+
+- 用户确认 Kafka 原因：
+  - 当前为不依赖 ZooKeeper 的新版单节点 Kafka。
+  - 内部 Topic 副本配置与单节点部署不匹配。
+  - 最初修改了错误的实际启动配置文件。
+  - 修正后 `__consumer_offsets` 已创建，Consumer Group Coordinator 恢复。
+- 固定 `get_kafka_group(data1, flink-kline-group)` 复测通过：
+  - `consumer_group_visibility = VISIBLE`
+  - `consumer_group_lag` 可读取；现场样本 lag 为几十到百级，随采样时间变化。
+  - Kafka CLI 会在 stderr 输出 `Consumer group 'flink-kline-group' has no active members.`，但 stdout 同时包含有效 lag 表；代码已只对该特定 warning 放行。
+- 用户已手工补回 MySQL `risk_rules` 和 `whale_thresholds`。
+- 固定 `get_mysql_table_sample(mysql, risk_rules)` 复测通过，现场样本行数为 5。
+- 固定 `get_mysql_table_sample(mysql, whale_thresholds)` 复测通过，现场样本行数为 7。
+- 现场列名为：
+  - `risk_rules.max_single_qty`
+  - `whale_thresholds.threshold_quote`
+  - 代码已统一 alias 为 Observation 中的 `threshold`。
 
 ## 3.8 Kline 端到端只读影子巡检结果
 

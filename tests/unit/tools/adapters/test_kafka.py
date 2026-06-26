@@ -41,6 +41,25 @@ class FixtureSshTransport:
         return "broker-ok\n"
 
 
+class VisibleGroupTransport(FixtureSshTransport):
+    def execute(
+        self,
+        target: str,
+        command_id: SshCommandId,
+        arguments: tuple[str, ...] = (),
+    ) -> str:
+        if command_id is SshCommandId.KAFKA_GROUP:
+            return (
+                "GROUP             TOPIC             PARTITION  CURRENT-OFFSET  "
+                "LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID\n"
+                "flink-kline-group binance.trade.raw 0          41621           41630           "
+                "9               -               -               -\n"
+                "flink-kline-group binance.trade.raw 1          41859           41865           "
+                "6               -               -               -\n"
+            )
+        return super().execute(target, command_id, arguments)
+
+
 def _fact(observations: list, metric: str):
     return next(item for item in observations if item.metric_or_fact == metric)
 
@@ -97,6 +116,23 @@ def test_kafka_group_missing_does_not_claim_zero_lag() -> None:
         "state": "NOT_VISIBLE",
     }
     assert all(item.metric_or_fact != "consumer_group_lag" for item in observations)
+
+
+def test_kafka_group_visible_parses_lag_from_table_column() -> None:
+    observations = KafkaGroupTool(
+        VisibleGroupTransport(),
+        clock=lambda: NOW,
+    ).execute(
+        inspection_id="inspection-1",
+        target="data1",
+        arguments={"group": "flink-kline-group"},
+    )
+
+    assert _fact(observations, "consumer_group_visibility").value == {
+        "group": "flink-kline-group",
+        "state": "VISIBLE",
+    }
+    assert _fact(observations, "consumer_group_lag").value == 15
 
 
 def test_kafka_topic_rejects_non_allowlisted_name() -> None:

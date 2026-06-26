@@ -259,7 +259,11 @@ class SshTransport:
                     code="tool.output_limit_exceeded",
                     message="SSH 输出超过上限",
                 )
-            if error_output:
+            if error_output and not (
+                command_id is SshCommandId.KAFKA_GROUP
+                and output
+                and b"has no active members" in error_output
+            ):
                 raise ToolError(
                     code="tool.upstream_error",
                     message="SSH 固定命令返回错误",

@@ -36,9 +36,11 @@ class ReadOnlyQuery(StrEnum):
         "SELECT MAX(create_time) AS latest_event_time, NOW() AS database_now FROM ai_diagnosis"
     )
     MYSQL_WHALE_THRESHOLDS = (
-        "SELECT symbol, threshold FROM whale_thresholds ORDER BY symbol LIMIT %s"
+        "SELECT symbol, threshold_quote AS threshold FROM whale_thresholds ORDER BY symbol LIMIT %s"
     )
-    MYSQL_RISK_RULES = "SELECT symbol, threshold FROM risk_rules ORDER BY symbol LIMIT %s"
+    MYSQL_RISK_RULES = (
+        "SELECT symbol, max_single_qty AS threshold FROM risk_rules ORDER BY symbol LIMIT %s"
+    )
 
 
 class CursorProtocol(Protocol):

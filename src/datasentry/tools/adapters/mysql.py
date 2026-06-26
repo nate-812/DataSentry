@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from datetime import datetime
+from decimal import Decimal
 from typing import Literal, Protocol, cast
 
 from pydantic import BaseModel, Field, JsonValue, ValidationError
@@ -30,6 +31,13 @@ class MySqlReadTransport(Protocol):
 class SampleArguments(BaseModel):
     table: Literal["whale_thresholds", "risk_rules"]
     limit: int = Field(default=20, ge=1, le=100)
+
+
+def _json_row(row: dict[str, object]) -> dict[str, JsonValue]:
+    value: dict[str, JsonValue] = {}
+    for key, item in row.items():
+        value[key] = str(item) if isinstance(item, Decimal) else cast(JsonValue, item)
+    return value
 
 
 class MySqlTableSampleTool:
@@ -63,6 +71,7 @@ class MySqlTableSampleTool:
             TABLE_QUERIES[parsed.table],
             (parsed.limit,),
         )
+        sampled_rows = [_json_row(row) for row in rows[: parsed.limit]]
         return [
             Observation(
                 inspection_id=inspection_id,
@@ -70,7 +79,7 @@ class MySqlTableSampleTool:
                 metric_or_fact="mysql_table_sample",
                 value={
                     "table": parsed.table,
-                    "rows": cast(JsonValue, rows[: parsed.limit]),
+                    "rows": cast(JsonValue, sampled_rows),
                     "limit": parsed.limit,
                 },
                 source="mysql_readonly",

@@ -285,3 +285,8 @@ def test_doris_freshness_queries_compare_against_session_now() -> None:
         assert expected_column in query.value
         assert "NOW() AS database_now" in query.value
         assert "UTC_TIMESTAMP()" not in query.value
+
+
+def test_mysql_rule_sample_queries_alias_live_columns_to_threshold() -> None:
+    assert "max_single_qty AS threshold" in ReadOnlyQuery.MYSQL_RISK_RULES.value
+    assert "threshold_quote AS threshold" in ReadOnlyQuery.MYSQL_WHALE_THRESHOLDS.value
