@@ -4,15 +4,16 @@
 
 ## 0. 当前阶段
 
-M2 本地实现已完成全量验证，当前处于云端只读契约探测中段。HTTP、SSH 主机/服务状态、
-Kafka Topic/Offset、Redis 和 `spring_api` 有限日志已完成首轮现场契约探测；Doris 使用用户临时提供的
-root 测试密码后仍返回 `tool.authentication_failed`；MySQL 可连接 `risk_control`，但缺少预期规则表。
+M2 本地实现已完成全量验证，当前处于云端只读契约探测后段。HTTP、SSH 主机/服务状态、
+Kafka Topic/Offset、Doris、Redis 和 `spring_api` 有限日志已完成首轮现场契约探测；Kline 端到端只读影子巡检
+已完成且 9/9 工具成功；MySQL 可连接 `risk_control`，但缺少预期规则表且仅看到异常表
+`RECOVER_YOUR_DATA_info`。
 下个会话开始现场探测前必须：
 
 1. 进入现有 M2 worktree。
 2. 确认工作树干净。
 3. 确认本机 ignored `config/targets.toml`、known_hosts 和临时测试 SSH key 仍存在。
-4. 继续按本文第 7 节从 Doris/MySQL/Redis/日志逐项执行只读探测，不直接运行完整巡检。
+4. 优先完成全量验证和提交；MySQL 规则表恢复前不要读取异常表内容。
 
 不得在工作树存在未解释修改时开始云端适配，也不得丢弃、重置或覆盖该 worktree。
 
@@ -30,11 +31,12 @@ git diff --check
 当前已知状态：
 
 - 分支：`feat/m2-real-readonly-tools`
-- 当前 `git status --short --branch`：`## feat/m2-real-readonly-tools`，工作树干净。
-- 本文件更新前最新提交：`1edb57e docs: 更新M2数据库与日志探测状态`。
+- 当前 `git status --short --branch`：本检查点提交后应为 `## feat/m2-real-readonly-tools`；若仍有修改需先核查来源。
+- 本文件更新前最新提交：`916b6fe docs: 更新M2会话交接状态`。
 - GitHub 同步状态：当前功能分支尚未推送到 GitHub。
-- 本文件更新后会产生一个新的交接文档提交；下个会话以 `git log -1 --oneline` 为准。
+- 本文件更新后应产生新的代码与文档检查点提交；下个会话以 `git log -1 --oneline` 为准。
 - 最近检查点：
+  - `916b6fe docs: 更新M2会话交接状态`
   - `1edb57e docs: 更新M2数据库与日志探测状态`
   - `437e607 fix: 归一数据库认证失败错误`
   - `fa012ad fix: 归一Redis只读超时错误`
@@ -44,10 +46,10 @@ git diff --check
   - `aced0de fix: 兼容SSH主机状态契约`
   - `e76c8d9 docs: 更新HTTP契约探测状态`
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步不要先跑完整巡检；优先修正 Doris 只读账号授权，并确认 MySQL `risk_control` 中预期业务表是否已丢失或库名是否仍不正确。
+- 下一步优先跑全量测试、Ruff、mypy、秘密检查并提交；MySQL 规则表缺失需人工核查或恢复后再继续规则表契约探测。
 - Kafka Consumer Group `flink-kline-group` 当前 `FIND_COORDINATOR` 超时，可先记录为 unknown，不阻塞 Kline 首个场景。
 - ignored `config/targets.toml` 当前现场探测值：
-  - Doris：`data1:9030`，database `default`，username `root`，password env `DATASENTRY_DORIS_PASSWORD`。
+  - Doris：`data1:9030`，database `streamlake`，username `root`，无密码。
   - MySQL：`data1:3306`，database `risk_control`，username `root`，password env `DATASENTRY_MYSQL_PASSWORD`。
   - Redis：`data1:6379`，DB `0`，username `default`，password env `DATASENTRY_REDIS_PASSWORD`。
   - `spring_api` 日志：file `/opt/StreamLake-Binance/api-server/api.log`。
@@ -72,6 +74,7 @@ git diff --check
   - `fa012ad fix: 归一Redis只读超时错误`
   - `437e607 fix: 归一数据库认证失败错误`
   - `1edb57e docs: 更新M2数据库与日志探测状态`
+  - `916b6fe docs: 更新M2会话交接状态`
 
 不要删除、重建或覆盖该 worktree。下个会话若看到未解释改动，先停止并确认来源。
 
@@ -136,14 +139,15 @@ git diff --check
 
 最近结果：
 
-- 167 个测试通过。
-- 覆盖率 90.13%。
+- 178 个测试通过。
+- 覆盖率 90.05%。
 - Ruff 通过。
 - mypy strict 通过。
 - `git diff --check` 通过。
 - 已执行 Flink REST、Spring API、AI Engine 固定 HTTP GET 只读契约探测。
 - 已执行固定 SSH 白名单命令探测主机资源、时间同步、服务进程指纹和 Kafka Topic/Offset。
 - 已按用户确认用临时测试密码做数据库/Redis 只读契约探测；密码只做进程内注入，未写入文件、未打印、未提交。
+- 已执行 Kline 端到端只读影子巡检，9 个工具调用全部成功并持久化。
 - 尚未读取或保存任何生产秘密。
 
 ## 3.1 云端只读契约探测进度
@@ -153,7 +157,7 @@ git diff --check
   - `hosts.data1.address = "data1"`，用户本机将其映射到当前公网 IP。
   - data1/data2/data3 内网 IP 分别为 `192.168.1.10`、`192.168.1.20`、`192.168.1.30`。
   - HTTP：Flink `http://data1:8081`，Spring API `http://data1:8080`，AI Engine `http://data1:8000`。
-  - Doris：`data1:9030`，当前 root 测试密码仍返回 1045。
+  - Doris：`data1:9030`，当前 ignored 配置使用 `root`、无密码和 `streamlake` 库。
   - MySQL：`data1:3306`，当前 ignored 配置使用 `root` 和 `risk_control`。
   - Redis：`data1:6379`，DB 0，当前 ignored 配置使用 ACL 用户 `default`。
   - SSH：仅可丢弃测试实例临时使用 `root` + `/Users/nate/.ssh/datasentry_m2_disposable`。
@@ -184,14 +188,19 @@ git diff --check
   - Topic 列表和 broker 状态探测通过，可见 `binance.depth.raw`、`binance.trade.raw`、`streamlake.whale.alert`。
   - `binance.trade.raw` Offset 双采样显示正在推进，分区数为 6。
   - `flink-kline-group` Consumer Group 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
-- Doris 使用用户临时提供的 root 测试密码后仍返回 `tool.authentication_failed`，底层 MySQL 协议握手错误码为 1045，尚未取得只读查询结果。
+- Doris 使用 root 无密码连接成功；`SHOW DATABASES` 可见 `streamlake`，`default` 库不存在。
+- Doris `kline_1min`、`whale_alert`、`risk_trigger` 和 `ai_diagnosis` 固定新鲜度查询均通过。
+- Doris 现场契约差异：
+  - 新鲜度比较应使用数据库会话 `NOW()`，不能用 `UTC_TIMESTAMP()` 与本地业务时间列直接比较。
+  - `whale_alert` 时间字段为 `alert_time`，不是 `event_time`。
+  - `ai_diagnosis` 时间字段为 `create_time`，不是 `created_at`。
 - MySQL 使用 root 测试密码不指定库可连接；`SHOW DATABASES` 可见 `risk_control`，但 `risk_control` 中没有 `risk_rules` 或 `whale_thresholds`，只看到 `RECOVER_YOUR_DATA_info`，未读取该表内容。
 - Redis 使用 ACL 用户 `default` 和临时测试密码后固定样本工具通过，生成 `redis_info`、`redis_dbsize` 和 `redis_key_sample` Observation。
 - `spring_api` 有限日志路径已发现为 `/opt/StreamLake-Binance/api-server/api.log`，固定日志工具通过，最近 30 分钟读取到 2 行。
 
 ## 3.2 本会话完成的代码/契约改动
 
-本会话不是只写文档，已经完成以下可验证改动：
+前序会话不是只写文档，已经完成以下可验证改动：
 
 - `src/datasentry/tools/adapters/api.py`
   - Spring `/api/kline/latest` 只读探针允许返回对象或列表。
@@ -217,6 +226,21 @@ git diff --check
 - `24a2c42 fix: 兼容云端只读契约差异`
 - `aced0de fix: 兼容SSH主机状态契约`
 - `5238f47 fix: 支持配置Kafka bootstrap`
+
+## 3.2.1 本会话完成的代码/契约改动
+
+- `src/datasentry/tools/targets.py`
+  - `MySqlTarget.password_env` 改为可选，支持 Doris root 无密码目标；配置秘密分离规则仍保留，设置了 `password_env` 的目标继续从环境变量读取。
+- `src/datasentry/tools/transports/mysql.py`
+  - 无 `password_env` 时使用空密码连接。
+  - 数据库返回行允许保留 `datetime` 等数据库原生类型，由上层 adapter 转换为 Observation JSON 值。
+  - 连接阶段 1049 归一为 `tool.configuration`。
+  - 查询阶段 1054/1146 归一为 `tool.configuration`。
+  - Doris 新鲜度固定查询改用 `NOW()`，并修正 `whale_alert.alert_time`、`ai_diagnosis.create_time` 字段名。
+- `src/datasentry/tools/adapters/doris.py`、`src/datasentry/tools/adapters/mysql.py`
+  - 同步数据库行协议类型，允许 adapter 接收数据库原生类型。
+- 测试：
+  - 增加无密码数据库目标、datetime 传输、未知库、缺失表和 Doris 现场字段名回归测试。
 
 ## 3.3 本会话云端探测事实
 
@@ -250,9 +274,8 @@ git diff --check
 
 未完成：
 
-- Doris `kline_1min` 新鲜度查询。
 - MySQL `risk_control.whale_thresholds`、`risk_control.risk_rules` 样本查询：当前表不存在，无法完成。
-- 完整 `datasentry inspection run` 影子巡检。
+- Kafka Consumer Group `flink-kline-group` 查询：当前 `FIND_COORDINATOR` 超时，仍未确认根因。
 
 ## 3.4 本会话继续探测结果
 
@@ -304,6 +327,59 @@ git diff --check
 - 日志：
   - 只读查找发现 `/opt/StreamLake-Binance/api-server/api.log`。
   - 固定 `get_recent_logs(spring_api)` 工具通过，最近 30 分钟读取到 2 行。
+
+## 3.7 Doris 无密码与 MySQL 异常表复测
+
+- 用户确认 Doris 无密码、MySQL/Redis 测试密码一致，Kafka Consumer Group 原因暂不清楚，先存疑。
+- Doris：
+  - `root` 无密码可连接 `data1:9030`。
+  - `default` 库不存在，底层错误为 1049，已归一为 `tool.configuration`。
+  - `SHOW DATABASES` 可见 `streamlake`，已将 ignored `config/targets.toml` 中 Doris database 改为 `streamlake`。
+  - `kline_1min` 固定新鲜度工具通过，现场样本新鲜度约几十秒。
+  - `whale_alert` 固定查询原字段 `event_time` 不存在，实际字段为 `alert_time`，已修正。
+  - `risk_trigger` 固定新鲜度工具通过。
+  - `ai_diagnosis` 固定查询原字段 `created_at` 不存在，实际字段为 `create_time`，已修正；现场最新时间停留在 2026-05-08，作为事实保留。
+  - Doris `NOW()` 与业务时间列同一会话时区；`UTC_TIMESTAMP()` 会导致本地业务时间被误判为 clock skew，固定查询已改用 `NOW()`。
+- MySQL：
+  - 使用 root 和测试密码连接 `risk_control` 成功。
+  - `risk_rules` 与 `whale_thresholds` 固定样本查询均返回 1146 表不存在；已归一为 `tool.configuration`。
+  - `SHOW TABLES` 仅见 `RECOVER_YOUR_DATA_info`；未读取该表内容。
+  - 该状态高度可疑，应优先人工核查实例安全组、MySQL 账户、root 密码、备份和应用配置来源。
+
+## 3.8 Kline 端到端只读影子巡检结果
+
+执行：
+
+```bash
+/Users/nate/Codex/data-sentry-agent/.venv/bin/datasentry inspection run \
+  --question "为什么K线不更新" \
+  --targets-file config/targets.toml \
+  --knowledge-root knowledge \
+  --database-path var/datasentry-m2-shadow.db
+```
+
+结果：
+
+- Inspection `f8a6243a-1db9-4722-bb48-9beb9958b86d` 为 `completed`。
+- 9 个工具调用全部 `succeeded`：
+  - `get_host_status(data1)`
+  - `get_service_status(data1, collector)`
+  - `get_flink_jobs(flink)`
+  - `get_flink_job(flink, kline)`
+  - `get_flink_checkpoints(flink, kline)`
+  - `get_flink_backpressure(flink, kline)`
+  - `get_kafka_topic(data1, binance.trade.raw)`
+  - `get_doris_table_freshness(doris, kline_1min)`
+  - `get_api_health(spring_api)`
+- 关键 Observation：
+  - Kafka `binance.trade.raw` 正在推进。
+  - Kline Job 为 RUNNING。
+  - Checkpoint 连续失败数为 0。
+  - Backpressure 为 `ok`。
+  - Doris `kline_1min` 新鲜度约 1 分钟。
+  - Spring API `/api/kline/latest` 返回有效空结果 `empty`。
+- 诊断结论已从误导性的“Observation 不足”修正为“K线主链路当前正在推进”。
+- 如果用户仍观察到页面 K 线不更新，下一步应检查 Spring API 查询参数、缓存、前端轮询和页面状态，而不是 Collector → Kafka → Flink → Doris 主链路。
 
 ## 4. 下一会话开始步骤
 

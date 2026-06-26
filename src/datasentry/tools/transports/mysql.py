@@ -5,9 +5,10 @@ from enum import StrEnum
 from typing import Protocol, Self, cast
 
 import pymysql
-from pydantic import JsonValue, TypeAdapter, ValidationError
+from pydantic import TypeAdapter, ValidationError
 from pymysql.cursors import DictCursor
 from pymysql.err import OperationalError as MySqlOperationalError
+from pymysql.err import ProgrammingError as MySqlProgrammingError
 
 from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
@@ -18,25 +19,21 @@ from datasentry.tools.targets import (
     ToolLimits,
 )
 
-ROW_ADAPTER = TypeAdapter(list[dict[str, JsonValue]])
+ROW_ADAPTER = TypeAdapter(list[dict[str, object]])
 
 
 class ReadOnlyQuery(StrEnum):
     DORIS_KLINE_FRESHNESS = (
-        "SELECT MAX(open_time) AS latest_event_time, "
-        "UTC_TIMESTAMP() AS database_now FROM kline_1min"
+        "SELECT MAX(open_time) AS latest_event_time, NOW() AS database_now FROM kline_1min"
     )
     DORIS_WHALE_FRESHNESS = (
-        "SELECT MAX(event_time) AS latest_event_time, "
-        "UTC_TIMESTAMP() AS database_now FROM whale_alert"
+        "SELECT MAX(alert_time) AS latest_event_time, NOW() AS database_now FROM whale_alert"
     )
     DORIS_RISK_FRESHNESS = (
-        "SELECT MAX(trigger_time) AS latest_event_time, "
-        "UTC_TIMESTAMP() AS database_now FROM risk_trigger"
+        "SELECT MAX(trigger_time) AS latest_event_time, NOW() AS database_now FROM risk_trigger"
     )
     DORIS_AI_FRESHNESS = (
-        "SELECT MAX(created_at) AS latest_event_time, "
-        "UTC_TIMESTAMP() AS database_now FROM ai_diagnosis"
+        "SELECT MAX(create_time) AS latest_event_time, NOW() AS database_now FROM ai_diagnosis"
     )
     MYSQL_WHALE_THRESHOLDS = (
         "SELECT symbol, threshold FROM whale_thresholds ORDER BY symbol LIMIT %s"
@@ -103,7 +100,7 @@ class MySqlTransport:
         target: str,
         query: ReadOnlyQuery,
         parameters: tuple[object, ...],
-    ) -> list[dict[str, JsonValue]]:
+    ) -> list[dict[str, object]]:
         configured = self._targets.get(target)
         if configured is None or configured.host not in self._hosts:
             raise ToolError(
@@ -112,13 +109,16 @@ class MySqlTransport:
             )
         statement = query.value
         self.validate_query(statement)
-        try:
-            password = self._secrets.require(configured.password_env)
-        except ConfigurationError as error:
-            raise ToolError(
-                code="tool.configuration",
-                message="数据库秘密配置缺失",
-            ) from error
+        if configured.password_env is None:
+            password = ""
+        else:
+            try:
+                password = self._secrets.require(configured.password_env)
+            except ConfigurationError as error:
+                raise ToolError(
+                    code="tool.configuration",
+                    message="数据库秘密配置缺失",
+                ) from error
         try:
             connection = self._connection_factory(
                 host=self._hosts[configured.host].address,
@@ -138,6 +138,11 @@ class MySqlTransport:
                 raise ToolError(
                     code="tool.authentication_failed",
                     message="数据库认证或授权失败",
+                ) from error
+            if code == 1049:
+                raise ToolError(
+                    code="tool.configuration",
+                    message="数据库名称不存在或不可访问",
                 ) from error
             raise ToolError(
                 code="tool.connection_failed",
@@ -163,6 +168,17 @@ class MySqlTransport:
                     ) from error
         except ToolError:
             raise
+        except (MySqlOperationalError, MySqlProgrammingError) as error:
+            code = error.args[0] if error.args else None
+            if code in {1054, 1146}:
+                raise ToolError(
+                    code="tool.configuration",
+                    message="数据库表或字段不存在",
+                ) from error
+            raise ToolError(
+                code="tool.upstream_error",
+                message="数据库只读查询失败",
+            ) from error
         except Exception as error:
             raise ToolError(
                 code="tool.upstream_error",

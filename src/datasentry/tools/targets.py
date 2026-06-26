@@ -83,7 +83,7 @@ class MySqlTarget(DomainModel):
     port: int = Field(ge=1, le=65_535)
     database: str = Field(min_length=1)
     username: str = Field(min_length=1)
-    password_env: str = Field(pattern=ENVIRONMENT_NAME_PATTERN)
+    password_env: str | None = Field(default=None, pattern=ENVIRONMENT_NAME_PATTERN)
     timezone: str = Field(default="UTC", min_length=1)
 
 

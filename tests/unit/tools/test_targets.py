@@ -148,6 +148,18 @@ def test_secret_resolver_reads_value_without_exposing_it(
     assert EnvironmentSecretResolver().require("TEST_DORIS_PASSWORD") == "secret-value"
 
 
+def test_target_catalog_allows_passwordless_database_target(tmp_path: Path) -> None:
+    content = _valid_targets().replace(
+        'password_env = "TEST_DORIS_PASSWORD"\n',
+        "",
+        1,
+    )
+
+    catalog = TargetCatalog.load(_write_targets(tmp_path, content))
+
+    assert catalog.mysql["doris"].password_env is None
+
+
 def test_target_catalog_reports_missing_alias(tmp_path: Path) -> None:
     catalog = TargetCatalog.load(_write_targets(tmp_path, _valid_targets()))
 

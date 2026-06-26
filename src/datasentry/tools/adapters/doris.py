@@ -25,7 +25,7 @@ class MySqlReadTransport(Protocol):
         target: str,
         query: ReadOnlyQuery,
         parameters: tuple[object, ...],
-    ) -> list[dict[str, JsonValue]]:
+    ) -> list[dict[str, object]]:
         raise NotImplementedError  # pragma: no cover
 
 
