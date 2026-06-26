@@ -7,6 +7,7 @@ from typing import Protocol, Self, cast
 import pymysql
 from pydantic import JsonValue, TypeAdapter, ValidationError
 from pymysql.cursors import DictCursor
+from pymysql.err import OperationalError as MySqlOperationalError
 
 from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
@@ -131,6 +132,18 @@ class MySqlTransport:
                 autocommit=False,
                 cursorclass=DictCursor,
             )
+        except MySqlOperationalError as error:
+            code = error.args[0] if error.args else None
+            if code in {1044, 1045}:
+                raise ToolError(
+                    code="tool.authentication_failed",
+                    message="数据库认证或授权失败",
+                ) from error
+            raise ToolError(
+                code="tool.connection_failed",
+                message="数据库只读连接失败",
+                retryable=True,
+            ) from error
         except Exception as error:
             raise ToolError(
                 code="tool.connection_failed",

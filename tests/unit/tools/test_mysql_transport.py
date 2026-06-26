@@ -1,4 +1,5 @@
 import pytest
+from pymysql.err import OperationalError as MySqlOperationalError
 
 from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
@@ -101,6 +102,36 @@ def test_mysql_transport_reports_missing_secret_as_configuration(
 
     assert raised.value.code == "tool.configuration"
     assert called is False
+
+
+def test_mysql_transport_reports_access_denied_as_authentication_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEST_MYSQL_PASSWORD", "secret")
+
+    def connection_factory(**_: object) -> FakeConnection:
+        raise MySqlOperationalError(1045, "access denied")
+
+    transport = MySqlTransport(
+        hosts={"data1": HostTarget(address="192.0.2.10")},
+        targets={
+            "mysql": MySqlTarget(
+                host="data1",
+                port=3306,
+                database="streamlake",
+                username="readonly",
+                password_env="TEST_MYSQL_PASSWORD",
+            )
+        },
+        limits=ToolLimits(),
+        secrets=EnvironmentSecretResolver(),
+        connection_factory=connection_factory,
+    )
+
+    with pytest.raises(ToolError) as raised:
+        transport.fetch_all("mysql", ReadOnlyQuery.MYSQL_RISK_RULES, (20,))
+
+    assert raised.value.code == "tool.authentication_failed"
 
 
 def test_read_only_query_catalog_rejects_non_read_statement() -> None:

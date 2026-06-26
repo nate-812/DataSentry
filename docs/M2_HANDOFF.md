@@ -5,8 +5,8 @@
 ## 0. 当前阶段
 
 M2 本地实现已完成全量验证，当前处于云端只读契约探测中段。HTTP、SSH 主机/服务状态、
-Kafka Topic/Offset 已完成首轮现场契约探测；Doris/MySQL 使用用户临时提供的测试密码后进入连接阶段，
-但返回 `tool.connection_failed`；Redis 返回 `tool.timeout`；日志已执行固定文件日志命令但当前日志源返回 `tool.upstream_error`。
+Kafka Topic/Offset 已完成首轮现场契约探测；Doris/MySQL 使用用户临时提供的测试密码后返回
+`tool.authentication_failed`；Redis 返回 `tool.timeout`；日志固定文件路径不存在，当前返回 `tool.upstream_error`。
 下个会话开始现场探测前必须：
 
 1. 进入现有 M2 worktree。
@@ -39,7 +39,7 @@ git diff --check
   - `1a5330d feat: 接入真实只读工具与巡检编排`
 - GitHub 同步状态：当前功能分支尚未推送到 GitHub。
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步不要先跑完整巡检；优先确认 Doris/MySQL/Redis 网络访问、只读账号授权和 `spring_api` 日志源路径或 systemd unit。
+- 下一步不要先跑完整巡检；优先修正 Doris/MySQL 只读账号授权、Redis 网络访问和 `spring_api` 日志源路径或 systemd unit。
 - Kafka Consumer Group `flink-kline-group` 当前 `FIND_COORDINATOR` 超时，可先记录为 unknown，不阻塞 Kline 首个场景。
 
 ## 1. 当前工作位置
@@ -169,9 +169,9 @@ git diff --check
   - Topic 列表和 broker 状态探测通过，可见 `binance.depth.raw`、`binance.trade.raw`、`streamlake.whale.alert`。
   - `binance.trade.raw` Offset 双采样显示正在推进，分区数为 6。
   - `flink-kline-group` Consumer Group 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
-- Doris、MySQL 使用用户临时提供的同一测试密码后均返回 `tool.connection_failed`，尚未取得只读查询结果。
-- Redis 使用用户临时提供的同一测试密码后返回 `tool.timeout`，尚未取得 INFO/DBSIZE/SCAN 结果。
-- `spring_api` 有限日志探测已通过固定 `tail` 命令触达远端，但当前配置日志源返回 `tool.upstream_error`，需要确认真实日志路径或改为登记的 systemd unit。
+- Doris、MySQL 使用用户临时提供的同一测试密码后均返回 `tool.authentication_failed`，底层 MySQL 协议握手错误码为 1045，尚未取得只读查询结果。
+- Redis 使用用户临时提供的同一测试密码后返回 `tool.timeout`；本机到 `data1:6379` 的 TCP 连接超时，尚未取得 INFO/DBSIZE/SCAN 结果。
+- `spring_api` 有限日志探测已通过固定 `tail` 命令触达远端；stderr 显示 `/opt/StreamLake-Binance/api-server/logs/app.log` 不存在，需要确认真实日志路径或改为登记的 systemd unit。
 
 ## 3.2 本会话完成的代码/契约改动
 
@@ -259,11 +259,13 @@ git diff --check
 ## 3.5 临时测试密码探测结果
 
 - 按用户提示，将同一临时测试密码仅注入本次 Python 进程的 `DATASENTRY_DORIS_PASSWORD`、`DATASENTRY_MYSQL_PASSWORD` 和 `DATASENTRY_REDIS_PASSWORD`，未写入文件、未提交、未打印。
-- Doris `kline_1min` 固定新鲜度工具返回 `tool.connection_failed`。
-- MySQL `risk_rules` 固定样本工具返回 `tool.connection_failed`。
-- MySQL `whale_thresholds` 固定样本工具返回 `tool.connection_failed`。
+- Doris `kline_1min` 固定新鲜度工具返回 `tool.authentication_failed`。
+- MySQL `risk_rules` 固定样本工具返回 `tool.authentication_failed`。
+- MySQL `whale_thresholds` 固定样本工具返回 `tool.authentication_failed`。
 - Redis `risk:blacklist:*` 固定样本工具返回 `tool.timeout`。
 - 现场 Redis 探测暴露 redis-py 懒连接异常未归一的问题；已补充 `ReadOnlyRedisClient` 命令级异常归一，Redis 超时现在稳定返回 `tool.timeout`，不再冒出 traceback。
+- 现场 MySQL 协议握手诊断显示 Doris/MySQL 均为 `OperationalError` 1045；已补充连接阶段 1044/1045 到 `tool.authentication_failed` 的归一。
+- 日志 stderr 诊断使用同一个固定 `tail` 白名单命令，确认当前配置路径不存在。
 
 ## 4. 下一会话开始步骤
 
