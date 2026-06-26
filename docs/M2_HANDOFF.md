@@ -30,17 +30,27 @@ git diff --check
 当前已知状态：
 
 - 分支：`feat/m2-real-readonly-tools`
-- 本轮交接文档提交：`docs: 更新M2云端探测交接`；实际 hash 以 `git log -1 --oneline` 为准。
-- 最近功能检查点：
+- 当前 `git status --short --branch`：`## feat/m2-real-readonly-tools`，工作树干净。
+- 本文件更新前最新提交：`1edb57e docs: 更新M2数据库与日志探测状态`。
+- GitHub 同步状态：当前功能分支尚未推送到 GitHub。
+- 本文件更新后会产生一个新的交接文档提交；下个会话以 `git log -1 --oneline` 为准。
+- 最近检查点：
+  - `1edb57e docs: 更新M2数据库与日志探测状态`
+  - `437e607 fix: 归一数据库认证失败错误`
+  - `fa012ad fix: 归一Redis只读超时错误`
+  - `ee6222e fix: 正确归类缺失秘密配置`
+  - `a8be87f docs: 更新M2云端探测交接`
   - `5238f47 fix: 支持配置Kafka bootstrap`
   - `aced0de fix: 兼容SSH主机状态契约`
   - `e76c8d9 docs: 更新HTTP契约探测状态`
-  - `24a2c42 fix: 兼容云端只读契约差异`
-  - `1a5330d feat: 接入真实只读工具与巡检编排`
-- GitHub 同步状态：当前功能分支尚未推送到 GitHub。
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
 - 下一步不要先跑完整巡检；优先修正 Doris 只读账号授权，并确认 MySQL `risk_control` 中预期业务表是否已丢失或库名是否仍不正确。
 - Kafka Consumer Group `flink-kline-group` 当前 `FIND_COORDINATOR` 超时，可先记录为 unknown，不阻塞 Kline 首个场景。
+- ignored `config/targets.toml` 当前现场探测值：
+  - Doris：`data1:9030`，database `default`，username `root`，password env `DATASENTRY_DORIS_PASSWORD`。
+  - MySQL：`data1:3306`，database `risk_control`，username `root`，password env `DATASENTRY_MYSQL_PASSWORD`。
+  - Redis：`data1:6379`，DB `0`，username `default`，password env `DATASENTRY_REDIS_PASSWORD`。
+  - `spring_api` 日志：file `/opt/StreamLake-Binance/api-server/api.log`。
 
 ## 1. 当前工作位置
 
@@ -57,8 +67,13 @@ git diff --check
   - `e76c8d9 docs: 更新HTTP契约探测状态`
   - `aced0de fix: 兼容SSH主机状态契约`
   - `5238f47 fix: 支持配置Kafka bootstrap`
+  - `a8be87f docs: 更新M2云端探测交接`
+  - `ee6222e fix: 正确归类缺失秘密配置`
+  - `fa012ad fix: 归一Redis只读超时错误`
+  - `437e607 fix: 归一数据库认证失败错误`
+  - `1edb57e docs: 更新M2数据库与日志探测状态`
 
-`5238f47` 之后本文件会再有一个交接文档提交。不要删除、重建或覆盖该 worktree。
+不要删除、重建或覆盖该 worktree。下个会话若看到未解释改动，先停止并确认来源。
 
 ## 2. 已完成的本地能力
 
@@ -128,7 +143,7 @@ git diff --check
 - `git diff --check` 通过。
 - 已执行 Flink REST、Spring API、AI Engine 固定 HTTP GET 只读契约探测。
 - 已执行固定 SSH 白名单命令探测主机资源、时间同步、服务进程指纹和 Kafka Topic/Offset。
-- 尚未使用数据库或 Redis 凭据。
+- 已按用户确认用临时测试密码做数据库/Redis 只读契约探测；密码只做进程内注入，未写入文件、未打印、未提交。
 - 尚未读取或保存任何生产秘密。
 
 ## 3.1 云端只读契约探测进度
