@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M2 真实只读工具本地实现与自动测试已完成，正在执行云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | Flink REST、Spring API、AI Engine、SSH 主机/服务状态和 Kafka Topic/Offset 现场只读契约已完成首轮探测；Doris/MySQL 使用临时测试密码后返回 `tool.authentication_failed`；Redis 返回 `tool.timeout`；`spring_api` 日志文件路径不存在 |
-| 下一里程碑 | 确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，修正 Doris/MySQL 只读账号授权、Redis 网络访问和 `spring_api` 日志路径或 systemd unit |
+| 当前工作 | Flink REST、Spring API、AI Engine、SSH 主机/服务状态、Kafka Topic/Offset、Redis 和 `spring_api` 有限日志现场只读契约已完成首轮探测；Doris 仍为 `tool.authentication_failed`；MySQL `risk_control` 缺少预期规则表 |
+| 下一里程碑 | 确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，修正 Doris 只读账号授权，并核查 MySQL `risk_control` 业务表缺失或库名不正确问题 |
 | 生产权限 | 已执行固定 HTTP GET 和固定 SSH 白名单命令只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -41,15 +41,17 @@
 - SSH known_hosts 已由用户核对，测试实例临时使用 root key 执行固定白名单只读命令；三台主机资源、时间同步和固定服务指纹探测通过。
 - Kafka 进程指纹为 RUNNING；实际 bootstrap 为 `data1:9092` 或 `192.168.1.10:9092`，Topic 列表、broker 状态和 `binance.trade.raw` Offset 推进探测通过。
 - Kafka Consumer Group `flink-kline-group` 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
-- 未读取或保存任何生产数据库/Redis 凭据；按用户提示使用临时测试密码做进程内注入后，Doris/MySQL 协议握手返回 1045，工具归一为 `tool.authentication_failed`；Redis 返回 `tool.timeout`。
-- `spring_api` 有限日志已执行固定文件日志命令，stderr 显示当前配置路径不存在；尚需确认真实日志路径或登记 systemd unit。
+- 未读取或保存任何生产数据库/Redis 凭据；按用户提示使用临时测试密码做进程内注入后，Doris root 仍返回 1045，工具归一为 `tool.authentication_failed`。
+- MySQL root 可连接 `risk_control`，但库内缺少 `risk_rules` 和 `whale_thresholds`，只看到异常表名 `RECOVER_YOUR_DATA_info`，未读取该表内容。
+- Redis 使用 ACL 用户 `default` 后固定只读样本工具通过。
+- `spring_api` 有限日志路径已确认并通过固定日志工具验证：`/opt/StreamLake-Binance/api-server/api.log`。
 
 ## 下一步
 
 1. 用户确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，或暂接受 group 可见性未知。
-2. 修正 Doris/MySQL 只读账号授权，核对 Redis 网络访问与目标配置，不在聊天或 Git 中发送秘密。
-3. 确认 `spring_api` 真实日志路径或可用 systemd unit，并更新 ignored `config/targets.toml`。
-4. 继续 Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
+2. 修正 Doris 只读账号授权，不在聊天或 Git 中发送秘密。
+3. 人工核查 MySQL `risk_control` 中业务表缺失或库名不正确问题，尤其是异常表 `RECOVER_YOUR_DATA_info`。
+4. 继续 Doris 和 MySQL 真实只读契约探测，将脱敏响应固化为本地 fixture。
 5. 所有单工具契约通过后，再执行端到端 Kline 只读影子巡检。
 
 ## 阻塞与风险
@@ -57,15 +59,15 @@
 ### 当前阻塞
 
 - Kafka Consumer Group 查询未通过：`flink-kline-group` 的 `FIND_COORDINATOR` 调用超时。
-- Doris/MySQL 使用临时测试密码后返回 `tool.authentication_failed`，尚未取得只读查询结果。
-- Redis 从当前机器访问 `data1:6379` 超时，尚未取得 INFO/DBSIZE/SCAN 结果。
-- `spring_api` 文件日志源路径不存在，需要确认路径或改为 journal unit。
+- Doris 使用 root 临时测试密码后仍返回 `tool.authentication_failed`，尚未取得只读查询结果。
+- MySQL `risk_control` 缺少预期 `risk_rules` 和 `whale_thresholds`，且存在异常表 `RECOVER_YOUR_DATA_info`。
 
 ### 已知风险
 
 - 尚未现场确认 GitHub CI 对当前 `main` 的最近一次运行结果。
 - 当前 SSH 使用 root 仅因用户确认实例可丢弃；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
-- 数据库和 Redis 生产连接方式尚未完成现场契约验证。
+- Doris 和 MySQL 生产数据源尚未完成现场契约验证。
+- MySQL `risk_control` 出现异常表名，存在数据被异常改动或库名误配风险。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka Consumer Group 不可见原因、真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 
@@ -149,3 +151,6 @@
 - Redis 现场超时暴露 redis-py 懒连接异常未归一问题，已补充命令级异常归一和回归测试，后续 Redis 超时稳定返回 `tool.timeout`。
 - MySQL 协议握手诊断确认 Doris/MySQL 均为 1045，已补充连接阶段 1044/1045 到 `tool.authentication_failed` 的归一和回归测试。
 - 日志 stderr 诊断使用同一个固定 `tail` 白名单命令，确认当前 `spring_api` 文件日志路径不存在。
+- 用户确认后将 ignored 目标配置临时切换为 root/default 探测：Redis 改用 ACL 用户 `default` 后固定样本工具通过，`spring_api` 日志路径确认为 `/opt/StreamLake-Binance/api-server/api.log` 并通过固定日志工具验证。
+- MySQL root 可连接 `risk_control`，但预期 `risk_rules`、`whale_thresholds` 均不存在，当前仅看到异常表 `RECOVER_YOUR_DATA_info`；未读取该表内容，需人工核查数据库状态或备份。
+- Doris 使用 root 测试密码不指定库仍返回 1045，继续阻塞 Doris 新鲜度契约探测。

@@ -5,8 +5,8 @@
 ## 0. 当前阶段
 
 M2 本地实现已完成全量验证，当前处于云端只读契约探测中段。HTTP、SSH 主机/服务状态、
-Kafka Topic/Offset 已完成首轮现场契约探测；Doris/MySQL 使用用户临时提供的测试密码后返回
-`tool.authentication_failed`；Redis 返回 `tool.timeout`；日志固定文件路径不存在，当前返回 `tool.upstream_error`。
+Kafka Topic/Offset、Redis 和 `spring_api` 有限日志已完成首轮现场契约探测；Doris 使用用户临时提供的
+root 测试密码后仍返回 `tool.authentication_failed`；MySQL 可连接 `risk_control`，但缺少预期规则表。
 下个会话开始现场探测前必须：
 
 1. 进入现有 M2 worktree。
@@ -39,7 +39,7 @@ git diff --check
   - `1a5330d feat: 接入真实只读工具与巡检编排`
 - GitHub 同步状态：当前功能分支尚未推送到 GitHub。
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步不要先跑完整巡检；优先修正 Doris/MySQL 只读账号授权、Redis 网络访问和 `spring_api` 日志源路径或 systemd unit。
+- 下一步不要先跑完整巡检；优先修正 Doris 只读账号授权，并确认 MySQL `risk_control` 中预期业务表是否已丢失或库名是否仍不正确。
 - Kafka Consumer Group `flink-kline-group` 当前 `FIND_COORDINATOR` 超时，可先记录为 unknown，不阻塞 Kline 首个场景。
 
 ## 1. 当前工作位置
@@ -138,9 +138,9 @@ git diff --check
   - `hosts.data1.address = "data1"`，用户本机将其映射到当前公网 IP。
   - data1/data2/data3 内网 IP 分别为 `192.168.1.10`、`192.168.1.20`、`192.168.1.30`。
   - HTTP：Flink `http://data1:8081`，Spring API `http://data1:8080`，AI Engine `http://data1:8000`。
-  - Doris：`data1:9030`，数据库暂按 `streamlake`。
-  - MySQL：`data1:3306`，数据库暂按 `risk_control`。
-  - Redis：`data1:6379`，DB 0。
+  - Doris：`data1:9030`，当前 root 测试密码仍返回 1045。
+  - MySQL：`data1:3306`，当前 ignored 配置使用 `root` 和 `risk_control`。
+  - Redis：`data1:6379`，DB 0，当前 ignored 配置使用 ACL 用户 `default`。
   - SSH：仅可丢弃测试实例临时使用 `root` + `/Users/nate/.ssh/datasentry_m2_disposable`。
   - known_hosts：`/Users/nate/.ssh/datasentry_known_hosts`，已由用户核对指纹。
   - Kafka bootstrap：`ssh.*.kafka_bootstrap = "data1:9092"`。
@@ -169,9 +169,10 @@ git diff --check
   - Topic 列表和 broker 状态探测通过，可见 `binance.depth.raw`、`binance.trade.raw`、`streamlake.whale.alert`。
   - `binance.trade.raw` Offset 双采样显示正在推进，分区数为 6。
   - `flink-kline-group` Consumer Group 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
-- Doris、MySQL 使用用户临时提供的同一测试密码后均返回 `tool.authentication_failed`，底层 MySQL 协议握手错误码为 1045，尚未取得只读查询结果。
-- Redis 使用用户临时提供的同一测试密码后返回 `tool.timeout`；本机到 `data1:6379` 的 TCP 连接超时，尚未取得 INFO/DBSIZE/SCAN 结果。
-- `spring_api` 有限日志探测已通过固定 `tail` 命令触达远端；stderr 显示 `/opt/StreamLake-Binance/api-server/logs/app.log` 不存在，需要确认真实日志路径或改为登记的 systemd unit。
+- Doris 使用用户临时提供的 root 测试密码后仍返回 `tool.authentication_failed`，底层 MySQL 协议握手错误码为 1045，尚未取得只读查询结果。
+- MySQL 使用 root 测试密码不指定库可连接；`SHOW DATABASES` 可见 `risk_control`，但 `risk_control` 中没有 `risk_rules` 或 `whale_thresholds`，只看到 `RECOVER_YOUR_DATA_info`，未读取该表内容。
+- Redis 使用 ACL 用户 `default` 和临时测试密码后固定样本工具通过，生成 `redis_info`、`redis_dbsize` 和 `redis_key_sample` Observation。
+- `spring_api` 有限日志路径已发现为 `/opt/StreamLake-Binance/api-server/api.log`，固定日志工具通过，最近 30 分钟读取到 2 行。
 
 ## 3.2 本会话完成的代码/契约改动
 
@@ -235,9 +236,7 @@ git diff --check
 未完成：
 
 - Doris `kline_1min` 新鲜度查询。
-- MySQL `risk_control.whale_thresholds`、`risk_control.risk_rules` 样本查询。
-- Redis INFO / DBSIZE / SCAN / TYPE / TTL / GET。
-- 有限日志路径或 systemd unit 验证：当前 `spring_api` 文件日志源返回 `tool.upstream_error`。
+- MySQL `risk_control.whale_thresholds`、`risk_control.risk_rules` 样本查询：当前表不存在，无法完成。
 - 完整 `datasentry inspection run` 影子巡检。
 
 ## 3.4 本会话继续探测结果
@@ -266,6 +265,30 @@ git diff --check
 - 现场 Redis 探测暴露 redis-py 懒连接异常未归一的问题；已补充 `ReadOnlyRedisClient` 命令级异常归一，Redis 超时现在稳定返回 `tool.timeout`，不再冒出 traceback。
 - 现场 MySQL 协议握手诊断显示 Doris/MySQL 均为 `OperationalError` 1045；已补充连接阶段 1044/1045 到 `tool.authentication_failed` 的归一。
 - 日志 stderr 诊断使用同一个固定 `tail` 白名单命令，确认当前配置路径不存在。
+
+## 3.6 root/default 复测与日志发现
+
+- 按用户确认，将 ignored `config/targets.toml` 临时调整为：
+  - Doris：`root` / `default`
+  - MySQL：`root` / `risk_control`
+  - Redis：ACL 用户 `default`
+  - `spring_api` 日志：`/opt/StreamLake-Binance/api-server/api.log`
+- TCP 连通性：
+  - `data1:9030`、`data1:3306`、`data1:6379` 均可连接。
+- Doris：
+  - 使用 root 测试密码，不指定库仍返回 1045，仍是认证/授权问题。
+- MySQL：
+  - root 测试密码不指定库连接成功。
+  - `SHOW DATABASES` 可见 `risk_control`。
+  - `risk_control` 内缺少 `risk_rules`、`whale_thresholds`，固定查询均返回 1146。
+  - 当前只看到表 `RECOVER_YOUR_DATA_info`，未读取该表内容；该表名异常，应优先人工核查数据库状态或备份。
+- Redis：
+  - TCP 已放通。
+  - 用户名 `root` 认证失败；用户名 `default` 认证成功。
+  - 固定 `get_redis_key_sample` 工具通过，返回 `redis_info`、`redis_dbsize`、`redis_key_sample`。
+- 日志：
+  - 只读查找发现 `/opt/StreamLake-Binance/api-server/api.log`。
+  - 固定 `get_recent_logs(spring_api)` 工具通过，最近 30 分钟读取到 2 行。
 
 ## 4. 下一会话开始步骤
 
