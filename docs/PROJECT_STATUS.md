@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M2 真实只读工具本地实现与自动测试已完成，正在执行云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | Kline 端到端只读影子巡检已完成；Kafka Consumer Group 和 MySQL 规则表固定样本复测通过；MySQL 异常表根因仍需安全复盘 |
-| 下一里程碑 | 完成 M2 全量验证、推送功能分支并创建 PR；并行复盘 MySQL 表异常原因 |
+| 当前工作 | Kline 端到端只读影子巡检、Kafka Consumer Group 和 MySQL 规则表固定样本复测均通过；M2 功能分支已推送；MySQL 异常表根因仍需安全复盘 |
+| 下一里程碑 | 使用已登录的 GitHub CLI 或网页创建 M2 Draft PR；并行复盘 MySQL 表异常原因 |
 | 生产权限 | 已执行固定 HTTP GET 和固定 SSH 白名单命令只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -49,7 +49,7 @@
 
 ## 下一步
 
-1. 完成全量验证、秘密检查、提交、拉取远端检查分叉，并推送 M2 功能分支创建 PR。
+1. 创建 `feat/m2-real-readonly-tools` → `main` 的 Draft PR；当前本机 `gh` 未登录，已给出 GitHub 创建 PR 链接。
 2. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 3. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；本轮主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
@@ -57,7 +57,7 @@
 
 ### 当前阻塞
 
-- 无代码实现阻塞；剩余为 GitHub 推送/PR 与生产安全复盘。
+- 无代码实现阻塞；剩余为 PR 创建与生产安全复盘。
 
 ### 已知风险
 
@@ -156,3 +156,4 @@
 - Kline 端到端只读影子巡检成功持久化，Inspection `f8a6243a-1db9-4722-bb48-9beb9958b86d` 为 `completed`，9/9 工具调用成功；Spring API `/api/kline/latest` 当前返回有效空结果，应在后续 API/前端排查中继续确认。
 - 用户修复 Kafka 单节点内部 Topic 副本配置与实际启动配置文件后，`flink-kline-group` 固定 group 工具复测通过：Consumer Group 为 `VISIBLE`，lag 可读取。
 - 用户手工补回 MySQL `risk_rules` 与 `whale_thresholds` 后，固定样本工具复测通过；代码兼容现场列名 `risk_rules.max_single_qty` 与 `whale_thresholds.threshold_quote`，统一输出为 `threshold`。
+- M2 功能分支 `feat/m2-real-readonly-tools` 已推送到 GitHub；`gh pr create` 因本机 GitHub CLI 未登录失败，需后续登录或使用网页创建 Draft PR。

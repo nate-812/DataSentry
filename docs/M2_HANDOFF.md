@@ -12,7 +12,7 @@ Kline 端到端只读影子巡检已完成且 9/9 工具成功。MySQL 异常表
 1. 进入现有 M2 worktree。
 2. 确认工作树干净。
 3. 确认本机 ignored `config/targets.toml`、known_hosts 和临时测试 SSH key 仍存在。
-4. 优先完成全量验证、提交、远端同步和 PR；不要读取异常表 `RECOVER_YOUR_DATA_info` 内容。
+4. 优先创建 Draft PR；不要读取异常表 `RECOVER_YOUR_DATA_info` 内容。
 
 不得在工作树存在未解释修改时开始云端适配，也不得丢弃、重置或覆盖该 worktree。
 
@@ -32,7 +32,7 @@ git diff --check
 - 分支：`feat/m2-real-readonly-tools`
 - 当前 `git status --short --branch`：本检查点提交后应为 `## feat/m2-real-readonly-tools`；若仍有修改需先核查来源。
 - 本文件更新前最新提交：`5590c0e fix: 兼容Doris现场契约并完成Kline影子巡检`。
-- GitHub 同步状态：当前功能分支尚未推送到 GitHub。
+- GitHub 同步状态：功能分支 `feat/m2-real-readonly-tools` 已推送到 GitHub；Draft PR 尚未创建，本机 `gh` 未登录。
 - 本文件更新后应产生新的代码与文档检查点提交；下个会话以 `git log -1 --oneline` 为准。
 - 最近检查点：
   - `916b6fe docs: 更新M2会话交接状态`
@@ -45,7 +45,7 @@ git diff --check
   - `aced0de fix: 兼容SSH主机状态契约`
   - `e76c8d9 docs: 更新HTTP契约探测状态`
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步优先跑全量测试、Ruff、mypy、秘密检查并提交，然后拉取远端检查分叉、推送功能分支并创建 PR。
+- 下一步优先使用已登录的 GitHub CLI 或网页创建 Draft PR。
 - Kafka Consumer Group `flink-kline-group` 已恢复，固定 group 工具复测为 `VISIBLE` 并可读取 lag。
 - ignored `config/targets.toml` 当前现场探测值：
   - Doris：`data1:9030`，database `streamlake`，username `root`，无密码。
