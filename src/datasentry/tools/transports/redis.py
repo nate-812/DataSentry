@@ -6,6 +6,7 @@ from typing import Protocol, Self, cast
 
 import redis
 
+from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
     EnvironmentSecretResolver,
@@ -117,12 +118,19 @@ class RedisTransport:
                 message="Redis 目标未配置",
             )
         try:
+            password = self._secrets.require(configured.password_env)
+        except ConfigurationError as error:
+            raise ToolError(
+                code="tool.configuration",
+                message="Redis 秘密配置缺失",
+            ) from error
+        try:
             client = self._client_factory(
                 host=self._hosts[configured.host].address,
                 port=configured.port,
                 db=configured.database,
                 username=configured.username,
-                password=self._secrets.require(configured.password_env),
+                password=password,
                 socket_connect_timeout=self._limits.connect_timeout_seconds,
                 socket_timeout=self._limits.read_timeout_seconds,
                 decode_responses=False,

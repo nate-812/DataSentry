@@ -8,6 +8,7 @@ import pymysql
 from pydantic import JsonValue, TypeAdapter, ValidationError
 from pymysql.cursors import DictCursor
 
+from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
     EnvironmentSecretResolver,
@@ -111,11 +112,18 @@ class MySqlTransport:
         statement = query.value
         self.validate_query(statement)
         try:
+            password = self._secrets.require(configured.password_env)
+        except ConfigurationError as error:
+            raise ToolError(
+                code="tool.configuration",
+                message="数据库秘密配置缺失",
+            ) from error
+        try:
             connection = self._connection_factory(
                 host=self._hosts[configured.host].address,
                 port=configured.port,
                 user=configured.username,
-                password=self._secrets.require(configured.password_env),
+                password=password,
                 database=configured.database,
                 connect_timeout=int(self._limits.connect_timeout_seconds),
                 read_timeout=int(self._limits.read_timeout_seconds),

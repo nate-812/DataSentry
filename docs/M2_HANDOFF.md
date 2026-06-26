@@ -5,7 +5,8 @@
 ## 0. 当前阶段
 
 M2 本地实现已完成全量验证，当前处于云端只读契约探测中段。HTTP、SSH 主机/服务状态、
-Kafka Topic/Offset 已完成首轮现场契约探测；Doris、MySQL、Redis 和日志尚未开始。
+Kafka Topic/Offset 已完成首轮现场契约探测；Doris、MySQL、Redis 仍缺本机秘密环境变量，
+日志已执行固定文件日志命令但当前日志源返回 `tool.upstream_error`。
 下个会话开始现场探测前必须：
 
 1. 进入现有 M2 worktree。
@@ -38,7 +39,7 @@ git diff --check
   - `1a5330d feat: 接入真实只读工具与巡检编排`
 - GitHub 同步状态：当前功能分支尚未推送到 GitHub。
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步不要先跑完整巡检；优先继续 Doris、MySQL、Redis、日志单工具契约探测。
+- 下一步不要先跑完整巡检；优先补齐 Doris、MySQL、Redis 本机秘密环境变量，并确认 `spring_api` 日志源路径或 systemd unit。
 - Kafka Consumer Group `flink-kline-group` 当前 `FIND_COORDINATOR` 超时，可先记录为 unknown，不阻塞 Kline 首个场景。
 
 ## 1. 当前工作位置
@@ -168,7 +169,8 @@ git diff --check
   - Topic 列表和 broker 状态探测通过，可见 `binance.depth.raw`、`binance.trade.raw`、`streamlake.whale.alert`。
   - `binance.trade.raw` Offset 双采样显示正在推进，分区数为 6。
   - `flink-kline-group` Consumer Group 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
-- Doris、MySQL、Redis 和日志探测尚未开始，仍需数据库/Redis 只读账号和本机环境变量。
+- Doris、MySQL、Redis 因本机缺少 `DATASENTRY_DORIS_PASSWORD`、`DATASENTRY_MYSQL_PASSWORD`、`DATASENTRY_REDIS_PASSWORD` 尚未触网。
+- `spring_api` 有限日志探测已通过固定 `tail` 命令触达远端，但当前配置日志源返回 `tool.upstream_error`，需要确认真实日志路径或改为登记的 systemd unit。
 
 ## 3.2 本会话完成的代码/契约改动
 
@@ -234,8 +236,24 @@ git diff --check
 - Doris `kline_1min` 新鲜度查询。
 - MySQL `risk_control.whale_thresholds`、`risk_control.risk_rules` 样本查询。
 - Redis INFO / DBSIZE / SCAN / TYPE / TTL / GET。
-- 有限日志路径或 systemd unit 验证。
+- 有限日志路径或 systemd unit 验证：当前 `spring_api` 文件日志源返回 `tool.upstream_error`。
 - 完整 `datasentry inspection run` 影子巡检。
+
+## 3.4 本会话继续探测结果
+
+- 重新确认 M2 worktree 干净，分支为 `feat/m2-real-readonly-tools`，最新交接提交为 `a8be87f`。
+- 确认 ignored `config/targets.toml`、`/Users/nate/.ssh/datasentry_known_hosts` 和临时 SSH key 仍存在。
+- 目标配置中当前别名为：
+  - MySQL 协议目标：`doris`、`mysql`
+  - Redis 目标：`redis`
+  - 日志源：`spring_api`
+- 当前 Codex 执行环境缺少：
+  - `DATASENTRY_DORIS_PASSWORD`
+  - `DATASENTRY_MYSQL_PASSWORD`
+  - `DATASENTRY_REDIS_PASSWORD`
+- 因缺少上述秘密环境变量，Doris、MySQL 和 Redis 单工具探测均在触网前稳定返回 `tool.configuration`，没有连接数据库或 Redis。
+- 修复了一个本地契约问题：MySQL/Redis secret 缺失以前会被宽泛捕获为 `tool.connection_failed`，现在会在创建连接前返回 `tool.configuration`，并新增回归测试。
+- 使用 `RecentLogsTool` 对 `spring_api` 执行固定文件日志读取，远端固定命令返回 stderr，工具归一为 `tool.upstream_error`；未使用自由 Shell 或自由日志路径。
 
 ## 4. 下一会话开始步骤
 

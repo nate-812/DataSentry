@@ -1,5 +1,6 @@
 import pytest
 
+from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
     EnvironmentSecretResolver,
     HostTarget,
@@ -65,3 +66,35 @@ def test_redis_transport_exposes_only_bounded_read_methods(
         assert client.dbsize() == 2
         assert client.scan(0, match="risk:blacklist:*", count=20)[1] == [b"risk:blacklist:BTCUSDT"]
         assert not hasattr(client, "execute_command")
+
+
+def test_redis_transport_reports_missing_secret_as_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("TEST_REDIS_PASSWORD", raising=False)
+    called = False
+
+    def client_factory(**_: object) -> FakeRedis:
+        nonlocal called
+        called = True
+        return FakeRedis()
+
+    transport = RedisTransport(
+        hosts={"data1": HostTarget(address="192.0.2.10")},
+        targets={
+            "redis": RedisTarget(
+                host="data1",
+                port=6379,
+                password_env="TEST_REDIS_PASSWORD",
+            )
+        },
+        limits=ToolLimits(),
+        secrets=EnvironmentSecretResolver(),
+        client_factory=client_factory,
+    )
+
+    with pytest.raises(ToolError) as raised:
+        transport.client("redis")
+
+    assert raised.value.code == "tool.configuration"
+    assert called is False
