@@ -109,7 +109,21 @@ git diff --check
   - `/api/kline/latest` 现场可返回空数组，已补 fixture 并将其识别为有效空结果。
 - AI Engine 已通过首轮现场探测：
   - `/health` 返回 RUNNING normal。
-- SSH、Kafka、Doris、MySQL、Redis 和日志探测尚未开始，仍需可信 known_hosts、专用只读账号和本机环境变量。
+- SSH 主机和服务状态已通过首轮现场探测：
+  - 用户已核对 `data1`、`data2`、`data3` SSH host key。
+  - 当前仅在可丢弃测试实例上临时使用 root key；生产或长期实例仍必须改为无 sudo、无写权限的只读用户。
+  - 三台主机资源、inode、时间同步探测通过。
+  - data1 的 Kafka、Flink JobManager、Doris FE、MySQL、Redis、Collector、Spring API、AI Engine 指纹为 RUNNING。
+  - data2/data3 的 Flink TaskManager 和 Doris BE 指纹为 RUNNING。
+- 现场 SSH 契约差异：
+  - Ubuntu `df` 不允许 `df -i --output=...`，已改为 `df -i`。
+  - `df -i` 可能返回 inode 使用率为 `-` 的行，已跳过不可排序行。
+- Kafka 探测已开始但未通过：
+  - Kafka 进程指纹为 RUNNING。
+  - 当前工具约定的 `127.0.0.1:9092` 从 data1 内部不可达。
+  - 本机 `data1:9092` 拒绝连接，`data1:9093/9094` 超时。
+  - 需要用户确认 Kafka 实际 bootstrap 地址/端口，或修正 Kafka 监听配置后再继续 topics、offsets、consumer group 契约探测。
+- Doris、MySQL、Redis 和日志探测尚未开始，仍需数据库/Redis 只读账号和本机环境变量。
 
 ## 4. 下一会话开始步骤
 

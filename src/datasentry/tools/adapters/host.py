@@ -57,13 +57,16 @@ def _table_rows(value: str, *, limit: int = 50) -> list[dict[str, JsonValue]]:
         fields = line.split()
         if len(fields) != 6 or not fields[1].isdigit():
             continue
+        used_percent = fields[4].rstrip("%")
+        if not used_percent.isdigit():
+            continue
         rows.append(
             {
                 "source": fields[0],
                 "total": int(fields[1]),
                 "used": int(fields[2]),
                 "available": int(fields[3]),
-                "used_percent": int(fields[4].rstrip("%")),
+                "used_percent": int(used_percent),
                 "mount": fields[5],
             }
         )

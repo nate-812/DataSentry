@@ -97,6 +97,12 @@ def test_ssh_transport_uses_reject_policy_and_fixed_command(
     assert client.command == "timedatectl show --property=NTPSynchronized --value"
 
 
+def test_ssh_inode_command_uses_portable_df_syntax() -> None:
+    command = _command(SshCommandId.HOST_INODES, ())
+
+    assert command == "df -i"
+
+
 def test_ssh_transport_rejects_missing_known_hosts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

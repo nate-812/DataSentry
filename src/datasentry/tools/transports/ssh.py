@@ -63,7 +63,7 @@ STATIC_COMMANDS = {
     SshCommandId.HOST_UPTIME: "uptime -p",
     SshCommandId.HOST_MEMORY: "free -b",
     SshCommandId.HOST_FILESYSTEM: ("df -B1 --output=source,size,used,avail,pcent,target"),
-    SshCommandId.HOST_INODES: ("df -i --output=source,itotal,iused,iavail,ipcent,target"),
+    SshCommandId.HOST_INODES: "df -i",
     SshCommandId.HOST_TIME: ("timedatectl show --property=NTPSynchronized --value"),
     SshCommandId.KAFKA_TOPICS: (
         "/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:9092 --list"
