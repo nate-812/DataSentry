@@ -4,24 +4,24 @@
 
 ## 0. 当前阶段
 
-M2 本地实现已完成全量验证并创建 Draft PR。HTTP、SSH 主机/服务状态、
+M2 已完成全量验证并通过 Pull Request #2 合并到 `main`。HTTP、SSH 主机/服务状态、
 Kafka Topic/Offset/Consumer Group、Doris、Redis、MySQL 规则表和 `spring_api` 有限日志已完成首轮现场契约探测；
 Kline 端到端只读影子巡检已完成且 9/9 工具成功。MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘。
 下个窗口开始 M3 前必须：
 
-1. 先评审并合并 M2 Draft PR #2，或明确决定 M3 临时基于 M2 分支继续开发。
-2. 合并后回到主仓库 `main`，拉取最新代码，再创建 M3 分支。
+1. 回到主仓库 `/Users/nate/Codex/data-sentry-agent`，确认 `main` 已同步到 `origin/main`。
+2. 从最新 `main` 创建 M3 功能分支。
 3. 新窗口仍需先读取 `docs/PROJECT_STATUS.md`。
 4. 不要读取异常表 `RECOVER_YOUR_DATA_info` 内容；该问题作为安全复盘事项单独处理。
 
-不得在工作树存在未解释修改时开始云端适配，也不得丢弃、重置或覆盖该 worktree。
+M2 worktree 可作为历史现场验证记录保留；不要在未确认用途前删除、重置或覆盖它。
 
 ## 0.1 下个会话最短恢复摘要
 
-下个会话不用让用户解释 Git 或本轮进度，直接读取本文件后执行：
+下个会话不用让用户解释 Git 或本轮进度，直接在主仓库执行：
 
 ```bash
-cd /Users/nate/Codex/data-sentry-agent/.worktrees/feat-m2-real-readonly-tools
+cd /Users/nate/Codex/data-sentry-agent
 git status --short --branch
 git log --oneline -8
 git diff --check
@@ -29,12 +29,14 @@ git diff --check
 
 当前已知状态：
 
-- 分支：`feat/m2-real-readonly-tools`
-- 当前 `git status --short --branch`：本检查点提交后应为 `## feat/m2-real-readonly-tools`；若仍有修改需先核查来源。
-- 本文件收尾更新前最新提交：`74b838a docs: 更新M2远端同步状态`。
-- GitHub 同步状态：功能分支 `feat/m2-real-readonly-tools` 已推送到 GitHub；Draft PR #2 已创建。
-- 本文件更新后应产生新的代码与文档检查点提交；下个会话以 `git log -1 --oneline` 为准。
+- 当前分支：`main`
+- 合并提交：`bf4aa04 feat: 接入 M2 真实只读工具`
+- GitHub 同步状态：M2 PR #2 已合并；主仓库 `main` 已拉取合并结果，本文档收尾提交用于记录 M3 起点。
+- M2 功能分支：`feat/m2-real-readonly-tools` 保留为历史分支，工作区位于 `.worktrees/feat-m2-real-readonly-tools`。
+- 本文件更新后应产生新的文档收尾提交；下个会话以 `git log -1 --oneline` 为准。
 - 最近检查点：
+  - `729cec8 docs: 完成M2收尾交接`
+  - `74b838a docs: 更新M2远端同步状态`
   - `916b6fe docs: 更新M2会话交接状态`
   - `1edb57e docs: 更新M2数据库与日志探测状态`
   - `437e607 fix: 归一数据库认证失败错误`
@@ -43,23 +45,22 @@ git diff --check
   - `a8be87f docs: 更新M2云端探测交接`
   - `5238f47 fix: 支持配置Kafka bootstrap`
   - `aced0de fix: 兼容SSH主机状态契约`
-  - `e76c8d9 docs: 更新HTTP契约探测状态`
 - 当前本地工作树在本次交接提交后应保持干净；`config/targets.toml`、`var/`、缓存目录为 ignored。
-- 下一步优先评审并合并 Draft PR #2；未经用户确认不得自动合并。
+- 下一步从最新 `main` 创建 M3 分支，开始监控看板与通知。
 - Kafka Consumer Group `flink-kline-group` 已恢复，固定 group 工具复测为 `VISIBLE` 并可读取 lag。
 - ignored `config/targets.toml` 当前现场探测值：
   - Doris：`data1:9030`，database `streamlake`，username `root`，无密码。
   - MySQL：`data1:3306`，database `risk_control`，username `root`，password env `DATASENTRY_MYSQL_PASSWORD`。
   - Redis：`data1:6379`，DB `0`，username `default`，password env `DATASENTRY_REDIS_PASSWORD`。
 - `spring_api` 日志：file `/opt/StreamLake-Binance/api-server/api.log`。
-- PR：<https://github.com/nate-812/DataSentry/pull/2>
+- PR：<https://github.com/nate-812/DataSentry/pull/2>，已合并。
 
 ## 1. 当前工作位置
 
 - 主仓库：`/Users/nate/Codex/data-sentry-agent`
 - M2 worktree：`/Users/nate/Codex/data-sentry-agent/.worktrees/feat-m2-real-readonly-tools`
-- 当前分支：`feat/m2-real-readonly-tools`
-- 基线：`main` / `origin/main` 为 `5fa055c`
+- 当前主分支：`main`
+- 合并提交：`bf4aa04 feat: 接入 M2 真实只读工具`
 - 已提交的 M2 检查点：
   - `9d5b49a docs: 启动 M2 真实只读工具实施`
   - `bbf2585 feat: 增加巡检原子生命周期与工具审计`
@@ -78,6 +79,7 @@ git diff --check
   - `5590c0e fix: 兼容Doris现场契约并完成Kline影子巡检`
   - `b5858c8 fix: 兼容Kafka与MySQL现场契约`
   - `74b838a docs: 更新M2远端同步状态`
+  - `729cec8 docs: 完成M2收尾交接`
 
 不要删除、重建或覆盖该 worktree。下个会话若看到未解释改动，先停止并确认来源。
 

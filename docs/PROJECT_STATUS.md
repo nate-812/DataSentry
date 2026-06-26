@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M2 真实只读工具已完成并创建 Draft PR；等待评审、CI 和合并 |
-| 当前阶段 | M2：PR 评审收尾 |
-| 当前工作 | M2 功能分支已推送，Draft PR #2 已创建；Kline 端到端只读影子巡检、Kafka Consumer Group 和 MySQL 规则表固定样本复测均通过；MySQL 异常表根因仍需安全复盘 |
-| 下一里程碑 | 评审并合并 M2 PR #2；合并后从最新 `main` 创建 M3 分支开始监控看板与通知 |
+| 总体状态 | M2 真实只读工具已通过 Pull Request #2 合并到 `main`；项目可从最新 `main` 开始 M3 |
+| 当前阶段 | M3：监控看板与通知准备 |
+| 当前工作 | M2 已合并并同步到本地 `main`；Kline 端到端只读影子巡检、Kafka Consumer Group 和 MySQL 规则表固定样本复测均通过；准备从 `main` 创建 M3 分支 |
+| 下一里程碑 | 创建 M3 分支并起草/实施 Prometheus、Grafana、Alertmanager 和消息渠道方案 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -31,34 +31,25 @@
 - 完成数据不更新、组件宕机、延迟/反压和配置问题的确定性路由。
 - 完成 Collector → Kafka → Flink → Doris/Redis/API 的显式血缘与检查路径。
 - 完成首批确定性规则、历史证据隔离、诊断编排和本地模拟诊断 CLI。
+- 完成 M2 真实只读工具、工具审计、受控传输、真实巡检编排和现场只读契约验证，并通过 Pull Request #2 合并到 `main`。
 
 ## 正在进行
 
-- M2 本地代码与自动测试已完成，已开始云端只读契约探测。
-- Flink Jobs、Job 详情、Checkpoint、Backpressure 固定 REST 探测通过。
-- Spring API `/actuator/health` 与 `/api/kline/latest` 固定 GET 探测通过；现场发现 latest 可返回空数组，已补契约 fixture 与解析兼容。
-- AI Engine `/health` 固定 GET 探测通过，当前为 RUNNING normal。
-- SSH known_hosts 已由用户核对，测试实例临时使用 root key 执行固定白名单只读命令；三台主机资源、时间同步和固定服务指纹探测通过。
-- Kafka 进程指纹为 RUNNING；实际 bootstrap 为 `data1:9092` 或 `192.168.1.10:9092`，Topic 列表、broker 状态和 `binance.trade.raw` Offset 推进探测通过。
-- Kafka Consumer Group `flink-kline-group` 的 `FIND_COORDINATOR` 问题已由用户修复：单节点新版 Kafka 内部 Topic 副本配置不匹配且最初修改了错误启动配置文件；`__consumer_offsets` 创建后 Coordinator 恢复，固定 group 工具复测为 `VISIBLE` 并可读取 lag。
-- Doris 使用 root 无密码连接 `streamlake` 库成功；`kline_1min`、`whale_alert`、`risk_trigger` 和 `ai_diagnosis` 固定新鲜度查询通过，现场字段差异已固化到固定查询测试。
-- Kline 端到端只读影子巡检通过：Inspection `completed`，9 个工具调用全部 `succeeded`，结论为“K线主链路当前正在推进”；关键事实包括 Kafka Topic 推进、Kline Job RUNNING、Checkpoint 连续失败 0、Backpressure ok、Doris 新鲜度约 1 分钟。
-- MySQL root 可连接 `risk_control`；用户手工补回 `risk_rules` 和 `whale_thresholds` 后，固定样本工具复测通过；异常表名 `RECOVER_YOUR_DATA_info` 的根因仍未确认。
-- Redis 使用 ACL 用户 `default` 后固定只读样本工具通过。
-- `spring_api` 有限日志路径已确认并通过固定日志工具验证：`/opt/StreamLake-Binance/api-server/api.log`。
+- M3 尚未创建分支或开始编码；下一窗口应从最新 `main` 创建独立功能分支。
+- MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M3 工程启动。
 
 ## 下一步
 
-1. 评审并合并 [M2 Draft PR #2](https://github.com/nate-812/DataSentry/pull/2)，未经用户确认不自动合并。
-2. 合并后从最新 `main` 创建 M3 分支，开始 Prometheus、Grafana、Alertmanager 和消息渠道设计与实现。
+1. 从最新 `main` 创建 M3 功能分支。
+2. 起草 M3 监控看板与通知实施计划，明确 Prometheus、Grafana、Alertmanager、消息渠道、指标边界和验收方式。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
-4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；本轮主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
+4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
 ## 阻塞与风险
 
 ### 当前阻塞
 
-- 无代码实现阻塞；剩余为 PR 评审/合并与生产安全复盘。
+- 无代码实现阻塞。
 
 ### 已知风险
 
@@ -88,8 +79,8 @@
 | 总体设计 | 已完成 | 架构、边界、安全模型和路线获得确认 |
 | M0 工程基础 | 已完成 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
-| M2 真实只读工具 | 本地实现完成，云端契约探测进行中 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
-| M3 监控看板与通知 | 未开始 | Prometheus、Grafana、Alertmanager 和消息渠道 |
+| M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
+| M3 监控看板与通知 | 准备开始 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
@@ -158,4 +149,4 @@
 - 用户修复 Kafka 单节点内部 Topic 副本配置与实际启动配置文件后，`flink-kline-group` 固定 group 工具复测通过：Consumer Group 为 `VISIBLE`，lag 可读取。
 - 用户手工补回 MySQL `risk_rules` 与 `whale_thresholds` 后，固定样本工具复测通过；代码兼容现场列名 `risk_rules.max_single_qty` 与 `whale_thresholds.threshold_quote`，统一输出为 `threshold`。
 - M2 功能分支 `feat/m2-real-readonly-tools` 已推送到 GitHub；首次 `gh pr create` 曾因本机 GitHub CLI 未登录失败。
-- 本机 GitHub CLI 登录后已创建 [M2 Draft PR #2](https://github.com/nate-812/DataSentry/pull/2)，当前等待评审、CI 和用户确认合并。
+- 本机 GitHub CLI 登录后创建 [M2 PR #2](https://github.com/nate-812/DataSentry/pull/2)，经用户确认已合并到 `main`。
