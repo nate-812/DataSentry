@@ -107,7 +107,8 @@ git diff --check
 - Spring API 已通过首轮现场探测：
   - `/actuator/health` 返回 UP。
   - `/api/kline/latest` 现场可返回空数组，已补 fixture 并将其识别为有效空结果。
-- AI Engine `data1:8000` 从本机访问超时，尚未完成健康契约探测；需要确认进程监听地址、安全组和防火墙。
+- AI Engine 已通过首轮现场探测：
+  - `/health` 返回 RUNNING normal。
 - SSH、Kafka、Doris、MySQL、Redis 和日志探测尚未开始，仍需可信 known_hosts、专用只读账号和本机环境变量。
 
 ## 4. 下一会话开始步骤

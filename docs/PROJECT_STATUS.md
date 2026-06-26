@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M2 真实只读工具本地实现与自动测试已完成，正在执行云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | Flink REST 与 Spring API 现场只读契约已完成首轮探测；AI Engine、SSH、Kafka、Doris、Redis/MySQL 和日志待继续 |
+| 当前工作 | Flink REST、Spring API 与 AI Engine 现场只读契约已完成首轮探测；SSH、Kafka、Doris、Redis/MySQL 和日志待继续 |
 | 下一里程碑 | 准备可信 known_hosts、专用只读 SSH 用户和数据库/Redis 只读账号后，继续主机、Kafka、Doris、Redis/MySQL、日志契约探测 |
 | 生产权限 | 已执行固定 HTTP GET 只读探测；尚未使用 SSH、数据库或 Redis 凭据；写操作未实现 |
 | 默认分支 | `main` |
@@ -37,22 +37,20 @@
 - M2 本地代码与自动测试已完成，已开始云端只读契约探测。
 - Flink Jobs、Job 详情、Checkpoint、Backpressure 固定 REST 探测通过。
 - Spring API `/actuator/health` 与 `/api/kline/latest` 固定 GET 探测通过；现场发现 latest 可返回空数组，已补契约 fixture 与解析兼容。
-- AI Engine `data1:8000` 当前从本机访问超时，尚未完成健康契约探测。
+- AI Engine `/health` 固定 GET 探测通过，当前为 RUNNING normal。
 - 尚未读取或保存任何生产凭据，尚未使用 SSH、数据库或 Redis 连接。
 
 ## 下一步
 
-1. 用户确认 AI Engine 是否已启动、是否监听 `data1:8000`，以及安全组/防火墙是否允许本机访问。
-2. 准备可信 known_hosts、专用只读 SSH 用户、Doris/MySQL 和 Redis 只读账号。
-3. 在本机补齐秘密环境变量，不在聊天或 Git 中发送秘密。
-4. 继续主机、Kafka、Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
-5. 所有单工具契约通过后，再执行端到端 Kline 只读影子巡检。
+1. 准备可信 known_hosts、专用只读 SSH 用户、Doris/MySQL 和 Redis 只读账号。
+2. 在本机补齐秘密环境变量，不在聊天或 Git 中发送秘密。
+3. 继续主机、Kafka、Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
+4. 所有单工具契约通过后，再执行端到端 Kline 只读影子巡检。
 
 ## 阻塞与风险
 
 ### 当前阻塞
 
-- AI Engine `data1:8000` 从本机访问超时，需要确认进程监听地址、安全组和防火墙。
 - SSH、数据库和 Redis 探测仍缺可信 known_hosts、专用只读账号和本机秘密环境变量。
 
 ### 已知风险
@@ -132,4 +130,4 @@
 - Flink REST 首轮现场探测通过：`streamlake-kline-aggregation`、`streamlake-whale-cep` 和 `streamlake-risk-control` 均为 RUNNING；Kline Checkpoint 连续失败数为 0。
 - 现场发现 Flink Backpressure 新版响应使用 `backpressureLevel` 和 `ok`，补充契约 fixture 并兼容聚合结果。
 - Spring API 首轮现场探测通过；现场发现 `/api/kline/latest` 可返回空数组，补充契约 fixture 并将空数组识别为有效空结果。
-- AI Engine `data1:8000` 从本机访问超时，后续需要确认服务监听与网络放行。
+- AI Engine `data1:8000` 重新放通后，`/health` 固定 GET 探测通过，返回 RUNNING normal。
