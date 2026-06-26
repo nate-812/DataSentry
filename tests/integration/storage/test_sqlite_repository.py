@@ -16,6 +16,9 @@ from datasentry.domain import (
     OperationRisk,
     OperationStatus,
     Severity,
+    ToolInvocation,
+    ToolName,
+    ToolStatus,
 )
 from datasentry.errors import NotFoundError, StorageError
 from datasentry.storage.sqlite import SQLiteRepository
@@ -39,6 +42,17 @@ def inspection() -> Inspection:
         summary="Simulation completed",
         started_at=NOW,
         finished_at=NOW,
+    )
+
+
+@pytest.fixture
+def running_inspection(inspection: Inspection) -> Inspection:
+    return inspection.model_copy(
+        update={
+            "status": InspectionStatus.RUNNING,
+            "summary": None,
+            "finished_at": None,
+        }
     )
 
 
@@ -95,6 +109,121 @@ def test_save_and_get_inspection_aggregate(
     assert aggregate.inspection == inspection
     assert aggregate.observations == [observation]
     assert aggregate.findings == [finding]
+
+
+def test_start_and_complete_inspection_atomically(
+    repository: SQLiteRepository,
+    running_inspection: Inspection,
+    observation: Observation,
+    finding: Finding,
+) -> None:
+    repository.start_inspection(running_inspection)
+    completed = running_inspection.model_copy(
+        update={
+            "status": InspectionStatus.COMPLETED,
+            "summary": finding.claim,
+            "finished_at": NOW,
+        }
+    )
+
+    aggregate = repository.complete_inspection(completed, [observation], [finding])
+
+    assert aggregate.inspection == completed
+    assert aggregate.observations == [observation]
+    assert aggregate.findings == [finding]
+
+
+def test_complete_inspection_rolls_back_all_children_on_failure(
+    repository: SQLiteRepository,
+    running_inspection: Inspection,
+    observation: Observation,
+    finding: Finding,
+) -> None:
+    repository.start_inspection(running_inspection)
+    completed = running_inspection.model_copy(
+        update={
+            "status": InspectionStatus.COMPLETED,
+            "summary": finding.claim,
+            "finished_at": NOW,
+        }
+    )
+
+    with pytest.raises(StorageError):
+        repository.complete_inspection(
+            completed,
+            [observation, observation],
+            [finding],
+        )
+
+    aggregate = repository.get_inspection(running_inspection.id)
+    assert aggregate.inspection == running_inspection
+    assert aggregate.observations == []
+    assert aggregate.findings == []
+
+
+def test_fail_inspection_updates_running_record(
+    repository: SQLiteRepository,
+    running_inspection: Inspection,
+) -> None:
+    repository.start_inspection(running_inspection)
+    failed = running_inspection.model_copy(
+        update={
+            "status": InspectionStatus.FAILED,
+            "summary": "工具编排失败",
+            "finished_at": NOW,
+        }
+    )
+
+    repository.fail_inspection(failed)
+
+    assert repository.get_inspection(failed.id).inspection == failed
+
+
+def test_inspection_lifecycle_rejects_invalid_target_status(
+    repository: SQLiteRepository,
+    inspection: Inspection,
+) -> None:
+    with pytest.raises(StorageError) as start_error:
+        repository.start_inspection(inspection)
+
+    with pytest.raises(StorageError) as complete_error:
+        repository.complete_inspection(
+            inspection.model_copy(update={"status": InspectionStatus.RUNNING}),
+            [],
+            [],
+        )
+
+    with pytest.raises(StorageError) as fail_error:
+        repository.fail_inspection(inspection)
+
+    assert {
+        start_error.value.code,
+        complete_error.value.code,
+        fail_error.value.code,
+    } == {"storage.invalid_inspection_transition"}
+
+
+def test_tool_invocation_round_trip(
+    repository: SQLiteRepository,
+    running_inspection: Inspection,
+) -> None:
+    repository.start_inspection(running_inspection)
+    invocation = ToolInvocation(
+        id="66666666-6666-4666-8666-666666666666",
+        inspection_id=running_inspection.id,
+        tool_name=ToolName.GET_FLINK_JOBS,
+        target="flink",
+        parameters={"job": "kline"},
+        status=ToolStatus.SUCCEEDED,
+        observation_count=2,
+        started_at=NOW,
+        finished_at=NOW + timedelta(milliseconds=10),
+        duration_ms=10,
+    )
+
+    repository.save_tool_invocation(invocation)
+
+    assert repository.list_tool_invocations(running_inspection.id) == [invocation]
 
 
 def test_get_missing_inspection_raises_safe_not_found(

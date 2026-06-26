@@ -4,6 +4,9 @@
 .env
 .env.*
 !.env.example
+config/targets.toml
+config/targets.*.toml
+!config/targets.example.toml
 *.pem
 *.key
 

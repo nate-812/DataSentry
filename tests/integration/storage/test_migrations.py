@@ -14,7 +14,7 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
 
     version = upgrade_database(database_path)
 
-    assert version == 1
+    assert version == 2
     with closing(sqlite3.connect(database_path)) as connection:
         tables = {
             row[0]
@@ -27,19 +27,48 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
             "findings",
             "incidents",
             "operations",
+            "tool_invocations",
         } <= tables
-        assert connection.execute("SELECT version FROM schema_migrations").fetchall() == [(1,)]
+        assert connection.execute("SELECT version FROM schema_migrations").fetchall() == [
+            (1,),
+            (2,),
+        ]
 
 
 def test_upgrade_is_idempotent(tmp_path: Path) -> None:
     database_path = tmp_path / "datasentry.db"
 
-    assert upgrade_database(database_path) == 1
-    assert upgrade_database(database_path) == 1
+    assert upgrade_database(database_path) == 2
+    assert upgrade_database(database_path) == 2
 
     with closing(connect(database_path)) as connection:
-        assert current_schema_version(connection) == 1
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 1
+        assert current_schema_version(connection) == 2
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 2
+
+
+def test_tool_invocations_schema_contains_audit_fields(tmp_path: Path) -> None:
+    database_path = tmp_path / "datasentry.db"
+    upgrade_database(database_path)
+
+    with closing(connect(database_path)) as connection:
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(tool_invocations)").fetchall()
+        }
+
+    assert {
+        "inspection_id",
+        "tool_name",
+        "target",
+        "parameters_json",
+        "status",
+        "observation_count",
+        "error_code",
+        "error_message",
+        "started_at",
+        "finished_at",
+        "duration_ms",
+    } <= columns
 
 
 def test_foreign_keys_are_enforced(tmp_path: Path) -> None:

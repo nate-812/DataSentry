@@ -118,6 +118,41 @@ class KlineStalledAtFlinkRule:
                 unknowns=["Kline Job 上次退出原因尚未确认"],
                 created_at=context.created_at,
             )
+        if (
+            kafka is not None
+            and kafka.value is True
+            and state == "RUNNING"
+            and isinstance(freshness, (int, float))
+            and not isinstance(freshness, bool)
+            and freshness < 300
+        ):
+            evidence = [
+                evidence_from_observation(kafka, claim="Kafka 原始 Topic 当前仍在推进"),
+                evidence_from_observation(flink, claim="Kline Job 当前正常运行"),
+                evidence_from_observation(
+                    doris,
+                    claim="Doris kline_1min 数据新鲜度正常",
+                ),
+            ]
+            status = _finding_status(
+                evidence,
+                current_status=EvidenceStatus.CONFIRMED,
+            )
+            return Finding(
+                inspection_id=context.inspection_id,
+                severity=Severity.INFO,
+                status=status,
+                claim=(
+                    "历史快照显示 K线主链路曾正常推进"
+                    if status is EvidenceStatus.HISTORICAL
+                    else "K线主链路当前正在推进"
+                ),
+                evidence=evidence,
+                impact="当前证据未显示 K线主链路存在数据不更新",
+                recommendation="若用户仍看到页面不更新，继续检查 API 缓存、前端轮询和查询参数",
+                unknowns=[],
+                created_at=context.created_at,
+            )
         return None
 
 

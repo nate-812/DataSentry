@@ -1,0 +1,1 @@
+Error: Consumer group 'flink-kline-group' does not exist.

@@ -62,6 +62,23 @@ def test_kline_rule_locates_break_at_flink() -> None:
     assert len(finding.evidence) == 3
 
 
+def test_kline_rule_confirms_main_path_is_advancing() -> None:
+    context = _context(
+        _observation("kafka", "topic_advancing", True, target="binance.trade.raw"),
+        _observation("flink", "kline_job_state", {"state": "RUNNING"}),
+        _observation("doris", "kline_freshness_seconds", 32, target="kline_1min"),
+        question_type=QuestionType.DATA_STALE,
+    )
+
+    finding = KlineStalledAtFlinkRule().evaluate(context)
+
+    assert finding is not None
+    assert finding.status is EvidenceStatus.CONFIRMED
+    assert finding.severity is Severity.INFO
+    assert finding.claim == "K线主链路当前正在推进"
+    assert finding.unknowns == []
+
+
 def test_component_down_rule_reports_confirmed_absence() -> None:
     context = _context(
         _observation(

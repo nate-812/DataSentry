@@ -12,6 +12,7 @@ from datasentry.domain.finding import Evidence, Finding
 from datasentry.domain.incident import Incident
 from datasentry.domain.inspection import Inspection, Observation
 from datasentry.domain.operation import Operation
+from datasentry.domain.tool import ToolInvocation, ToolName, ToolStatus
 
 __all__ = [
     "Evidence",
@@ -26,4 +27,7 @@ __all__ = [
     "OperationRisk",
     "OperationStatus",
     "Severity",
+    "ToolInvocation",
+    "ToolName",
+    "ToolStatus",
 ]

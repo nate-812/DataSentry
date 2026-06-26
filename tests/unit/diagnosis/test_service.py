@@ -12,7 +12,7 @@ from datasentry.diagnosis import (
     KlineStalledAtFlinkRule,
 )
 from datasentry.domain import EvidenceStatus, Observation
-from datasentry.errors import KnowledgeError
+from datasentry.errors import KnowledgeError, StorageError
 from datasentry.knowledge import (
     KnowledgeIndex,
     KnowledgeRouter,
@@ -140,6 +140,25 @@ def test_service_exposes_historical_topic_only_as_reference(
     )
 
 
+def test_service_appends_collection_unknowns_to_findings(
+    repository: SQLiteRepository,
+    knowledge_index: KnowledgeIndex,
+) -> None:
+    result = _service(repository, knowledge_index).diagnose(
+        "为什么K线不更新",
+        _observations(),
+        collection_unknowns=(
+            "工具 get_kafka_topic 查询失败(tool.timeout)",
+            "工具 get_kafka_topic 查询失败(tool.timeout)",
+        ),
+    )
+
+    assert result.aggregate.findings[0].unknowns == [
+        "Kline Job 上次退出原因尚未确认",
+        "工具 get_kafka_topic 查询失败(tool.timeout)",
+    ]
+
+
 def test_service_does_not_persist_when_question_cannot_be_routed(
     knowledge_index: KnowledgeIndex,
 ) -> None:
@@ -149,6 +168,25 @@ def test_service_does_not_persist_when_question_cannot_be_routed(
     with pytest.raises(KnowledgeError):
         service.diagnose("给我讲个故事", [])
 
-    repository.save_inspection.assert_not_called()
-    repository.add_observation.assert_not_called()
-    repository.add_finding.assert_not_called()
+    repository.start_inspection.assert_not_called()
+    repository.complete_inspection.assert_not_called()
+    repository.fail_inspection.assert_not_called()
+
+
+def test_service_marks_started_inspection_failed_when_completion_fails(
+    knowledge_index: KnowledgeIndex,
+) -> None:
+    repository = Mock(spec=Repository)
+    repository.complete_inspection.side_effect = StorageError(
+        code="storage.constraint",
+        message="数据违反存储约束",
+    )
+    service = _service(repository, knowledge_index)
+
+    with pytest.raises(StorageError):
+        service.diagnose("为什么K线不更新", _observations())
+
+    repository.start_inspection.assert_called_once()
+    failed = repository.fail_inspection.call_args.args[0]
+    assert failed.status.value == "failed"
+    assert failed.summary == "诊断未能完成"

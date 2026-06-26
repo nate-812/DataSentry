@@ -40,6 +40,11 @@ from datasentry.knowledge import (
 )
 from datasentry.logging import configure_logging, get_logger
 from datasentry.storage import InspectionAggregate, SQLiteRepository, upgrade_database
+from datasentry.tools import (
+    LiveInspectionResult,
+    TargetCatalog,
+    build_live_inspection_service,
+)
 
 
 def _show_help(ctx: Context, parameter: object, value: bool) -> None:
@@ -162,6 +167,17 @@ KnowledgeRootOption = Annotated[
         help="知识库根目录，目录内必须包含 INDEX.md。",
     ),
 ]
+TargetsFileOption = Annotated[
+    Path | None,
+    typer.Option(
+        "--targets-file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="目标配置 TOML，默认使用 DATASENTRY_TARGETS_FILE。",
+    ),
+]
 
 OBSERVATION_LIST_ADAPTER = TypeAdapter(list[Observation])
 
@@ -203,6 +219,12 @@ def _diagnosis_payload(result: DiagnosisResult) -> dict[str, object]:
         ],
         "aggregate": _aggregate_payload(result.aggregate),
     }
+
+
+def _live_inspection_payload(result: LiveInspectionResult) -> dict[str, object]:
+    payload = _diagnosis_payload(result.diagnosis)
+    payload["tool_invocations"] = [item.model_dump(mode="json") for item in result.tool_invocations]
+    return payload
 
 
 def _load_observations(path: Path) -> list[Observation]:
@@ -300,10 +322,20 @@ def inspection_simulate(
             created_at=observed_at,
         )
         with SQLiteRepository(path) as repository:
-            repository.save_inspection(inspection)
-            repository.add_observation(observation)
-            repository.add_finding(finding)
-            return _aggregate_payload(repository.get_inspection(inspection.id))
+            running = inspection.model_copy(
+                update={
+                    "status": InspectionStatus.RUNNING,
+                    "summary": None,
+                    "finished_at": None,
+                }
+            )
+            repository.start_inspection(running)
+            aggregate = repository.complete_inspection(
+                inspection,
+                [observation],
+                [finding],
+            )
+            return _aggregate_payload(aggregate)
 
     _run_json(simulate)
 
@@ -356,6 +388,34 @@ def inspection_diagnose(
             return _diagnosis_payload(result)
 
     _run_json(diagnose)
+
+
+@inspection_app.command("run", cls=ChineseTyperCommand)
+def inspection_run(
+    question: Annotated[
+        str,
+        typer.Option("--question", help="需要执行真实只读巡检的问题。"),
+    ],
+    targets_file: TargetsFileOption = None,
+    knowledge_root: KnowledgeRootOption = Path("knowledge"),
+    database_path: DatabasePathOption = None,
+) -> None:
+    """执行真实只读巡检，不执行任何生产写操作。"""
+    settings = Settings()
+    path = _database_path(database_path)
+    targets_path = targets_file or settings.targets_file
+
+    def run() -> dict[str, object]:
+        targets = TargetCatalog.load(targets_path)
+        with SQLiteRepository(path) as repository:
+            service = build_live_inspection_service(
+                repository=repository,
+                targets=targets,
+                knowledge_root=knowledge_root,
+            )
+            return _live_inspection_payload(service.run(question))
+
+    _run_json(run)
 
 
 def main() -> None:
