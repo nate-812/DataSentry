@@ -2,9 +2,21 @@
 
 from collections.abc import Callable, Mapping
 from types import TracebackType
-from typing import Protocol, Self, cast
+from typing import Protocol, Self, TypeVar, cast
 
 import redis
+from redis.exceptions import (
+    AuthenticationError as RedisAuthenticationError,
+)
+from redis.exceptions import (
+    ConnectionError as RedisConnectionError,
+)
+from redis.exceptions import (
+    RedisError,
+)
+from redis.exceptions import (
+    TimeoutError as RedisTimeoutError,
+)
 
 from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
@@ -47,6 +59,7 @@ class RedisProtocol(Protocol):
 
 RedisFactory = Callable[..., RedisProtocol]
 DEFAULT_REDIS_FACTORY = cast(RedisFactory, redis.Redis)
+T = TypeVar("T")
 
 
 class ReadOnlyRedisClient:
@@ -68,10 +81,10 @@ class ReadOnlyRedisClient:
         self._client.close()
 
     def info(self) -> dict[str, object]:
-        return self._client.info()
+        return self._read(self._client.info)
 
     def dbsize(self) -> int:
-        return self._client.dbsize()
+        return self._read(self._client.dbsize)
 
     def scan(
         self,
@@ -80,16 +93,52 @@ class ReadOnlyRedisClient:
         match: str,
         count: int,
     ) -> tuple[int, list[bytes]]:
-        return self._client.scan(cursor, match=match, count=count)
+        return self._read(
+            self._client.scan,
+            cursor,
+            match=match,
+            count=count,
+        )
 
     def type(self, key: str) -> bytes:
-        return self._client.type(key)
+        return self._read(self._client.type, key)
 
     def ttl(self, key: str) -> int:
-        return self._client.ttl(key)
+        return self._read(self._client.ttl, key)
 
     def get(self, key: str) -> bytes | None:
-        return self._client.get(key)
+        return self._read(self._client.get, key)
+
+    @staticmethod
+    def _read(
+        operation: Callable[..., T],
+        *args: object,
+        **kwargs: object,
+    ) -> T:
+        try:
+            return operation(*args, **kwargs)
+        except RedisAuthenticationError as error:
+            raise ToolError(
+                code="tool.authentication_failed",
+                message="Redis 认证失败",
+            ) from error
+        except RedisTimeoutError as error:
+            raise ToolError(
+                code="tool.timeout",
+                message="Redis 只读查询超时",
+                retryable=True,
+            ) from error
+        except RedisConnectionError as error:
+            raise ToolError(
+                code="tool.connection_failed",
+                message="Redis 连接失败",
+                retryable=True,
+            ) from error
+        except RedisError as error:
+            raise ToolError(
+                code="tool.upstream_error",
+                message="Redis 只读查询失败",
+            ) from error
 
 
 class RedisTransport:

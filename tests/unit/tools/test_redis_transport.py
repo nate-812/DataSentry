@@ -1,4 +1,5 @@
 import pytest
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
@@ -41,6 +42,11 @@ class FakeRedis:
 
     def close(self) -> None:
         return None
+
+
+class TimeoutRedis(FakeRedis):
+    def info(self) -> dict[str, object]:
+        raise RedisTimeoutError("timeout")
 
 
 def test_redis_transport_exposes_only_bounded_read_methods(
@@ -98,3 +104,28 @@ def test_redis_transport_reports_missing_secret_as_configuration(
 
     assert raised.value.code == "tool.configuration"
     assert called is False
+
+
+def test_redis_read_client_converts_timeout_to_tool_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEST_REDIS_PASSWORD", "secret")
+    transport = RedisTransport(
+        hosts={"data1": HostTarget(address="192.0.2.10")},
+        targets={
+            "redis": RedisTarget(
+                host="data1",
+                port=6379,
+                password_env="TEST_REDIS_PASSWORD",
+            )
+        },
+        limits=ToolLimits(),
+        secrets=EnvironmentSecretResolver(),
+        client_factory=lambda **_: TimeoutRedis(),
+    )
+
+    with transport.client("redis") as client, pytest.raises(ToolError) as raised:
+        client.info()
+
+    assert raised.value.code == "tool.timeout"
+    assert raised.value.retryable is True

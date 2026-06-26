@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M2 真实只读工具本地实现与自动测试已完成，正在执行云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | Flink REST、Spring API、AI Engine、SSH 主机/服务状态和 Kafka Topic/Offset 现场只读契约已完成首轮探测；Doris/MySQL/Redis 因本机秘密环境变量缺失尚未触网；`spring_api` 日志源固定命令返回 `tool.upstream_error` |
-| 下一里程碑 | 确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，补齐数据库/Redis 本机秘密环境变量，并确认 `spring_api` 日志路径或 systemd unit |
+| 当前工作 | Flink REST、Spring API、AI Engine、SSH 主机/服务状态和 Kafka Topic/Offset 现场只读契约已完成首轮探测；Doris/MySQL 使用临时测试密码后返回 `tool.connection_failed`；Redis 返回 `tool.timeout`；`spring_api` 日志源固定命令返回 `tool.upstream_error` |
+| 下一里程碑 | 确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，核对 Doris/MySQL/Redis 网络访问和只读账号授权，并确认 `spring_api` 日志路径或 systemd unit |
 | 生产权限 | 已执行固定 HTTP GET 和固定 SSH 白名单命令只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -41,13 +41,13 @@
 - SSH known_hosts 已由用户核对，测试实例临时使用 root key 执行固定白名单只读命令；三台主机资源、时间同步和固定服务指纹探测通过。
 - Kafka 进程指纹为 RUNNING；实际 bootstrap 为 `data1:9092` 或 `192.168.1.10:9092`，Topic 列表、broker 状态和 `binance.trade.raw` Offset 推进探测通过。
 - Kafka Consumer Group `flink-kline-group` 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
-- 尚未读取或保存任何生产数据库/Redis 凭据；当前 Codex 执行环境缺少数据库/Redis 秘密环境变量，Doris/MySQL/Redis 探测在触网前返回 `tool.configuration`。
+- 未读取或保存任何生产数据库/Redis 凭据；按用户提示使用临时测试密码做进程内注入后，Doris/MySQL 返回 `tool.connection_failed`，Redis 返回 `tool.timeout`。
 - `spring_api` 有限日志已执行固定文件日志命令，远端返回 stderr，被归一为 `tool.upstream_error`；尚需确认真实日志路径或登记 systemd unit。
 
 ## 下一步
 
 1. 用户确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，或暂接受 group 可见性未知。
-2. 准备 Doris/MySQL 和 Redis 只读账号，并在本机补齐秘密环境变量，不在聊天或 Git 中发送秘密。
+2. 核对 Doris/MySQL 和 Redis 的网络访问、只读账号授权与目标配置，不在聊天或 Git 中发送秘密。
 3. 确认 `spring_api` 真实日志路径或可用 systemd unit，并更新 ignored `config/targets.toml`。
 4. 继续 Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
 5. 所有单工具契约通过后，再执行端到端 Kline 只读影子巡检。
@@ -57,7 +57,7 @@
 ### 当前阻塞
 
 - Kafka Consumer Group 查询未通过：`flink-kline-group` 的 `FIND_COORDINATOR` 调用超时。
-- 数据库和 Redis 探测仍缺只读账号和本机秘密环境变量。
+- Doris/MySQL 使用临时测试密码后返回 `tool.connection_failed`，Redis 返回 `tool.timeout`，尚未取得只读查询结果。
 - `spring_api` 文件日志源返回 `tool.upstream_error`，需要确认路径、权限或改为 journal unit。
 
 ### 已知风险
@@ -144,3 +144,5 @@
 - Kafka bootstrap 已改为配置化；现场使用 `data1:9092` 后 Topic 列表、broker 状态和 `binance.trade.raw` Offset 推进探测通过，Consumer Group 查询仍因 `FIND_COORDINATOR` 超时保持未知。
 - 继续探测时确认当前执行环境缺少 `DATASENTRY_DORIS_PASSWORD`、`DATASENTRY_MYSQL_PASSWORD` 和 `DATASENTRY_REDIS_PASSWORD`；Doris/MySQL/Redis 未触网，并补充 MySQL/Redis secret 缺失返回 `tool.configuration` 的回归测试。
 - `spring_api` 有限日志固定文件读取返回 `tool.upstream_error`，未使用自由 Shell 或自由日志路径，需后续确认真实日志源。
+- 按用户提示使用同一临时测试密码做进程内注入后，Doris `kline_1min`、MySQL `risk_rules` 和 `whale_thresholds` 固定工具均返回 `tool.connection_failed`；Redis `risk:blacklist:*` 固定工具返回 `tool.timeout`。
+- Redis 现场超时暴露 redis-py 懒连接异常未归一问题，已补充命令级异常归一和回归测试，后续 Redis 超时稳定返回 `tool.timeout`。
