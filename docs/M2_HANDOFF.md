@@ -118,11 +118,13 @@ git diff --check
 - 现场 SSH 契约差异：
   - Ubuntu `df` 不允许 `df -i --output=...`，已改为 `df -i`。
   - `df -i` 可能返回 inode 使用率为 `-` 的行，已跳过不可排序行。
-- Kafka 探测已开始但未通过：
+- Kafka 探测已部分通过：
   - Kafka 进程指纹为 RUNNING。
-  - 当前工具约定的 `127.0.0.1:9092` 从 data1 内部不可达。
-  - 本机 `data1:9092` 拒绝连接，`data1:9093/9094` 超时。
-  - 需要用户确认 Kafka 实际 bootstrap 地址/端口，或修正 Kafka 监听配置后再继续 topics、offsets、consumer group 契约探测。
+  - 现场确认 `127.0.0.1:9092` 从 data1 内部不可达，但 `data1:9092` 和 `192.168.1.10:9092` 可作为 Kafka bootstrap。
+  - 已将 Kafka bootstrap 从硬编码 `127.0.0.1:9092` 改为 SSH 目标配置项 `kafka_bootstrap`。
+  - Topic 列表和 broker 状态探测通过，可见 `binance.depth.raw`、`binance.trade.raw`、`streamlake.whale.alert`。
+  - `binance.trade.raw` Offset 双采样显示正在推进，分区数为 6。
+  - `flink-kline-group` Consumer Group 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
 - Doris、MySQL、Redis 和日志探测尚未开始，仍需数据库/Redis 只读账号和本机环境变量。
 
 ## 4. 下一会话开始步骤

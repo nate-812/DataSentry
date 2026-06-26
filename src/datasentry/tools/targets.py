@@ -13,6 +13,7 @@ from datasentry.domain.common import DomainModel
 from datasentry.errors import ConfigurationError
 
 ENVIRONMENT_NAME_PATTERN = r"^[A-Z][A-Z0-9_]+$"
+KAFKA_BOOTSTRAP_PATTERN = r"^[A-Za-z0-9._-]+:[0-9]{1,5}$"
 ALLOWED_LOG_ROOTS = (Path("/opt"), Path("/var/log"), Path("/srv"))
 
 
@@ -38,6 +39,15 @@ class SshTarget(DomainModel):
     password_env: str | None = Field(default=None, pattern=ENVIRONMENT_NAME_PATTERN)
     private_key_path: Path | None = None
     known_hosts: Path
+    kafka_bootstrap: str = Field(default="127.0.0.1:9092", pattern=KAFKA_BOOTSTRAP_PATTERN)
+
+    @field_validator("kafka_bootstrap")
+    @classmethod
+    def validate_kafka_bootstrap(cls, value: str) -> str:
+        port = int(value.rsplit(":", 1)[1])
+        if port < 1 or port > 65_535:
+            raise ValueError("Kafka bootstrap 端口无效")
+        return value
 
     @model_validator(mode="after")
     def validate_authentication_and_host_keys(self) -> Self:

@@ -85,11 +85,36 @@ SERVICE_COMMANDS = {
     "ai_engine": "pgrep -f -- 'uvicorn main:app'",
 }
 SAFE_KAFKA_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
+SAFE_KAFKA_BOOTSTRAP = re.compile(r"^[A-Za-z0-9._-]+:[0-9]{1,5}$")
 SAFE_UNIT = re.compile(r"^[A-Za-z0-9_.@-]+$")
 ALLOWED_LOG_ROOTS = (Path("/opt"), Path("/var/log"), Path("/srv"))
 
 
-def _command(command_id: SshCommandId, arguments: tuple[str, ...]) -> str:
+def _command(
+    command_id: SshCommandId,
+    arguments: tuple[str, ...],
+    *,
+    kafka_bootstrap: str = "127.0.0.1:9092",
+) -> str:
+    if SAFE_KAFKA_BOOTSTRAP.fullmatch(kafka_bootstrap) is None:
+        raise ToolError(
+            code="tool.invalid_arguments",
+            message="Kafka bootstrap 参数不在白名单格式",
+        )
+    if command_id is SshCommandId.KAFKA_TOPICS:
+        if arguments:
+            raise ToolError(
+                code="tool.invalid_arguments",
+                message="固定 SSH 命令不接受参数",
+            )
+        return f"/opt/kafka/bin/kafka-topics.sh --bootstrap-server {kafka_bootstrap} --list"
+    if command_id is SshCommandId.KAFKA_BROKER:
+        if arguments:
+            raise ToolError(
+                code="tool.invalid_arguments",
+                message="固定 SSH 命令不接受参数",
+            )
+        return f"/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server {kafka_bootstrap}"
     if command_id in STATIC_COMMANDS:
         if arguments:
             raise ToolError(
@@ -118,16 +143,16 @@ def _command(command_id: SshCommandId, arguments: tuple[str, ...]) -> str:
         if command_id is SshCommandId.KAFKA_TOPIC_DESCRIBE:
             return (
                 "/opt/kafka/bin/kafka-topics.sh --bootstrap-server "
-                f"127.0.0.1:9092 --describe --topic {value}"
+                f"{kafka_bootstrap} --describe --topic {value}"
             )
         if command_id is SshCommandId.KAFKA_OFFSETS:
             return (
                 "/opt/kafka/bin/kafka-get-offsets.sh --bootstrap-server "
-                f"127.0.0.1:9092 --topic {value}"
+                f"{kafka_bootstrap} --topic {value}"
             )
         return (
             "/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server "
-            f"127.0.0.1:9092 --describe --group {value}"
+            f"{kafka_bootstrap} --describe --group {value}"
         )
     if command_id is SshCommandId.RECENT_JOURNAL:
         if (
@@ -198,7 +223,11 @@ class SshTransport:
                 code="tool.configuration",
                 message="SSH known_hosts 不存在",
             )
-        command = _command(command_id, arguments)
+        command = _command(
+            command_id,
+            arguments,
+            kafka_bootstrap=configured.kafka_bootstrap,
+        )
         client = self._client_factory()
         try:
             client.load_host_keys(str(configured.known_hosts))

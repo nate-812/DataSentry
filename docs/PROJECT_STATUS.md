@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M2 真实只读工具本地实现与自动测试已完成，正在执行云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | Flink REST、Spring API、AI Engine、SSH 主机和服务状态现场只读契约已完成首轮探测；Kafka bootstrap、Doris、Redis/MySQL 和日志待继续 |
-| 下一里程碑 | 确认 Kafka 实际 bootstrap 地址/端口，并准备数据库/Redis 只读账号后，继续 Kafka、Doris、Redis/MySQL、日志契约探测 |
+| 当前工作 | Flink REST、Spring API、AI Engine、SSH 主机/服务状态和 Kafka Topic/Offset 现场只读契约已完成首轮探测；Kafka Consumer Group、Doris、Redis/MySQL 和日志待继续 |
+| 下一里程碑 | 确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，并准备数据库/Redis 只读账号后，继续 Doris、Redis/MySQL、日志契约探测 |
 | 生产权限 | 已执行固定 HTTP GET 和固定 SSH 白名单命令只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -39,21 +39,22 @@
 - Spring API `/actuator/health` 与 `/api/kline/latest` 固定 GET 探测通过；现场发现 latest 可返回空数组，已补契约 fixture 与解析兼容。
 - AI Engine `/health` 固定 GET 探测通过，当前为 RUNNING normal。
 - SSH known_hosts 已由用户核对，测试实例临时使用 root key 执行固定白名单只读命令；三台主机资源、时间同步和固定服务指纹探测通过。
-- Kafka 进程指纹为 RUNNING，但 `127.0.0.1:9092` 和本机 `data1:9092` 均不可达，Kafka CLI 工具暂时阻塞在 bootstrap 地址/端口确认。
+- Kafka 进程指纹为 RUNNING；实际 bootstrap 为 `data1:9092` 或 `192.168.1.10:9092`，Topic 列表、broker 状态和 `binance.trade.raw` Offset 推进探测通过。
+- Kafka Consumer Group `flink-kline-group` 查询返回 `FIND_COORDINATOR` 超时，暂保留为上游未知，不包装成正常不可见。
 - 尚未读取或保存任何生产数据库/Redis 凭据，尚未使用数据库或 Redis 连接。
 
 ## 下一步
 
-1. 用户确认 Kafka 实际监听地址/端口，或修正 Kafka 监听到 data1 本机可访问的 bootstrap endpoint。
+1. 用户确认 Kafka Consumer Group `FIND_COORDINATOR` 超时原因，或暂接受 group 可见性未知。
 2. 准备 Doris/MySQL 和 Redis 只读账号，并在本机补齐秘密环境变量，不在聊天或 Git 中发送秘密。
-3. 继续 Kafka、Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
+3. 继续 Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
 4. 所有单工具契约通过后，再执行端到端 Kline 只读影子巡检。
 
 ## 阻塞与风险
 
 ### 当前阻塞
 
-- Kafka bootstrap endpoint 未确认：`127.0.0.1:9092` 从 data1 内部不可达，`data1:9092` 从本机拒绝连接。
+- Kafka Consumer Group 查询未通过：`flink-kline-group` 的 `FIND_COORDINATOR` 调用超时。
 - 数据库和 Redis 探测仍缺只读账号和本机秘密环境变量。
 
 ### 已知风险
@@ -137,4 +138,4 @@
 - AI Engine `data1:8000` 重新放通后，`/health` 固定 GET 探测通过，返回 RUNNING normal。
 - 用户核对 SSH host key 后，临时使用可丢弃测试实例 root key 执行固定 SSH 白名单命令；三台主机资源、时间同步和固定服务指纹探测通过。
 - 现场发现 Ubuntu `df -i --output=...` 不兼容，改为可移植 `df -i`；同时跳过 inode 使用率为 `-` 的行。
-- Kafka 进程指纹为 RUNNING，但当前 bootstrap `127.0.0.1:9092` 与本机 `data1:9092` 均不可达，Kafka 契约待确认实际监听地址/端口。
+- Kafka bootstrap 已改为配置化；现场使用 `data1:9092` 后 Topic 列表、broker 状态和 `binance.trade.raw` Offset 推进探测通过，Consumer Group 查询仍因 `FIND_COORDINATOR` 超时保持未知。

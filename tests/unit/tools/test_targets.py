@@ -31,6 +31,7 @@ port = 22
 username = "datasentry-readonly"
 password_env = "TEST_SSH_PASSWORD"
 known_hosts = "/tmp/test-known-hosts"
+kafka_bootstrap = "data1:9092"
 
 [http.flink]
 base_url = "http://192.0.2.10:8081"
@@ -64,6 +65,7 @@ def test_target_catalog_loads_aliases_without_resolving_secrets(
 
     assert catalog.host("data1").address == "192.0.2.10"
     assert catalog.ssh_target("data1").password_env == "TEST_SSH_PASSWORD"
+    assert catalog.ssh_target("data1").kafka_bootstrap == "data1:9092"
     assert "secret-value" not in catalog.model_dump_json()
 
 
@@ -76,6 +78,7 @@ def test_target_catalog_loads_aliases_without_resolving_secrets(
         ),
         ('known_hosts = ""', "configuration.target_invalid"),
         ('password_env = "bad-env-name"', "configuration.target_invalid"),
+        ('kafka_bootstrap = "data1:99999"', "configuration.target_invalid"),
         ('path = "../../etc/passwd"', "configuration.target_invalid"),
     ],
 )
@@ -97,6 +100,11 @@ def test_target_catalog_rejects_unsafe_values(
     elif replacement.startswith("password_env"):
         content = _valid_targets().replace(
             'password_env = "TEST_DORIS_PASSWORD"',
+            replacement,
+        )
+    elif replacement.startswith("kafka_bootstrap"):
+        content = _valid_targets().replace(
+            'kafka_bootstrap = "data1:9092"',
             replacement,
         )
     else:

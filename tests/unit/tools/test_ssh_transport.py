@@ -103,6 +103,58 @@ def test_ssh_inode_command_uses_portable_df_syntax() -> None:
     assert command == "df -i"
 
 
+def test_ssh_kafka_command_uses_configured_bootstrap() -> None:
+    command = _command(
+        SshCommandId.KAFKA_TOPICS,
+        (),
+        kafka_bootstrap="data1:9092",
+    )
+
+    assert "--bootstrap-server data1:9092" in command
+    assert "127.0.0.1:9092" not in command
+
+
+def test_ssh_command_rejects_invalid_kafka_bootstrap() -> None:
+    with pytest.raises(ToolError) as raised:
+        _command(
+            SshCommandId.KAFKA_TOPICS,
+            (),
+            kafka_bootstrap="bad;host:9092",
+        )
+
+    assert raised.value.code == "tool.invalid_arguments"
+
+
+def test_ssh_transport_passes_configured_kafka_bootstrap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TEST_SSH_PASSWORD", "secret")
+    known_hosts = tmp_path / "known_hosts"
+    known_hosts.write_text("fixture", encoding="utf-8")
+    client = FakeClient()
+    transport = SshTransport(
+        hosts={"data1": HostTarget(address="192.0.2.10")},
+        targets={
+            "data1": SshTarget(
+                host="data1",
+                username="readonly",
+                password_env="TEST_SSH_PASSWORD",
+                known_hosts=known_hosts,
+                kafka_bootstrap="data1:9092",
+            )
+        },
+        limits=ToolLimits(max_output_bytes=1024),
+        secrets=EnvironmentSecretResolver(),
+        client_factory=lambda: client,
+    )
+
+    transport.execute("data1", SshCommandId.KAFKA_TOPICS)
+
+    assert client.command is not None
+    assert "--bootstrap-server data1:9092" in client.command
+
+
 def test_ssh_transport_rejects_missing_known_hosts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
