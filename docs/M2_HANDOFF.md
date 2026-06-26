@@ -1,6 +1,6 @@
 # M2 真实只读工具交接说明
 
-更新时间：2026-06-25
+更新时间：2026-06-26
 
 ## 0. 当前阶段
 
@@ -88,13 +88,27 @@ git diff --check
 
 最近结果：
 
-- 159 个测试通过。
-- 覆盖率 90.25%。
+- 161 个测试通过。
+- 覆盖率 90.22%。
 - Ruff 通过。
 - mypy strict 通过。
 - `git diff --check` 通过。
-- 尚未连接任何云端服务器。
+- 已执行 Flink REST 与 Spring API 固定 HTTP GET 只读契约探测。
+- 尚未使用 SSH、数据库或 Redis 凭据。
 - 尚未读取或保存任何生产秘密。
+
+## 3.1 云端只读契约探测进度
+
+- 已在 ignored `config/targets.toml` 中整理用户本机映射的 `data1`、`data2`、`data3` 目标，不提交该文件。
+- Flink REST 已通过首轮现场探测：
+  - `streamlake-kline-aggregation`、`streamlake-whale-cep`、`streamlake-risk-control` 均为 RUNNING。
+  - Kline Job 详情、Checkpoint 和 Vertex Backpressure 固定接口可访问。
+  - 现场 Backpressure 响应使用 `backpressureLevel` 与 `ok`，已补 fixture 并兼容解析。
+- Spring API 已通过首轮现场探测：
+  - `/actuator/health` 返回 UP。
+  - `/api/kline/latest` 现场可返回空数组，已补 fixture 并将其识别为有效空结果。
+- AI Engine `data1:8000` 从本机访问超时，尚未完成健康契约探测；需要确认进程监听地址、安全组和防火墙。
+- SSH、Kafka、Doris、MySQL、Redis 和日志探测尚未开始，仍需可信 known_hosts、专用只读账号和本机环境变量。
 
 ## 4. 下一会话开始步骤
 

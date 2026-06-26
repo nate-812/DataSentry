@@ -55,6 +55,10 @@ def _milliseconds_to_datetime(value: JsonValue) -> datetime | None:
     return datetime.fromtimestamp(value / 1000, tz=UTC)
 
 
+def _backpressure_level(value: dict[str, JsonValue]) -> JsonValue:
+    return value.get("backpressure-level", value.get("backpressureLevel", "unknown"))
+
+
 class _FlinkTool:
     def __init__(
         self,
@@ -265,7 +269,7 @@ class FlinkBackpressureTool(_FlinkTool):
                 ),
                 "Backpressure",
             )
-            level = pressure.get("backpressure-level", "unknown")
+            level = _backpressure_level(pressure)
             if isinstance(level, str):
                 levels.append(level)
             summaries.append(
@@ -281,6 +285,8 @@ class FlinkBackpressureTool(_FlinkTool):
             if "high" in levels
             else "low"
             if levels and all(level == "low" for level in levels)
+            else "ok"
+            if levels and all(level == "ok" for level in levels)
             else "unknown"
         )
         return [

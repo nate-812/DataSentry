@@ -6,14 +6,14 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M2 真实只读工具本地实现与自动测试已完成，等待云端只读契约探测 |
+| 总体状态 | M2 真实只读工具本地实现与自动测试已完成，正在执行云端只读契约探测 |
 | 当前阶段 | M2：真实只读工具 |
-| 当前工作 | 已完成白名单网关、受控传输、全部组件适配器、真实巡检编排和 CLI；尚未连接生产 |
-| 下一里程碑 | 用户开启可丢弃云端实例后，按 Flink、API、主机、Kafka、Doris、Redis/MySQL、日志顺序执行真实只读契约探测 |
-| 生产权限 | 只读工具已完成本地实现但尚未接入生产服务器；写操作未实现 |
+| 当前工作 | Flink REST 与 Spring API 现场只读契约已完成首轮探测；AI Engine、SSH、Kafka、Doris、Redis/MySQL 和日志待继续 |
+| 下一里程碑 | 准备可信 known_hosts、专用只读 SSH 用户和数据库/Redis 只读账号后，继续主机、Kafka、Doris、Redis/MySQL、日志契约探测 |
+| 生产权限 | 已执行固定 HTTP GET 只读探测；尚未使用 SSH、数据库或 Redis 凭据；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
-| 最近状态更新时间 | 2026-06-25 |
+| 最近状态更新时间 | 2026-06-26 |
 
 ## 已完成
 
@@ -34,26 +34,31 @@
 
 ## 正在进行
 
-- M2 本地代码与自动测试已完成，当前停在首次云端只读契约探测前。
-- 尚未读取或保存任何生产凭据，尚未连接生产服务器。
+- M2 本地代码与自动测试已完成，已开始云端只读契约探测。
+- Flink Jobs、Job 详情、Checkpoint、Backpressure 固定 REST 探测通过。
+- Spring API `/actuator/health` 与 `/api/kline/latest` 固定 GET 探测通过；现场发现 latest 可返回空数组，已补契约 fixture 与解析兼容。
+- AI Engine `data1:8000` 当前从本机访问超时，尚未完成健康契约探测。
+- 尚未读取或保存任何生产凭据，尚未使用 SSH、数据库或 Redis 连接。
 
 ## 下一步
 
-1. 用户开启可丢弃云端实例，并准备最小权限 SSH、Doris/MySQL 和 Redis 只读账号。
-2. 在本机配置 ignored `config/targets.toml` 和秘密环境变量，不在聊天或 Git 中发送秘密。
-3. 逐项执行真实只读契约探测，将脱敏响应固化为本地 fixture。
-4. 完成端到端 Kline 只读影子巡检后更新 M2 状态。
+1. 用户确认 AI Engine 是否已启动、是否监听 `data1:8000`，以及安全组/防火墙是否允许本机访问。
+2. 准备可信 known_hosts、专用只读 SSH 用户、Doris/MySQL 和 Redis 只读账号。
+3. 在本机补齐秘密环境变量，不在聊天或 Git 中发送秘密。
+4. 继续主机、Kafka、Doris、Redis/MySQL 和日志真实只读契约探测，将脱敏响应固化为本地 fixture。
+5. 所有单工具契约通过后，再执行端到端 Kline 只读影子巡检。
 
 ## 阻塞与风险
 
 ### 当前阻塞
 
-- 无。
+- AI Engine `data1:8000` 从本机访问超时，需要确认进程监听地址、安全组和防火墙。
+- SSH、数据库和 Redis 探测仍缺可信 known_hosts、专用只读账号和本机秘密环境变量。
 
 ### 已知风险
 
 - 尚未现场确认 GitHub CI 对当前 `main` 的最近一次运行结果。
-- 生产连接方式、只读账号和监控组件尚未进入实现阶段。
+- SSH、数据库和 Redis 生产连接方式尚未完成现场契约验证。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka Consumer Group 不可见原因、真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 
@@ -77,7 +82,7 @@
 | 总体设计 | 已完成 | 架构、边界、安全模型和路线获得确认 |
 | M0 工程基础 | 已完成 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
-| M2 真实只读工具 | 本地实现完成，等待云端契约探测 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
+| M2 真实只读工具 | 本地实现完成，云端契约探测进行中 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 未开始 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
@@ -120,3 +125,11 @@
 - 完成受控 HTTP、SSH、MySQL、Redis 传输，以及 Flink、API、主机、Kafka、Doris、MySQL、Redis 和有限日志适配器。
 - 完成确定性工具计划、局部失败隔离、真实巡检服务和 `inspection run` CLI。
 - M2 本地全量验证通过：159 个测试通过，覆盖率 90.25%，Ruff 与 mypy 通过；尚未执行云端现场验证。
+
+### 2026-06-26
+
+- 启动 M2 云端只读契约探测，使用用户本机映射的 `data1`、`data2`、`data3` 主机名整理 ignored `config/targets.toml`，未提交真实目标配置。
+- Flink REST 首轮现场探测通过：`streamlake-kline-aggregation`、`streamlake-whale-cep` 和 `streamlake-risk-control` 均为 RUNNING；Kline Checkpoint 连续失败数为 0。
+- 现场发现 Flink Backpressure 新版响应使用 `backpressureLevel` 和 `ok`，补充契约 fixture 并兼容聚合结果。
+- Spring API 首轮现场探测通过；现场发现 `/api/kline/latest` 可返回空数组，补充契约 fixture 并将空数组识别为有效空结果。
+- AI Engine `data1:8000` 从本机访问超时，后续需要确认服务监听与网络放行。

@@ -16,6 +16,9 @@ FIXTURES = Path(__file__).resolve().parents[3] / "fixtures/contracts/flink"
 
 
 class FixtureHttpTransport:
+    def __init__(self, *, backpressure_filename: str = "backpressure.json") -> None:
+        self._backpressure_filename = backpressure_filename
+
     def get_json(self, target: str, path: str) -> JsonValue:
         del target
         if path == "/jobs/overview":
@@ -23,7 +26,7 @@ class FixtureHttpTransport:
         elif path.endswith("/checkpoints"):
             filename = "checkpoints.json"
         elif path.endswith("/backpressure"):
-            filename = "backpressure.json"
+            filename = self._backpressure_filename
         else:
             filename = "job_details.json"
         return json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
@@ -84,3 +87,19 @@ def test_get_flink_backpressure_returns_level_and_limited_vertices() -> None:
     vertices = _fact(observations, "backpressure_vertices").value
     assert isinstance(vertices, list)
     assert len(vertices) == 2
+
+
+def test_get_flink_backpressure_accepts_camel_case_ok_level() -> None:
+    observations = FlinkBackpressureTool(
+        FixtureHttpTransport(backpressure_filename="backpressure_ok_camel.json"),
+        clock=lambda: NOW,
+    ).execute(
+        inspection_id="inspection-1",
+        target="flink",
+        arguments={"job": "kline"},
+    )
+
+    assert _fact(observations, "backpressure_level").value == "ok"
+    vertices = _fact(observations, "backpressure_vertices").value
+    assert isinstance(vertices, list)
+    assert vertices[0]["level"] == "ok"

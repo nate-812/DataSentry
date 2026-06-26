@@ -11,11 +11,14 @@ FIXTURES = Path(__file__).resolve().parents[3] / "fixtures/contracts/api"
 
 
 class FixtureTransport:
+    def __init__(self, *, spring_probe_filename: str = "spring_kline_latest.json") -> None:
+        self._spring_probe_filename = spring_probe_filename
+
     def get_json(self, target: str, path: str) -> JsonValue:
         if target == "spring_api" and path == "/actuator/health":
             filename = "spring_health.json"
         elif target == "spring_api":
-            filename = "spring_kline_latest.json"
+            filename = self._spring_probe_filename
         else:
             filename = "ai_health_degraded.json"
         return json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
@@ -35,6 +38,22 @@ def test_spring_health_includes_process_and_read_probe() -> None:
     assert _fact(observations, "service_state").value == {"state": "RUNNING"}
     assert _fact(observations, "api_read_probe").value == {
         "status": "ok",
+        "resource": "kline_latest",
+    }
+
+
+def test_spring_read_probe_accepts_empty_list_response() -> None:
+    observations = ApiHealthTool(
+        FixtureTransport(spring_probe_filename="spring_kline_latest_empty.json"),
+        clock=lambda: NOW,
+    ).execute(
+        inspection_id="inspection-1",
+        target="spring_api",
+        arguments={"service": "spring_api"},
+    )
+
+    assert _fact(observations, "api_read_probe").value == {
+        "status": "empty",
         "resource": "kline_latest",
     }
 

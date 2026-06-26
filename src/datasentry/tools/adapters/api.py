@@ -29,6 +29,17 @@ def _object(value: JsonValue) -> dict[str, JsonValue]:
     return value
 
 
+def _probe_status(value: JsonValue) -> str:
+    if isinstance(value, dict):
+        return "ok" if value else "empty"
+    if isinstance(value, list):
+        return "ok" if value else "empty"
+    raise ToolError(
+        code="tool.parse_failed",
+        message="API 只读探针响应结构无效",
+    )
+
+
 class ApiHealthTool:
     """执行固定健康端点和最小只读业务探针。"""
 
@@ -69,8 +80,7 @@ class ApiHealthTool:
     def _spring(self, inspection_id: str, target: str) -> list[Observation]:
         health = _object(self._transport.get_json(target, "/actuator/health"))
         state = "RUNNING" if str(health.get("status", "")).upper() == "UP" else "FAILED"
-        probe = _object(self._transport.get_json(target, "/api/kline/latest"))
-        probe_status = "ok" if probe else "empty"
+        probe_status = _probe_status(self._transport.get_json(target, "/api/kline/latest"))
         return [
             self._observation(
                 inspection_id,
