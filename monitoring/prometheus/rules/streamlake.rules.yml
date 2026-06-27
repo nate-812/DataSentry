@@ -1,0 +1,138 @@
+groups:
+  - name: streamlake_host
+    rules:
+      - alert: HostDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: host
+          service: streamlake
+        annotations:
+          summary: "主机 Exporter 不可达"
+          description: "{{ $labels.instance }} 的 node exporter 连续不可达"
+      - alert: HostDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+          service: streamlake
+        annotations:
+          summary: "主机磁盘可用空间不足"
+          description: "{{ $labels.instance }} {{ $labels.mountpoint }} 可用空间低于 15%"
+      - alert: HostClockSkewHigh
+        expr: abs(node_timex_offset_seconds) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: host
+          service: streamlake
+        annotations:
+          summary: "主机时间偏移过高"
+          description: "{{ $labels.instance }} 时间偏移超过 1 秒"
+
+  - name: streamlake_kafka
+    rules:
+      - alert: KafkaBrokerDown
+        expr: up{job="kafka"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: kafka
+          service: streamlake
+        annotations:
+          summary: "Kafka Broker 指标不可达"
+          description: "{{ $labels.instance }} 的 Kafka exporter 不可达"
+      - alert: KafkaConsumerLagHigh
+        expr: kafka_consumergroup_lag{consumergroup="flink-kline-group"} > 10000
+        for: 5m
+        labels:
+          severity: warning
+          component: kafka
+          service: streamlake
+        annotations:
+          summary: "Kafka Consumer Group lag 过高"
+          description: "flink-kline-group lag 超过 10000"
+
+  - name: streamlake_flink
+    rules:
+      - alert: FlinkJobNotRunning
+        expr: flink_jobmanager_job_uptime == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: flink
+          service: streamlake
+        annotations:
+          summary: "Flink 关键 Job 未运行"
+          description: "{{ $labels.job_name }} 当前未处于运行状态"
+      - alert: FlinkCheckpointFailures
+        expr: increase(flink_jobmanager_job_numberOfFailedCheckpoints[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: flink
+          service: streamlake
+        annotations:
+          summary: "Flink Checkpoint 出现失败"
+          description: "{{ $labels.job_name }} 10 分钟内出现 Checkpoint 失败"
+
+  - name: streamlake_doris
+    rules:
+      - alert: DorisUnavailable
+        expr: up{job="doris"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: doris
+          service: streamlake
+        annotations:
+          summary: "Doris 指标不可达"
+          description: "{{ $labels.instance }} 的 Doris 指标不可达"
+      - alert: KlineFreshnessStale
+        expr: streamlake_kline_freshness_seconds > 300
+        for: 3m
+        labels:
+          severity: critical
+          component: doris
+          service: streamlake
+        annotations:
+          summary: "K线业务表新鲜度超时"
+          description: "Doris kline_1min 最新业务时间超过 300 秒"
+
+  - name: streamlake_api
+    rules:
+      - alert: StreamLakeApiDown
+        expr: up{job=~"spring_api|ai_engine"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+          service: streamlake
+        annotations:
+          summary: "StreamLake API 健康检查失败"
+          description: "{{ $labels.job }} {{ $labels.instance }} 不可达"
+
+  - name: datasentry_self
+    rules:
+      - alert: DataSentryToolFailureRateHigh
+        expr: increase(datasentry_tool_failures_total[10m]) > 3
+        for: 2m
+        labels:
+          severity: warning
+          component: datasentry
+          service: streamlake
+        annotations:
+          summary: "DataSentry 工具失败数升高"
+          description: "10 分钟内只读工具失败超过 3 次"
+      - alert: DataSentryNotificationFailures
+        expr: increase(datasentry_notification_failures_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: datasentry
+          service: streamlake
+        annotations:
+          summary: "DataSentry 通知构建失败"
+          description: "10 分钟内出现通知构建失败"

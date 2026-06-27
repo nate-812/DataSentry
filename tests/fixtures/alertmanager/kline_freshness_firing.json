@@ -1,0 +1,43 @@
+{
+  "receiver": "datasentry-webhook",
+  "status": "firing",
+  "groupLabels": {
+    "alertname": "KlineFreshnessStale",
+    "component": "doris",
+    "severity": "critical"
+  },
+  "commonLabels": {
+    "alertname": "KlineFreshnessStale",
+    "component": "doris",
+    "service": "streamlake",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "K线业务表新鲜度超时",
+    "description": "Doris kline_1min 最新业务时间超过阈值"
+  },
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "KlineFreshnessStale",
+        "component": "doris",
+        "service": "streamlake",
+        "job": "doris",
+        "instance": "data1:9030",
+        "severity": "critical"
+      },
+      "annotations": {
+        "summary": "K线业务表新鲜度超时",
+        "description": "Doris kline_1min 最新业务时间超过阈值"
+      },
+      "startsAt": "2026-06-26T10:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example/graph?g0.expr=streamlake_kline_freshness_seconds"
+    }
+  ],
+  "externalURL": "http://alertmanager.example",
+  "version": "4",
+  "groupKey": "{}:{alertname=\"KlineFreshnessStale\", component=\"doris\"}",
+  "truncatedAlerts": 0
+}
