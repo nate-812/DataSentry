@@ -3,6 +3,14 @@ from pathlib import Path
 
 import pytest
 
+from datasentry.chat import (
+    ChatEventType,
+    ChatMessage,
+    ChatRole,
+    ChatRun,
+    ChatRunStatus,
+    ChatSession,
+)
 from datasentry.domain import (
     Evidence,
     EvidenceStatus,
@@ -109,6 +117,32 @@ def test_save_and_get_inspection_aggregate(
     assert aggregate.inspection == inspection
     assert aggregate.observations == [observation]
     assert aggregate.findings == [finding]
+
+
+def test_list_inspections_returns_recent_aggregates_with_limit(
+    repository: SQLiteRepository,
+    inspection: Inspection,
+    observation: Observation,
+    finding: Finding,
+) -> None:
+    older = inspection.model_copy(
+        update={
+            "id": "12121212-1212-4121-8121-121212121212",
+            "started_at": NOW - timedelta(minutes=5),
+            "finished_at": NOW - timedelta(minutes=4),
+        }
+    )
+    recent_observation = observation.model_copy(update={"inspection_id": inspection.id})
+    recent_finding = finding.model_copy(update={"inspection_id": inspection.id})
+
+    repository.save_inspection(older)
+    repository.save_inspection(inspection)
+    repository.add_observation(recent_observation)
+    repository.add_finding(recent_finding)
+
+    assert repository.list_inspections(limit=1) == [
+        repository.get_inspection(inspection.id),
+    ]
 
 
 def test_start_and_complete_inspection_atomically(
@@ -257,6 +291,108 @@ def test_missing_inspection_reference_maps_to_storage_constraint(
 
     assert raised.value.code == "storage.constraint"
     assert "INSERT" not in raised.value.message
+
+
+def test_chat_session_message_run_and_event_round_trip(repository: SQLiteRepository) -> None:
+    session = ChatSession(
+        id="77777777-7777-4777-8777-777777777777",
+        title="Kline diagnosis",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    message = ChatMessage(
+        id="88888888-8888-4888-8888-888888888888",
+        session_id=session.id,
+        role=ChatRole.USER,
+        content="为什么K线不更新",
+        created_at=NOW,
+    )
+    run = ChatRun(
+        id="99999999-9999-4999-8999-999999999999",
+        session_id=session.id,
+        user_message_id=message.id,
+        status=ChatRunStatus.RUNNING,
+        created_at=NOW,
+    )
+    event = ChatRun.Event(
+        id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        run_id=run.id,
+        event_type=ChatEventType.ACCEPTED,
+        payload={"question": "为什么K线不更新"},
+        created_at=NOW,
+    )
+
+    repository.save_chat_session(session)
+    repository.save_chat_message(message)
+    repository.save_chat_run(run)
+    repository.save_chat_run_event(event)
+
+    assert repository.get_chat_session(session.id) == session
+    assert repository.list_chat_sessions(limit=10) == [session]
+    assert repository.list_chat_messages(session.id) == [message]
+    assert repository.get_chat_run(run.id) == run
+    assert repository.list_chat_run_events(run.id) == [event]
+
+
+def test_update_chat_run_persists_completed_status(repository: SQLiteRepository) -> None:
+    session = ChatSession(
+        id="71717171-7171-4717-8717-717171717171",
+        title="Kline diagnosis",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    message = ChatMessage(
+        id="81818181-8181-4818-8818-818181818181",
+        session_id=session.id,
+        role=ChatRole.USER,
+        content="检查K线延迟",
+        created_at=NOW,
+    )
+    run = ChatRun(
+        id="91919191-9191-4919-8919-919191919191",
+        session_id=session.id,
+        user_message_id=message.id,
+        status=ChatRunStatus.RUNNING,
+        created_at=NOW,
+    )
+    completed = run.model_copy(
+        update={
+            "status": ChatRunStatus.COMPLETED,
+            "finished_at": NOW + timedelta(seconds=1),
+        }
+    )
+
+    repository.save_chat_session(session)
+    repository.save_chat_message(message)
+    repository.save_chat_run(run)
+    repository.update_chat_run(completed)
+
+    assert repository.get_chat_run(run.id) == completed
+
+
+def test_list_incidents_and_operations_are_limited(repository: SQLiteRepository) -> None:
+    incident = Incident(
+        id="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        title="Kline delayed",
+        symptom="Freshness is behind",
+        severity=Severity.WARNING,
+        opened_at=NOW,
+        updated_at=NOW,
+    )
+    operation = Operation(
+        id="cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+        name="simulate_restart_preview",
+        version="1",
+        risk=OperationRisk.L1,
+        requester="operator",
+        requested_at=NOW,
+    )
+
+    repository.save_incident(incident)
+    repository.save_operation(operation)
+
+    assert repository.list_incidents(limit=1) == [incident]
+    assert repository.list_operations(limit=1) == [operation]
 
 
 def test_incident_save_update_and_get(repository: SQLiteRepository) -> None:
