@@ -69,15 +69,17 @@ class OpenAICompatibleProvider:
                 json=payload,
             )
         except httpx.TimeoutException as error:
+            del error
             raise LLMProviderError(
                 code="llm.timeout",
                 message="LLM 调用超时",
-            ) from error
+            ) from None
         except httpx.HTTPError as error:
+            del error
             raise LLMProviderError(
                 code="llm.upstream_error",
                 message="LLM 上游调用失败",
-            ) from error
+            ) from None
         self._raise_for_status(response)
         return LLMResult(
             provider=LLMProviderName.OPENAI_COMPATIBLE,
@@ -106,10 +108,11 @@ class OpenAICompatibleProvider:
             data = response.json()
             content = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError, ValueError) as error:
+            del error
             raise LLMProviderError(
                 code="llm.upstream_error",
                 message="LLM 上游响应缺少有效内容",
-            ) from error
+            ) from None
         if not isinstance(content, str):
             raise LLMProviderError(
                 code="llm.upstream_error",

@@ -103,6 +103,26 @@ def test_openai_compatible_provider_maps_timeout_without_leaking_key() -> None:
 
     assert raised.value.code == "llm.timeout"
     assert "secret-key" not in raised.value.message
+    assert raised.value.__cause__ is None
+
+
+def test_openai_compatible_provider_maps_http_error_without_leaking_key() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("secret-key connection failed")
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://llm.example.test/v1",
+        api_key="secret-key",
+        model="ops-model",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    with pytest.raises(LLMProviderError) as raised:
+        provider.generate([LLMMessage(role="user", content="hello")], LLMOptions())
+
+    assert raised.value.code == "llm.upstream_error"
+    assert "secret-key" not in raised.value.message
+    assert raised.value.__cause__ is None
 
 
 def test_openai_compatible_provider_maps_non_success_status_without_leaking_body() -> None:
@@ -121,6 +141,7 @@ def test_openai_compatible_provider_maps_non_success_status_without_leaking_body
 
     assert raised.value.code == "llm.upstream_error"
     assert "secret-key" not in raised.value.message
+    assert raised.value.__cause__ is None
 
 
 def test_openai_compatible_provider_fails_safely_when_content_is_missing() -> None:
