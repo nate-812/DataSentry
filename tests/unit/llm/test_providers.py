@@ -104,6 +104,7 @@ def test_openai_compatible_provider_maps_timeout_without_leaking_key() -> None:
     assert raised.value.code == "llm.timeout"
     assert "secret-key" not in raised.value.message
     assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
 
 
 def test_openai_compatible_provider_maps_http_error_without_leaking_key() -> None:
@@ -123,6 +124,7 @@ def test_openai_compatible_provider_maps_http_error_without_leaking_key() -> Non
     assert raised.value.code == "llm.upstream_error"
     assert "secret-key" not in raised.value.message
     assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
 
 
 def test_openai_compatible_provider_maps_non_success_status_without_leaking_body() -> None:
@@ -142,6 +144,7 @@ def test_openai_compatible_provider_maps_non_success_status_without_leaking_body
     assert raised.value.code == "llm.upstream_error"
     assert "secret-key" not in raised.value.message
     assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None
 
 
 def test_openai_compatible_provider_fails_safely_when_content_is_missing() -> None:
@@ -160,3 +163,5 @@ def test_openai_compatible_provider_fails_safely_when_content_is_missing() -> No
 
     assert raised.value.code == "llm.upstream_error"
     assert "secret-key" not in raised.value.message
+    assert raised.value.__cause__ is None
+    assert raised.value.__context__ is None

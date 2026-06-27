@@ -62,24 +62,31 @@ class OpenAICompatibleProvider:
             "temperature": options.temperature,
             "max_tokens": options.max_tokens,
         }
+        provider_error: LLMProviderError | None = None
+        response: httpx.Response | None = None
         try:
             response = self._client.post(
                 f"{self._base_url}/chat/completions",
                 headers={"Authorization": f"Bearer {self._api_key}"},
                 json=payload,
             )
-        except httpx.TimeoutException as error:
-            del error
-            raise LLMProviderError(
+        except httpx.TimeoutException:
+            provider_error = LLMProviderError(
                 code="llm.timeout",
                 message="LLM 调用超时",
-            ) from None
-        except httpx.HTTPError as error:
-            del error
+            )
+        except httpx.HTTPError:
+            provider_error = LLMProviderError(
+                code="llm.upstream_error",
+                message="LLM 上游调用失败",
+            )
+        if provider_error is not None:
+            raise provider_error
+        if response is None:  # pragma: no cover
             raise LLMProviderError(
                 code="llm.upstream_error",
                 message="LLM 上游调用失败",
-            ) from None
+            )
         self._raise_for_status(response)
         return LLMResult(
             provider=LLMProviderName.OPENAI_COMPATIBLE,
@@ -104,15 +111,18 @@ class OpenAICompatibleProvider:
 
     @staticmethod
     def _extract_content(response: httpx.Response) -> str:
+        provider_error: LLMProviderError | None = None
+        content: object | None = None
         try:
             data = response.json()
             content = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError, ValueError) as error:
-            del error
-            raise LLMProviderError(
+        except (KeyError, IndexError, TypeError, ValueError):
+            provider_error = LLMProviderError(
                 code="llm.upstream_error",
                 message="LLM 上游响应缺少有效内容",
-            ) from None
+            )
+        if provider_error is not None:
+            raise provider_error
         if not isinstance(content, str):
             raise LLMProviderError(
                 code="llm.upstream_error",
