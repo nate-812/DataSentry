@@ -33,7 +33,13 @@ CREATE TABLE chat_runs (
     CHECK (
         (status != 'failed' AND error_code IS NULL AND error_message IS NULL)
         OR
-        (status = 'failed' AND error_code IS NOT NULL AND error_message IS NOT NULL)
+        (
+            status = 'failed'
+            AND error_code IS NOT NULL
+            AND length(trim(error_code)) > 0
+            AND error_message IS NOT NULL
+            AND length(trim(error_message)) > 0
+        )
     )
 );
 

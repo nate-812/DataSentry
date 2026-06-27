@@ -88,6 +88,73 @@ def test_upgrade_database_applies_m4_chat_console_schema(tmp_path: Path) -> None
     assert {"chat_sessions", "chat_messages", "chat_runs", "chat_run_events"} <= names
 
 
+def test_chat_runs_reject_invalid_error_state_combinations(tmp_path: Path) -> None:
+    database_path = tmp_path / "datasentry.db"
+    upgrade_database(database_path)
+
+    with closing(connect(database_path)) as connection:
+        connection.execute(
+            """
+            INSERT INTO chat_sessions (id, title, created_at, updated_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                "22222222-2222-4222-8222-222222222222",
+                "K线诊断",
+                "2026-06-27T08:00:00+00:00",
+                "2026-06-27T08:00:00+00:00",
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO chat_messages (id, session_id, role, content, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                "11111111-1111-4111-8111-111111111111",
+                "22222222-2222-4222-8222-222222222222",
+                "user",
+                "为什么K线不更新",
+                "2026-06-27T08:00:00+00:00",
+            ),
+        )
+
+        invalid_runs = [
+            (
+                "33333333-3333-4333-8333-333333333333",
+                "completed",
+                "chat.failed",
+                "聊天任务失败",
+            ),
+            (
+                "44444444-4444-4444-8444-444444444444",
+                "failed",
+                " ",
+                " ",
+            ),
+        ]
+        for run_id, status, error_code, error_message in invalid_runs:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    """
+                    INSERT INTO chat_runs (
+                        id, session_id, user_message_id, status,
+                        error_code, error_message, created_at, finished_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        run_id,
+                        "22222222-2222-4222-8222-222222222222",
+                        "11111111-1111-4111-8111-111111111111",
+                        status,
+                        error_code,
+                        error_message,
+                        "2026-06-27T08:00:00+00:00",
+                        "2026-06-27T08:00:00+00:00",
+                    ),
+                )
+
+
 def test_foreign_keys_are_enforced(tmp_path: Path) -> None:
     database_path = tmp_path / "datasentry.db"
     upgrade_database(database_path)

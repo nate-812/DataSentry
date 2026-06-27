@@ -93,10 +93,11 @@ class ChatRun(DomainModel):
 
     @model_validator(mode="after")
     def validate_run(self) -> Self:
-        if self.status is ChatRunStatus.FAILED and (
-            self.error_code is None or self.error_message is None
-        ):
-            raise ValueError("失败的聊天任务必须包含错误码和错误信息")
+        if self.status is ChatRunStatus.FAILED:
+            if not self.error_code or not self.error_message:
+                raise ValueError("失败的聊天任务必须包含非空错误码和错误信息")
+        elif self.error_code is not None or self.error_message is not None:
+            raise ValueError("非失败的聊天任务不能包含错误码或错误信息")
         if self.finished_at is not None and self.finished_at < self.created_at:
             raise ValueError("finished_at 不能早于 created_at")
         return self
