@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from typing import Protocol
 
@@ -39,17 +39,29 @@ class ChatRepository(Protocol):
 
 
 class InspectionAggregateLike(Protocol):
-    inspection: Inspection
-    findings: list[Finding]
+    @property
+    def inspection(self) -> Inspection:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def findings(self) -> Sequence[Finding]:
+        raise NotImplementedError  # pragma: no cover
 
 
 class DiagnosisResultLike(Protocol):
-    aggregate: InspectionAggregateLike
+    @property
+    def aggregate(self) -> InspectionAggregateLike:
+        raise NotImplementedError  # pragma: no cover
 
 
 class LiveInspectionResultLike(Protocol):
-    diagnosis: DiagnosisResultLike
-    tool_invocations: list[object]
+    @property
+    def diagnosis(self) -> DiagnosisResultLike:
+        raise NotImplementedError  # pragma: no cover
+
+    @property
+    def tool_invocations(self) -> Sequence[object]:
+        raise NotImplementedError  # pragma: no cover
 
 
 class LiveInspectionRunner(Protocol):
@@ -125,7 +137,7 @@ class ChatService:
             emit(ChatEventType.TOOLS_PLANNED, {"source": "live_inspection_service"})
             live_result = self._live_inspection.run(question)
             aggregate = live_result.diagnosis.aggregate
-            findings: list[Finding] = aggregate.findings
+            findings = list(aggregate.findings)
             emit(ChatEventType.RULES_COMPLETED, {"finding_count": len(findings)})
             emit(ChatEventType.LLM_STARTED, {"provider": "configured"})
             summary = self._summarizer.summarize(

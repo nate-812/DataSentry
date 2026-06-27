@@ -38,3 +38,11 @@ class OperationSimulationRequest(BaseModel):
 
 class OperationActionRequest(BaseModel):
     approver: str = Field(min_length=1)
+
+
+class ChatSessionCreateRequest(BaseModel):
+    title: str = Field(min_length=1)
+
+
+class ChatRunCreateRequest(BaseModel):
+    question: str = Field(min_length=1)
