@@ -91,7 +91,9 @@ def test_notification_service_maps_alert_to_question_and_message() -> None:
     assert runner.questions == ["为什么 K线数据不更新"]
     assert result.content.diagnosis_question == "为什么 K线数据不更新"
     assert result.content.unknowns == ["password=[REDACTED]"]
+    assert result.content.findings[0].unknowns == ["password=[REDACTED]"]
     assert "super-secret" not in result.content.unknowns[0]
+    assert "super-secret" not in result.content.findings[0].unknowns[0]
     assert result.wecom_markdown["msgtype"] == "markdown"
     assert result.generic_webhook["finding_summaries"] == ["K线链路数据新鲜度异常"]
     assert result.generic_webhook["unknowns"] == ["password=[REDACTED]"]

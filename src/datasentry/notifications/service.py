@@ -55,9 +55,10 @@ class NotificationService:
         findings: list[Finding] = []
         try:
             result = self._diagnosis_runner.run(question)
-            findings = result.diagnosis.aggregate.findings
-            for finding in findings:
-                unknowns.extend(redact_text(unknown) for unknown in finding.unknowns)
+            for finding in result.diagnosis.aggregate.findings:
+                redacted_unknowns = [redact_text(unknown) for unknown in finding.unknowns]
+                findings.append(finding.model_copy(update={"unknowns": redacted_unknowns}))
+                unknowns.extend(redacted_unknowns)
         except Exception as error:
             unknowns.append(f"诊断执行失败：{redact_text(str(error))}")
         content = NotificationContent(
