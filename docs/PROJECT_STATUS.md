@@ -7,9 +7,9 @@
 | 项目 | 当前状态 |
 |---|---|
 | 总体状态 | M3 监控看板与通知仓库内基线已通过 Pull Request #3 合并到 `main` |
-| 当前阶段 | M3：已完成并合并 |
-| 当前工作 | 本地 `main` 已同步到 `origin/main` 的 M3 合并结果；尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息 |
-| 下一里程碑 | 选择进行 M3 受控部署联调，或进入 M4 对话与 Web 控制台 |
+| 当前阶段 | M4：对话与 Web 控制台设计中 |
+| 当前工作 | 已选择进入 M4；M4 首版按完整 Web 控制台推进，采用 Command Center 布局、FastAPI、React、SSE、OpenAI-compatible LLM API key 优先和本地模拟审批 |
+| 下一里程碑 | 评审并批准 M4 设计文档，随后起草 M4 实施计划 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -36,13 +36,13 @@
 
 ## 正在进行
 
-- M3 仓库内实现已通过 PR #3 合并到 `main`；等待决定后续 M3 受控部署联调或 M4 启动顺序。
-- MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M3 工程启动。
+- M4 设计已启动；首版目标是 FastAPI Agent、OpenAI-compatible LLM、React Command Center、事件/证据查看和本地模拟审批闭环。
+- MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M4 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 选择是否进行 M3 受控部署联调：Prometheus/Grafana/Alertmanager 部署、真实消息渠道 secret 注入和受控异常验证。
-2. 或进入 M4 对话与 Web 控制台：FastAPI Agent、可插拔 LLM 和 React 控制台。
+1. 评审 M4 设计文档：`docs/superpowers/specs/2026-06-27-m4-dialog-web-console-design.md`。
+2. 起草 M4 实施计划，按 TDD 拆分 FastAPI、聊天服务、LLM、Repository、React 控制台和模拟审批。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
@@ -69,10 +69,21 @@
 | 建设方式 | 不购买商业 AIOps；采用开源底座并自研 StreamLake 领域智能 |
 | 可观测性 | Prometheus、Grafana、Alertmanager；Loki/Alloy 后续接入 |
 | Agent 后端 | Python / FastAPI，核心诊断与具体 LLM 解耦 |
-| LLM 策略 | 本地 Ollama 优先；确定性规则优先，模型不可用时仍能巡检 |
+| LLM 策略 | OpenAI-compatible API key 优先；确定性规则优先，模型不可用时仍能巡检 |
 | 存储 | SQLite 起步，出现多用户或并发写入需求后迁移 PostgreSQL |
 | 自动化 | 先只读诊断，再审批式 Runbook，最后仅开放经过验证的有限自治 |
 | 安全边界 | 禁止任意 Shell、自动补数、自动 Savepoint 恢复、自动改生产配置和删除数据 |
+
+### M4 已选设计方向
+
+| 主题 | 当前选择 |
+|---|---|
+| 控制台布局 | Command Center：概览与聊天并重，事件、证据、审批和 Grafana 为一级入口 |
+| Agent API | FastAPI，聊天诊断任务通过 SSE 推送进度 |
+| LLM 接入 | OpenAI-compatible API key 优先，同时保留 Mock 和 disabled 降级 |
+| LLM 边界 | 只做可读总结，不选择工具、不判定权限、不生成生产写操作 |
+| 审批页面 | 本地模拟审批状态流，可批准/拒绝模拟操作，不接生产 Runbook |
+| Web 边界 | React 控制台只访问 DataSentry API，不直连生产组件 |
 
 ## 阶段进度
 
@@ -83,7 +94,7 @@
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
-| M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
+| M4 对话与 Web | 设计中 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
@@ -95,6 +106,7 @@
 - [M1 知识驱动诊断实施计划](superpowers/plans/2026-06-25-m1-knowledge-driven-diagnosis.md)
 - [M2 真实只读工具实施计划](superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
 - [M3 监控看板与通知设计](superpowers/specs/2026-06-26-m3-observability-notifications-design.md)
+- [M4 对话式 Agent 与 Web 控制台设计](superpowers/specs/2026-06-27-m4-dialog-web-console-design.md)
 - [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [知识导航](../knowledge/INDEX.md)
@@ -172,3 +184,4 @@
 - M3 PR #3 新一轮 GitHub checks 已通过：`quality` pass，`secrets` pass。
 - M3 PR #3 已合并到 `main`，合并提交为 `40b5a41`；本地 `main` 已 fast-forward 同步到 `origin/main`。
 - M3 仍保持仓库内基线边界：尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
+- 启动 M4 设计；用户选择完整 Web 控制台首版、Command Center 布局和本地模拟审批流。LLM 首版改为 OpenAI-compatible API key 优先，同时保留 Mock 与 disabled 降级，不默认依赖本地 Ollama。
