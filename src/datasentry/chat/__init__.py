@@ -8,12 +8,15 @@ from datasentry.chat.models import (
     ChatRunStatus,
     ChatSession,
 )
+from datasentry.chat.service import ChatRunResult, ChatService
 
 __all__ = [
     "ChatEventType",
     "ChatMessage",
     "ChatRole",
     "ChatRun",
+    "ChatRunResult",
     "ChatRunStatus",
+    "ChatService",
     "ChatSession",
 ]
