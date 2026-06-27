@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from datasentry.api.routes import chat, evidence, incidents, operations, overview
+from datasentry.api.routes import alertmanager, chat, evidence, incidents, operations, overview
 from datasentry.config import Settings
 from datasentry.errors import DataSentryError, NotFoundError
 
@@ -22,6 +22,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_exception_handler(DataSentryError, _datasentry_error_handler)
     app.include_router(chat.router, prefix="/api")
+    app.include_router(alertmanager.router, prefix="/api")
     app.include_router(overview.router, prefix="/api")
     app.include_router(evidence.router, prefix="/api")
     app.include_router(incidents.router, prefix="/api")
