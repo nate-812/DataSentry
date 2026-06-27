@@ -1,0 +1,47 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - rules/streamlake.rules.yml
+
+scrape_configs:
+  - job_name: node
+    static_configs:
+      - targets: ["data1:9100", "data2:9100", "data3:9100"]
+        labels:
+          service: streamlake
+  - job_name: flink
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["data1:9249"]
+        labels:
+          service: streamlake
+  - job_name: kafka
+    static_configs:
+      - targets: ["data1:9308"]
+        labels:
+          service: streamlake
+  - job_name: doris
+    static_configs:
+      - targets: ["data1:8030"]
+        labels:
+          service: streamlake
+  - job_name: spring_api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["data1:8080"]
+        labels:
+          service: streamlake
+  - job_name: ai_engine
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["data1:8000"]
+        labels:
+          service: streamlake
+  - job_name: datasentry
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["datasentry:8000"]
+        labels:
+          service: streamlake

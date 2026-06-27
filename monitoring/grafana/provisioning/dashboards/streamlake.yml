@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: StreamLake
+    orgId: 1
+    folder: StreamLake
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

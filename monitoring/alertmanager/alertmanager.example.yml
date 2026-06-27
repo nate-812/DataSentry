@@ -1,0 +1,44 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: datasentry-webhook
+  group_by: ["alertname", "component", "severity"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+  routes:
+    - receiver: datasentry-webhook
+      matchers:
+        - severity =~ "warning|critical"
+      continue: true
+    - receiver: wecom-robot-placeholder
+      matchers:
+        - severity = "critical"
+      continue: true
+
+receivers:
+  - name: datasentry-webhook
+    webhook_configs:
+      - url: "http://datasentry:8000/api/alerts/alertmanager"
+        send_resolved: true
+  - name: wecom-robot-placeholder
+    webhook_configs:
+      - url: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=<WECHAT_WORK_BOT_KEY>"
+        send_resolved: true
+  - name: generic-webhook-placeholder
+    webhook_configs:
+      - url: "https://example.invalid/datasentry-alerts"
+        send_resolved: true
+
+inhibit_rules:
+  - source_matchers:
+      - alertname = "KafkaBrokerDown"
+    target_matchers:
+      - component = "kafka"
+    equal: ["service"]
+  - source_matchers:
+      - alertname = "FlinkJobNotRunning"
+    target_matchers:
+      - alertname = "KlineFreshnessStale"
+    equal: ["service"]
