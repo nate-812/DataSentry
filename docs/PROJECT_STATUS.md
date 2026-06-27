@@ -7,9 +7,9 @@
 | 项目 | 当前状态 |
 |---|---|
 | 总体状态 | M3 监控看板与通知仓库内基线已通过 Pull Request #3 合并到 `main` |
-| 当前阶段 | M4：对话与 Web 控制台实施准备中 |
-| 当前工作 | M4 设计与实施计划已完成；首版按完整 Web 控制台推进，采用 Command Center 布局、FastAPI、React、SSE、OpenAI-compatible LLM API key 优先和本地模拟审批 |
-| 下一里程碑 | 按 M4 实施计划开始 TDD 开发，建议先创建隔离分支或工作区 |
+| 当前阶段 | M4：对话与 Web 控制台实施中 |
+| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 Task 1～4：运行配置、聊天领域模型、SQLite 聊天持久化和可插拔 LLM Provider；下一步实现 Answer Summarizer |
+| 下一里程碑 | 完成 Answer Summarizer、ChatService 与 FastAPI JSON/SSE 后端闭环，再进入 React Command Center |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,6 +37,7 @@
 ## 正在进行
 
 - M4 设计和实施计划已完成；首版目标是 FastAPI Agent、OpenAI-compatible LLM、React Command Center、事件/证据查看和本地模拟审批闭环。
+- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成运行配置、聊天领域模型、SQLite 聊天持久化和 LLM Provider。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M4 设计和仓库内工程启动。
 
 ## 下一步
@@ -94,7 +95,7 @@
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
-| M4 对话与 Web | 实施准备中 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
+| M4 对话与 Web | 实施中 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
@@ -187,3 +188,9 @@
 - M3 仍保持仓库内基线边界：尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
 - 启动 M4 设计；用户选择完整 Web 控制台首版、Command Center 布局和本地模拟审批流。LLM 首版改为 OpenAI-compatible API key 优先，同时保留 Mock 与 disabled 降级，不默认依赖本地 Ollama。
 - 完成 M4 实施计划，按 TDD 拆分运行配置、聊天领域模型、SQLite 持久化、LLM Provider、摘要器、模拟审批、ChatService、FastAPI API、Alertmanager API、React 控制台、文档和最终验证。
+- 创建 M4 隔离工作区与功能分支 `codex/m4-dialog-web-console`；基线验证通过：`ruff format --check`、`ruff check`、`mypy src` 和全量 pytest 覆盖率门槛。
+- 完成 M4 运行配置：新增 FastAPI/Uvicorn 依赖，补充 API、CORS、Grafana 与 LLM 配置；`DATASENTRY_LLM_API_KEY` 只从环境读取且不出现在配置 repr。
+- 完成聊天领域模型与 SQLite `0003_chat_console` 迁移，包含 chat session、message、run、run event；失败 run 必须包含非空错误信息，非失败 run 不允许错误字段。
+- 完成 Repository 与 SQLite 聊天持久化接口：Inspection/Incident/Operation 列表、聊天会话/消息/任务/事件保存和读取；新增列表查询统一限制 `1..100`，避免 SQLite `LIMIT -1` 无界读取；`ChatRun` 更新只允许修改状态、关联巡检、错误和结束时间。
+- 完成可插拔 LLM Provider：disabled、mock、OpenAI-compatible；OpenAI-compatible 调用 `/chat/completions`，发送 Bearer API key 与标准 payload。LLM 上游异常统一映射为脱敏 `LLMProviderError`，并清理 `__cause__` 与 `__context__`，避免 traceback 或调试工具泄露 API key 和上游正文。
+- M4 当前验证快照：`tests/unit/llm/test_providers.py` 8 个测试通过；全量 `pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 通过，227 个测试通过，覆盖率 90.83%。
