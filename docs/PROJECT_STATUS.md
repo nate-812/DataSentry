@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M3 监控看板与通知仓库内基线已完成，功能分支已推送，等待最终评审/PR |
-| 当前阶段 | M3：监控看板与通知本地收尾 |
-| 当前工作 | 已完成 Alertmanager payload 解析、告警去重、诊断通知格式、DataSentry 自监控指标、Prometheus/Alertmanager/Grafana 模板和 `notification simulate` CLI；正在执行最终全量验证 |
-| 下一里程碑 | 完成最终验证后创建 Pull Request，后续再进行受控部署和真实消息渠道联调 |
+| 总体状态 | M3 监控看板与通知仓库内基线已完成，Pull Request #3 已创建且 GitHub checks 已通过 |
+| 当前阶段 | M3：等待 PR 评审/合并 |
+| 当前工作 | 已完成 Alertmanager payload 解析、告警去重、诊断通知格式、DataSentry 自监控指标、Prometheus/Alertmanager/Grafana 模板和 `notification simulate` CLI；PR #3 等待人工评审，尚未合并 |
+| 下一里程碑 | 评审并合并 M3 PR，后续再进行受控部署和真实消息渠道联调 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -36,13 +36,13 @@
 
 ## 正在进行
 
-- M3 本地实现已完成，正在进行最终验证和收尾文档更新；尚未创建 PR。
+- M3 本地实现已完成，PR #3 已创建且 GitHub `quality`、`secrets` checks 已通过；尚未合并。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M3 工程启动。
 
 ## 下一步
 
-1. 完成 M3 最终全量验证、Ruff、mypy、diff 和秘密扫描。
-2. 创建 M3 Pull Request，等待评审后再合并。
+1. 评审 M3 Pull Request #3，确认后再合并。
+2. 合并后同步本地 `main` 并更新阶段状态。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 4. 后续受控部署 Prometheus、Grafana、Alertmanager，并接入真实企业微信或通用 Webhook secret。
 5. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
@@ -169,3 +169,5 @@
 - 修正 Alertmanager 示例路由语义，确保 critical 告警既进入 DataSentry，也能继续路由到企业微信占位 receiver；补充 Spring API 和 AI Engine 示例 scrape job。
 - 新增 `datasentry notification simulate` CLI，可用本地 Alertmanager fixture 输出企业微信 Markdown 或通用 Webhook JSON；SQLite Repository 生命周期已通过 `enter → run → exit` 回归测试保护。
 - M3 分支 `codex/m3-observability-notifications` 已推送到 GitHub；尚未创建 Pull Request，尚未真实部署或发送真实通知。
+- 创建 [M3 PR #3](https://github.com/nate-812/DataSentry/pull/3)；首次 GitHub `quality` 因 `ruff format --check .` 失败，涉及 `src/datasentry/cli/app.py` 和 `tests/unit/monitoring/test_monitoring_assets.py`，已提交 `style: 格式化M3变更` 修复。
+- M3 PR #3 新一轮 GitHub checks 已通过：`quality` pass，`secrets` pass；PR 尚未合并。
