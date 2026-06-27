@@ -27,3 +27,30 @@ def test_settings_read_datasentry_prefixed_environment(
     assert settings.database_path == Path("/tmp/custom.db")
     assert settings.log_level == "DEBUG"
     assert settings.targets_file == Path("/tmp/targets.toml")
+
+
+def test_m4_llm_settings_default_to_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATASENTRY_LLM_PROVIDER", raising=False)
+    monkeypatch.delenv("DATASENTRY_LLM_API_KEY", raising=False)
+
+    settings = Settings()
+
+    assert settings.llm_provider == "disabled"
+    assert settings.llm_api_key is None
+    assert settings.api_cors_origins == ["http://localhost:5173"]
+
+
+def test_m4_llm_settings_load_openai_compatible(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATASENTRY_LLM_PROVIDER", "openai_compatible")
+    monkeypatch.setenv("DATASENTRY_LLM_BASE_URL", "https://llm.example.test/v1")
+    monkeypatch.setenv("DATASENTRY_LLM_MODEL", "ops-model")
+    monkeypatch.setenv("DATASENTRY_LLM_API_KEY", "secret-key")
+    monkeypatch.setenv("DATASENTRY_LLM_TIMEOUT_SECONDS", "7")
+
+    settings = Settings()
+
+    assert settings.llm_provider == "openai_compatible"
+    assert str(settings.llm_base_url) == "https://llm.example.test/v1"
+    assert settings.llm_model == "ops-model"
+    assert settings.llm_api_key == "secret-key"
+    assert settings.llm_timeout_seconds == 7
