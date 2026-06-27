@@ -1,3 +1,4 @@
+import inspect
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -370,8 +371,29 @@ def test_update_chat_run_persists_completed_status(repository: SQLiteRepository)
     assert repository.get_chat_run(run.id) == completed
 
 
+def test_chat_read_queries_use_explicit_columns() -> None:
+    methods = [
+        SQLiteRepository.get_chat_session,
+        SQLiteRepository.list_chat_sessions,
+        SQLiteRepository.list_chat_messages,
+        SQLiteRepository.get_chat_run,
+        SQLiteRepository.list_chat_run_events,
+    ]
+
+    for method in methods:
+        assert "SELECT *" not in inspect.getsource(method).upper()
+
+
 def test_list_incidents_and_operations_are_limited(repository: SQLiteRepository) -> None:
-    incident = Incident(
+    older_incident = Incident(
+        id="abababab-abab-4aba-8aba-abababababab",
+        title="Old kline delayed",
+        symptom="Freshness was behind",
+        severity=Severity.INFO,
+        opened_at=NOW - timedelta(minutes=10),
+        updated_at=NOW - timedelta(minutes=10),
+    )
+    newest_incident = Incident(
         id="bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
         title="Kline delayed",
         symptom="Freshness is behind",
@@ -379,7 +401,15 @@ def test_list_incidents_and_operations_are_limited(repository: SQLiteRepository)
         opened_at=NOW,
         updated_at=NOW,
     )
-    operation = Operation(
+    older_operation = Operation(
+        id="cdcdcdcd-cdcd-4cdc-8cdc-cdcdcdcdcdcd",
+        name="simulate_old_restart_preview",
+        version="1",
+        risk=OperationRisk.L1,
+        requester="operator",
+        requested_at=NOW - timedelta(minutes=10),
+    )
+    newest_operation = Operation(
         id="cccccccc-cccc-4ccc-8ccc-cccccccccccc",
         name="simulate_restart_preview",
         version="1",
@@ -388,11 +418,13 @@ def test_list_incidents_and_operations_are_limited(repository: SQLiteRepository)
         requested_at=NOW,
     )
 
-    repository.save_incident(incident)
-    repository.save_operation(operation)
+    repository.save_incident(older_incident)
+    repository.save_incident(newest_incident)
+    repository.save_operation(older_operation)
+    repository.save_operation(newest_operation)
 
-    assert repository.list_incidents(limit=1) == [incident]
-    assert repository.list_operations(limit=1) == [operation]
+    assert repository.list_incidents(limit=1) == [newest_incident]
+    assert repository.list_operations(limit=1) == [newest_operation]
 
 
 def test_incident_save_update_and_get(repository: SQLiteRepository) -> None:

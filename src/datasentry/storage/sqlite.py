@@ -451,7 +451,11 @@ class SQLiteRepository:
     def get_chat_session(self, session_id: str) -> ChatSession:
         connection = self._require_open()
         row = connection.execute(
-            "SELECT * FROM chat_sessions WHERE id = ?",
+            """
+            SELECT id, title, created_at, updated_at
+            FROM chat_sessions
+            WHERE id = ?
+            """,
             (session_id,),
         ).fetchone()
         if row is None:
@@ -466,7 +470,8 @@ class SQLiteRepository:
         connection = self._require_open()
         rows = connection.execute(
             """
-            SELECT * FROM chat_sessions
+            SELECT id, title, created_at, updated_at
+            FROM chat_sessions
             ORDER BY updated_at DESC, id DESC
             LIMIT ?
             """,
@@ -502,7 +507,8 @@ class SQLiteRepository:
         connection = self._require_open()
         rows = connection.execute(
             """
-            SELECT * FROM chat_messages
+            SELECT id, session_id, role, content, inspection_id, llm_status, created_at
+            FROM chat_messages
             WHERE session_id = ?
             ORDER BY created_at, id
             """,
@@ -552,7 +558,13 @@ class SQLiteRepository:
     def get_chat_run(self, run_id: str) -> ChatRun:
         connection = self._require_open()
         row = connection.execute(
-            "SELECT * FROM chat_runs WHERE id = ?",
+            """
+            SELECT
+                id, session_id, user_message_id, status, inspection_id,
+                error_code, error_message, created_at, finished_at
+            FROM chat_runs
+            WHERE id = ?
+            """,
             (run_id,),
         ).fetchone()
         if row is None:
@@ -588,7 +600,8 @@ class SQLiteRepository:
         connection = self._require_open()
         rows = connection.execute(
             """
-            SELECT * FROM chat_run_events
+            SELECT id, run_id, event_type, payload_json, created_at
+            FROM chat_run_events
             WHERE run_id = ?
             ORDER BY created_at, id
             """,
