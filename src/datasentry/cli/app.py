@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Callable
+from enum import StrEnum
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Annotated, Any
@@ -39,6 +40,11 @@ from datasentry.knowledge import (
     build_streamlake_lineage,
 )
 from datasentry.logging import configure_logging, get_logger
+from datasentry.notifications import (
+    AlertmanagerPayload,
+    NotificationService,
+    parse_alertmanager_payload,
+)
 from datasentry.storage import InspectionAggregate, SQLiteRepository, upgrade_database
 from datasentry.tools import (
     LiveInspectionResult,
@@ -136,8 +142,21 @@ inspection_app = typer.Typer(
     add_completion=False,
     cls=ChineseTyperGroup,
 )
+notification_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    cls=ChineseTyperGroup,
+)
 app.add_typer(db_app, name="db")
 app.add_typer(inspection_app, name="inspection")
+app.add_typer(notification_app, name="notification")
+
+
+class NotificationOutputFormat(StrEnum):
+    """通知模拟命令支持的输出格式。"""
+
+    WECOM = "wecom"
+    GENERIC = "generic"
 
 DatabasePathOption = Annotated[
     Path | None,
@@ -176,6 +195,17 @@ TargetsFileOption = Annotated[
         dir_okay=False,
         readable=True,
         help="目标配置 TOML，默认使用 DATASENTRY_TARGETS_FILE。",
+    ),
+]
+PayloadFileOption = Annotated[
+    Path,
+    typer.Option(
+        "--payload-file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Alertmanager Webhook JSON 载荷文件。",
     ),
 ]
 
@@ -236,6 +266,33 @@ def _load_observations(path: Path) -> list[Observation]:
             code="diagnosis.invalid_observations",
             message="模拟 Observation 文件无效",
         ) from error
+
+
+def _load_alertmanager_payload(path: Path) -> AlertmanagerPayload:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, JSONDecodeError) as error:
+        raise DataSentryError(
+            code="notification.invalid_payload",
+            message="Alertmanager Webhook 载荷无效",
+        ) from error
+    return parse_alertmanager_payload(value)
+
+
+def _build_notification_service(
+    *,
+    repository: SQLiteRepository,
+    targets_file: Path | None,
+    knowledge_root: Path,
+) -> NotificationService:
+    targets_path = targets_file if targets_file is not None else Settings().targets_file
+    targets = TargetCatalog.load(targets_path)
+    runner = build_live_inspection_service(
+        repository=repository,
+        targets=targets,
+        knowledge_root=knowledge_root,
+    )
+    return NotificationService(diagnosis_runner=runner)
 
 
 def _run_json(action: Callable[[], object]) -> None:
@@ -416,6 +473,39 @@ def inspection_run(
             return _live_inspection_payload(service.run(question))
 
     _run_json(run)
+
+
+@notification_app.command("simulate", cls=ChineseTyperCommand)
+def notification_simulate(
+    payload_file: PayloadFileOption,
+    output_format: Annotated[
+        NotificationOutputFormat,
+        typer.Option(
+            "--format",
+            help="输出格式：wecom 为企业微信 Markdown，generic 为通用 Webhook JSON。",
+        ),
+    ] = NotificationOutputFormat.WECOM,
+    targets_file: TargetsFileOption = None,
+    knowledge_root: KnowledgeRootOption = Path("knowledge"),
+    database_path: DatabasePathOption = None,
+) -> None:
+    """使用 Alertmanager 本地载荷模拟告警诊断通知。"""
+    path = _database_path(database_path)
+
+    def simulate() -> dict[str, object]:
+        payload = _load_alertmanager_payload(payload_file)
+        with SQLiteRepository(path) as repository:
+            service = _build_notification_service(
+                repository=repository,
+                targets_file=targets_file,
+                knowledge_root=knowledge_root,
+            )
+            result = service.build(payload)
+        if output_format is NotificationOutputFormat.WECOM:
+            return result.wecom_markdown
+        return result.generic_webhook
+
+    _run_json(simulate)
 
 
 def main() -> None:
