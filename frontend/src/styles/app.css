@@ -1,0 +1,277 @@
+:root {
+  color: #17201a;
+  background: #f4f6f2;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 28px;
+  color: #17201a;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(244, 246, 242, 0.92)),
+    #f4f6f2;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 1180px;
+  margin: 0 auto 24px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: #58736a;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: 34px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+h2 {
+  margin-bottom: 0;
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #b8ccc2;
+  border-radius: 999px;
+  color: #1e5b49;
+  background: #eef8f3;
+  font-weight: 700;
+}
+
+.summary-grid,
+.workspace {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.metric-card,
+.panel {
+  border: 1px solid #d8ded5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(22, 32, 26, 0.08);
+}
+
+.metric-card {
+  display: flex;
+  gap: 12px;
+  min-height: 120px;
+  padding: 18px;
+}
+
+.metric-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  color: #265d62;
+  background: #e9f2f3;
+}
+
+.metric-card p,
+.metric-card span {
+  color: #607068;
+  font-size: 13px;
+}
+
+.metric-card strong {
+  display: block;
+  margin: 6px 0 8px;
+  overflow-wrap: anywhere;
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.8fr);
+  gap: 16px;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.panel-heading span {
+  color: #65726d;
+  font-size: 13px;
+}
+
+.question-form {
+  display: grid;
+  gap: 12px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border: 1px solid #cbd6ce;
+  border-radius: 8px;
+  padding: 14px;
+  color: #17201a;
+  background: #fbfcfa;
+  line-height: 1.55;
+}
+
+textarea:focus {
+  outline: 2px solid #7fb7aa;
+  outline-offset: 2px;
+}
+
+button {
+  justify-self: start;
+  min-width: 132px;
+  min-height: 40px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: #265d62;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.error-text {
+  margin: 14px 0 0;
+  color: #a33a2d;
+}
+
+.answer {
+  margin-top: 16px;
+  border: 1px solid #d7e4dc;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f8fbf8;
+}
+
+.answer-meta {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.answer-meta span {
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: #35514a;
+  background: #e8f1ed;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.answer p {
+  margin-bottom: 0;
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
+.queue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  border-top: 1px solid #edf0ea;
+}
+
+.queue-row:first-of-type {
+  border-top: 0;
+}
+
+.queue-row span {
+  color: #607068;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    padding: 18px;
+  }
+
+  .topbar,
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  h1 {
+    font-size: 28px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+}
