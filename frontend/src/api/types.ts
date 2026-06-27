@@ -7,9 +7,9 @@ export type HealthResponse = {
 
 export type OverviewResponse = {
   health: { status: string };
-  recent_inspections: unknown[];
-  incidents: unknown[];
-  operations: unknown[];
+  recent_inspections: InspectionSummary[];
+  incidents: Incident[];
+  operations: Operation[];
   grafana: { url: string | null };
 };
 
@@ -29,4 +29,56 @@ export type ChatRunResponse = {
     inspection_id: string | null;
     llm_status: string | null;
   };
+};
+
+export type ChatSessionDetail = {
+  session: ChatSession;
+  messages: ChatMessage[];
+};
+
+export type ChatMessage = {
+  id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  inspection_id: string | null;
+  llm_status: string | null;
+  created_at: string;
+};
+
+export type InspectionSummary = {
+  inspection: {
+    id: string;
+    question: string;
+    status: string;
+    summary: string | null;
+    started_at: string;
+    finished_at: string | null;
+  };
+  observation_count: number;
+  finding_count: number;
+};
+
+export type EvidenceResponse = {
+  inspection: InspectionSummary["inspection"];
+  observations: Array<Record<string, unknown>>;
+  findings: Array<Record<string, unknown>>;
+  tool_invocations: Array<Record<string, unknown>>;
+};
+
+export type Incident = {
+  id: string;
+  title: string;
+  status: string;
+  severity: string;
+  updated_at: string;
+};
+
+export type Operation = {
+  id: string;
+  name: string;
+  status: string;
+  requester: string;
+  approver: string | null;
+  requested_at: string;
+  result: Record<string, unknown> | null;
 };
