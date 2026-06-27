@@ -29,5 +29,5 @@ class Settings(BaseSettings):
     llm_provider: Literal["disabled", "mock", "openai_compatible"] = "disabled"
     llm_base_url: AnyHttpUrl | None = None
     llm_model: str | None = None
-    llm_api_key: str | None = None
+    llm_api_key: str | None = Field(default=None, repr=False)
     llm_timeout_seconds: int = 20
