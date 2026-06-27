@@ -6,14 +6,14 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M2 真实只读工具已通过 Pull Request #2 合并到 `main`；项目可从最新 `main` 开始 M3 |
-| 当前阶段 | M3：监控看板与通知设计 |
-| 当前工作 | M3 设计文档已评审通过；正在形成实施计划，范围为仓库内 Prometheus、Grafana、Alertmanager 模板、通知内核、本地模拟 CLI 和自监控指标 |
-| 下一里程碑 | 按 M3 实施计划完成通知解析、消息格式、监控配置、Grafana dashboard、本地模拟命令和验证 |
+| 总体状态 | M3 监控看板与通知仓库内基线已完成，功能分支已推送，等待最终评审/PR |
+| 当前阶段 | M3：监控看板与通知本地收尾 |
+| 当前工作 | 已完成 Alertmanager payload 解析、告警去重、诊断通知格式、DataSentry 自监控指标、Prometheus/Alertmanager/Grafana 模板和 `notification simulate` CLI；正在执行最终全量验证 |
+| 下一里程碑 | 完成最终验证后创建 Pull Request，后续再进行受控部署和真实消息渠道联调 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
-| 最近状态更新时间 | 2026-06-26 |
+| 最近状态更新时间 | 2026-06-27 |
 
 ## 已完成
 
@@ -32,18 +32,20 @@
 - 完成 Collector → Kafka → Flink → Doris/Redis/API 的显式血缘与检查路径。
 - 完成首批确定性规则、历史证据隔离、诊断编排和本地模拟诊断 CLI。
 - 完成 M2 真实只读工具、工具审计、受控传输、真实巡检编排和现场只读契约验证，并通过 Pull Request #2 合并到 `main`。
+- 完成 M3 仓库内监控与通知基线：Prometheus 规则、Alertmanager 路由模板、Grafana dashboard、Alertmanager payload 解析、通知消息格式、本地模拟 CLI 和自监控指标。
 
 ## 正在进行
 
-- M3 设计已批准并提交，正在形成实施计划；尚未开始编码。
+- M3 本地实现已完成，正在进行最终验证和收尾文档更新；尚未创建 PR。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M3 工程启动。
 
 ## 下一步
 
-1. 评审 M3 监控看板与通知实施计划。
-2. 按计划实施 Prometheus、Grafana、Alertmanager、消息渠道、指标边界和本地验收。
+1. 完成 M3 最终全量验证、Ruff、mypy、diff 和秘密扫描。
+2. 创建 M3 Pull Request，等待评审后再合并。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
-4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
+4. 后续受控部署 Prometheus、Grafana、Alertmanager，并接入真实企业微信或通用 Webhook secret。
+5. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
 ## 阻塞与风险
 
@@ -58,6 +60,7 @@
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；业务表虽已手工补回，根因仍需安全复盘。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka 真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
+- M3 目前只完成仓库内模板和本地模拟，尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
 
 ## 已确认的关键决策
 
@@ -80,7 +83,7 @@
 | M0 工程基础 | 已完成 | 项目骨架、领域模型、SQLite、CLI、测试和 CI |
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
-| M3 监控看板与通知 | 设计中 | Prometheus、Grafana、Alertmanager 和消息渠道 |
+| M3 监控看板与通知 | 本地实现完成 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 未开始 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
@@ -92,6 +95,8 @@
 - [M0 工程基础实施计划](superpowers/plans/2026-06-25-m0-engineering-foundation.md)
 - [M1 知识驱动诊断实施计划](superpowers/plans/2026-06-25-m1-knowledge-driven-diagnosis.md)
 - [M2 真实只读工具实施计划](superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
+- [M3 监控看板与通知设计](superpowers/specs/2026-06-26-m3-observability-notifications-design.md)
+- [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
@@ -154,3 +159,13 @@
 - 用户批准 M3 先做仓库内配置与集成代码，不直接上服务器部署；通知主模板采用企业微信机器人，并保留通用 Webhook 抽象。
 - 起草 M3 监控看板与通知设计，范围包括 Prometheus 规则、Grafana dashboard、Alertmanager 模板、Alertmanager payload 解析、诊断消息格式和 DataSentry 自监控指标。
 - M3 设计文档通过用户评审，开始起草实施计划，计划按 TDD 拆分通知解析、消息格式、自监控指标、监控模板、CLI 模拟和最终验证。
+
+### 2026-06-27
+
+- 按 M3 实施计划完成 `datasentry.notifications`：解析 Alertmanager Webhook、生成稳定告警去重 key、映射诊断问题，并输出企业微信 Markdown 与通用 Webhook JSON。
+- 补充通知安全回归：诊断异常和 Finding unknowns 在进入公开 `NotificationContent` 前即完成脱敏，避免 token、password、Authorization、Cookie 等秘密通过消息对象泄露。
+- 完成 `datasentry.observability` 自监控指标内核，可导出 Prometheus text exposition 格式，覆盖工具调用、巡检、通知和失败计数。
+- 新增 `monitoring/` 模板：Prometheus scrape 示例与 StreamLake 告警规则、Alertmanager 路由/抑制/企业微信占位 receiver、Grafana provisioning 与六个 dashboard JSON。
+- 修正 Alertmanager 示例路由语义，确保 critical 告警既进入 DataSentry，也能继续路由到企业微信占位 receiver；补充 Spring API 和 AI Engine 示例 scrape job。
+- 新增 `datasentry notification simulate` CLI，可用本地 Alertmanager fixture 输出企业微信 Markdown 或通用 Webhook JSON；SQLite Repository 生命周期已通过 `enter → run → exit` 回归测试保护。
+- M3 分支 `codex/m3-observability-notifications` 已推送到 GitHub；尚未创建 Pull Request，尚未真实部署或发送真实通知。

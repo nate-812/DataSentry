@@ -1,7 +1,8 @@
 # DataSentry
 
 DataSentry 是面向 StreamLake-Binance 的证据驱动智能运维 Agent。当前 M2
-已完成真实只读工具的本地实现和模拟验证，正在等待可丢弃云端实例进行契约探测。
+已完成真实只读工具和现场只读契约验证；M3 已完成仓库内监控模板、
+告警通知内核、本地模拟 CLI 和 DataSentry 自监控指标基线。
 
 > M2 只允许固定 HTTP GET、固定 SSH 命令、固定数据库 SELECT 和受限 Redis
 > 查询。项目不提供任意 Shell、任意 SQL、任意 URL 或任何生产写操作。
@@ -101,6 +102,40 @@ datasentry inspection run \
 - Flink、Spring API 和 AI Engine 只通过内网访问。
 - 日志仅配置固定组件和固定路径，最多 200 行或 30 分钟。
 
+## M3 监控与通知本地验证
+
+M3 提供 Prometheus、Alertmanager、Grafana 配置模板，以及 Alertmanager
+载荷到 DataSentry 诊断消息的本地模拟命令。以下命令只读取本地 fixture 和
+占位监控资产，不会发送真实网络通知，也不会部署 Prometheus、Grafana 或
+Alertmanager。
+
+输出企业微信 Markdown 载荷：
+
+```bash
+datasentry notification simulate \
+  --payload-file tests/fixtures/alertmanager/kline_freshness_firing.json \
+  --format wecom \
+  --database-path var/datasentry.db
+```
+
+输出通用 Webhook JSON：
+
+```bash
+datasentry notification simulate \
+  --payload-file tests/fixtures/alertmanager/kline_freshness_firing.json \
+  --format generic \
+  --database-path var/datasentry.db
+```
+
+监控模板位于：
+
+- `monitoring/prometheus/`：Prometheus scrape 示例和 StreamLake 告警规则。
+- `monitoring/alertmanager/`：Alertmanager 路由、抑制和企业微信占位 receiver。
+- `monitoring/grafana/`：Prometheus datasource、dashboard provisioning 和六个 dashboard JSON。
+
+真实企业微信机器人 key、Webhook URL、认证 token 和生产目标配置必须由部署环境
+注入，不得提交到 Git。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -142,3 +177,5 @@ Agent 新会话按顺序读取：
 - [`M0 工程基础实施计划`](docs/superpowers/plans/2026-06-25-m0-engineering-foundation.md)
 - [`M1 知识驱动诊断实施计划`](docs/superpowers/plans/2026-06-25-m1-knowledge-driven-diagnosis.md)
 - [`M2 真实只读工具实施计划`](docs/superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
+- [`M3 监控看板与通知设计`](docs/superpowers/specs/2026-06-26-m3-observability-notifications-design.md)
+- [`M3 监控看板与通知实施计划`](docs/superpowers/plans/2026-06-26-m3-observability-notifications.md)
