@@ -104,7 +104,7 @@ class Repository(Protocol):
     def save_chat_message(self, message: ChatMessage) -> None:
         raise NotImplementedError  # pragma: no cover
 
-    def list_chat_messages(self, session_id: str) -> list[ChatMessage]:
+    def list_chat_messages(self, session_id: str, limit: int = 20) -> list[ChatMessage]:
         raise NotImplementedError  # pragma: no cover
 
     def save_chat_run(self, run: ChatRun) -> None:
@@ -119,7 +119,7 @@ class Repository(Protocol):
     def save_chat_run_event(self, event: ChatRun.Event) -> None:
         raise NotImplementedError  # pragma: no cover
 
-    def list_chat_run_events(self, run_id: str) -> list[ChatRun.Event]:
+    def list_chat_run_events(self, run_id: str, limit: int = 100) -> list[ChatRun.Event]:
         raise NotImplementedError  # pragma: no cover
 
     def close(self) -> None:

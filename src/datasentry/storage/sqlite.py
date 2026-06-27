@@ -35,6 +35,7 @@ EVIDENCE_LIST_ADAPTER = TypeAdapter(list[Evidence])
 STRING_LIST_ADAPTER = TypeAdapter(list[str])
 JSON_VALUE_ADAPTER: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
 JSON_OBJECT_ADAPTER = TypeAdapter(dict[str, JsonValue])
+MAX_LIST_LIMIT = 100
 
 
 def _dump_json(value: object) -> str:
@@ -203,6 +204,7 @@ class SQLiteRepository:
         )
 
     def list_inspections(self, limit: int = 20) -> list[InspectionAggregate]:
+        limit = self._validate_list_limit(limit)
         connection = self._require_open()
         rows = connection.execute(
             """
@@ -323,6 +325,7 @@ class SQLiteRepository:
         status: IncidentStatus | None = None,
         limit: int = 20,
     ) -> list[Incident]:
+        limit = self._validate_list_limit(limit)
         connection = self._require_open()
         if status is None:
             rows = connection.execute(
@@ -406,6 +409,7 @@ class SQLiteRepository:
         status: OperationStatus | None = None,
         limit: int = 20,
     ) -> list[Operation]:
+        limit = self._validate_list_limit(limit)
         connection = self._require_open()
         if status is None:
             rows = connection.execute(
@@ -467,6 +471,7 @@ class SQLiteRepository:
         return self._row_to_chat_session(row)
 
     def list_chat_sessions(self, limit: int = 20) -> list[ChatSession]:
+        limit = self._validate_list_limit(limit)
         connection = self._require_open()
         rows = connection.execute(
             """
@@ -503,7 +508,8 @@ class SQLiteRepository:
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
 
-    def list_chat_messages(self, session_id: str) -> list[ChatMessage]:
+    def list_chat_messages(self, session_id: str, limit: int = 20) -> list[ChatMessage]:
+        limit = self._validate_list_limit(limit)
         connection = self._require_open()
         rows = connection.execute(
             """
@@ -511,8 +517,9 @@ class SQLiteRepository:
             FROM chat_messages
             WHERE session_id = ?
             ORDER BY created_at, id
+            LIMIT ?
             """,
-            (session_id,),
+            (session_id, limit),
         ).fetchall()
         return [self._row_to_chat_message(row) for row in rows]
 
@@ -539,12 +546,18 @@ class SQLiteRepository:
                 cursor = connection.execute(
                     """
                     UPDATE chat_runs SET
-                        session_id = ?, user_message_id = ?, status = ?,
-                        inspection_id = ?, error_code = ?, error_message = ?,
-                        created_at = ?, finished_at = ?
+                        status = ?, inspection_id = ?, error_code = ?,
+                        error_message = ?, finished_at = ?
                     WHERE id = ?
                     """,
-                    (*self._chat_run_values(run)[1:], run.id),
+                    (
+                        run.status.value,
+                        run.inspection_id,
+                        run.error_code,
+                        run.error_message,
+                        _dump_datetime(run.finished_at),
+                        run.id,
+                    ),
                 )
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
@@ -596,7 +609,8 @@ class SQLiteRepository:
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
 
-    def list_chat_run_events(self, run_id: str) -> list[ChatRun.Event]:
+    def list_chat_run_events(self, run_id: str, limit: int = 100) -> list[ChatRun.Event]:
+        limit = self._validate_list_limit(limit)
         connection = self._require_open()
         rows = connection.execute(
             """
@@ -604,8 +618,9 @@ class SQLiteRepository:
             FROM chat_run_events
             WHERE run_id = ?
             ORDER BY created_at, id
+            LIMIT ?
             """,
-            (run_id,),
+            (run_id, limit),
         ).fetchall()
         return [self._row_to_chat_run_event(row) for row in rows]
 
@@ -628,6 +643,16 @@ class SQLiteRepository:
             code="storage.invalid_inspection_transition",
             message="巡检状态转换无效",
         )
+
+    @staticmethod
+    def _validate_list_limit(limit: int) -> int:
+        if not 1 <= limit <= MAX_LIST_LIMIT:
+            raise StorageError(
+                code="storage.invalid_limit",
+                message=f"列表查询 limit 必须在 1 到 {MAX_LIST_LIMIT} 之间",
+                details={"limit": limit, "max_limit": MAX_LIST_LIMIT},
+            )
+        return limit
 
     @classmethod
     def _update_running_inspection(

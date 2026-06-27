@@ -371,6 +371,125 @@ def test_update_chat_run_persists_completed_status(repository: SQLiteRepository)
     assert repository.get_chat_run(run.id) == completed
 
 
+def test_update_chat_run_keeps_identity_fields(repository: SQLiteRepository) -> None:
+    session = ChatSession(
+        id="72727272-7272-4727-8727-727272727272",
+        title="Kline diagnosis",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    message = ChatMessage(
+        id="82828282-8282-4828-8828-828282828282",
+        session_id=session.id,
+        role=ChatRole.USER,
+        content="检查K线延迟",
+        created_at=NOW,
+    )
+    run = ChatRun(
+        id="92929292-9292-4929-8929-929292929292",
+        session_id=session.id,
+        user_message_id=message.id,
+        status=ChatRunStatus.RUNNING,
+        created_at=NOW,
+    )
+    reassigned = ChatRun(
+        id=run.id,
+        session_id="changed-session",
+        user_message_id="changed-message",
+        status=ChatRunStatus.COMPLETED,
+        created_at=NOW + timedelta(minutes=1),
+        finished_at=NOW + timedelta(minutes=2),
+    )
+
+    repository.save_chat_session(session)
+    repository.save_chat_message(message)
+    repository.save_chat_run(run)
+    repository.update_chat_run(reassigned)
+
+    updated = repository.get_chat_run(run.id)
+    assert updated.session_id == run.session_id
+    assert updated.user_message_id == run.user_message_id
+    assert updated.created_at == run.created_at
+    assert updated.status is ChatRunStatus.COMPLETED
+    assert updated.finished_at == reassigned.finished_at
+
+
+def test_chat_message_and_event_lists_are_limited(repository: SQLiteRepository) -> None:
+    session = ChatSession(
+        id="73737373-7373-4737-8737-737373737373",
+        title="Kline diagnosis",
+        created_at=NOW,
+        updated_at=NOW,
+    )
+    first_message = ChatMessage(
+        id="83838383-8383-4838-8838-838383838383",
+        session_id=session.id,
+        role=ChatRole.USER,
+        content="第一条消息",
+        created_at=NOW,
+    )
+    second_message = ChatMessage(
+        id="84848484-8484-4848-8848-848484848484",
+        session_id=session.id,
+        role=ChatRole.ASSISTANT,
+        content="第二条消息",
+        created_at=NOW + timedelta(seconds=1),
+    )
+    run = ChatRun(
+        id="93939393-9393-4939-8939-939393939393",
+        session_id=session.id,
+        user_message_id=first_message.id,
+        status=ChatRunStatus.RUNNING,
+        created_at=NOW,
+    )
+    first_event = ChatRun.Event(
+        id="a1aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        run_id=run.id,
+        event_type=ChatEventType.ACCEPTED,
+        payload={"step": "first"},
+        created_at=NOW,
+    )
+    second_event = ChatRun.Event(
+        id="a2aaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        run_id=run.id,
+        event_type=ChatEventType.KNOWLEDGE_LOADED,
+        payload={"step": "second"},
+        created_at=NOW + timedelta(seconds=1),
+    )
+
+    repository.save_chat_session(session)
+    repository.save_chat_message(first_message)
+    repository.save_chat_message(second_message)
+    repository.save_chat_run(run)
+    repository.save_chat_run_event(first_event)
+    repository.save_chat_run_event(second_event)
+
+    assert repository.list_chat_messages(session.id, limit=1) == [first_message]
+    assert repository.list_chat_run_events(run.id, limit=1) == [first_event]
+
+
+def test_list_methods_reject_out_of_range_limits(repository: SQLiteRepository) -> None:
+    calls = [
+        lambda: repository.list_inspections(limit=0),
+        lambda: repository.list_incidents(limit=0),
+        lambda: repository.list_operations(limit=0),
+        lambda: repository.list_chat_sessions(limit=0),
+        lambda: repository.list_chat_messages("session", limit=0),
+        lambda: repository.list_chat_run_events("run", limit=0),
+        lambda: repository.list_inspections(limit=101),
+        lambda: repository.list_incidents(limit=101),
+        lambda: repository.list_operations(limit=101),
+        lambda: repository.list_chat_sessions(limit=101),
+        lambda: repository.list_chat_messages("session", limit=101),
+        lambda: repository.list_chat_run_events("run", limit=101),
+    ]
+
+    for call in calls:
+        with pytest.raises(StorageError) as raised:
+            call()
+        assert raised.value.code == "storage.invalid_limit"
+
+
 def test_chat_read_queries_use_explicit_columns() -> None:
     methods = [
         SQLiteRepository.get_chat_session,
