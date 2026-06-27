@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M3 监控看板与通知仓库内基线已通过 Pull Request #3 合并到 `main` |
 | 当前阶段 | M4：对话与 Web 控制台实施中 |
-| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 Task 1～4：运行配置、聊天领域模型、SQLite 聊天持久化和可插拔 LLM Provider；下一步实现 Answer Summarizer |
-| 下一里程碑 | 完成 Answer Summarizer、ChatService 与 FastAPI JSON/SSE 后端闭环，再进入 React Command Center |
+| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 Task 1～6：运行配置、聊天领域模型、SQLite 聊天持久化、可插拔 LLM Provider、Answer Summarizer 和本地模拟审批服务；下一步实现 ChatService |
+| 下一里程碑 | 完成 ChatService 与 FastAPI JSON/SSE 后端闭环，再进入 React Command Center |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,7 +37,7 @@
 ## 正在进行
 
 - M4 设计和实施计划已完成；首版目标是 FastAPI Agent、OpenAI-compatible LLM、React Command Center、事件/证据查看和本地模拟审批闭环。
-- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成运行配置、聊天领域模型、SQLite 聊天持久化和 LLM Provider。
+- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成运行配置、聊天领域模型、SQLite 聊天持久化、LLM Provider、Answer Summarizer 和本地模拟审批服务。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M4 设计和仓库内工程启动。
 
 ## 下一步
@@ -193,4 +193,6 @@
 - 完成聊天领域模型与 SQLite `0003_chat_console` 迁移，包含 chat session、message、run、run event；失败 run 必须包含非空错误信息，非失败 run 不允许错误字段。
 - 完成 Repository 与 SQLite 聊天持久化接口：Inspection/Incident/Operation 列表、聊天会话/消息/任务/事件保存和读取；新增列表查询统一限制 `1..100`，避免 SQLite `LIMIT -1` 无界读取；`ChatRun` 更新只允许修改状态、关联巡检、错误和结束时间。
 - 完成可插拔 LLM Provider：disabled、mock、OpenAI-compatible；OpenAI-compatible 调用 `/chat/completions`，发送 Bearer API key 与标准 payload。LLM 上游异常统一映射为脱敏 `LLMProviderError`，并清理 `__cause__` 与 `__context__`，避免 traceback 或调试工具泄露 API key 和上游正文。
-- M4 当前验证快照：`tests/unit/llm/test_providers.py` 8 个测试通过；全量 `pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 通过，227 个测试通过，覆盖率 90.83%。
+- 完成 Answer Summarizer：先生成确定性中文证据摘要，LLM 可用且返回非空内容时使用模型回答；disabled、空内容或 provider 异常时安全降级，不暴露 provider 错误详情。
+- 完成本地模拟审批服务：只处理 `simulate_` 前缀 Operation，可在 SQLite 中推进本地 approve/reject 状态，不执行生产 Runbook。
+- M4 当前验证快照：全量 `pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 通过，235 个测试通过，覆盖率 91.02%。
