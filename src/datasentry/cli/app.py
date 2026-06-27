@@ -158,6 +158,7 @@ class NotificationOutputFormat(StrEnum):
     WECOM = "wecom"
     GENERIC = "generic"
 
+
 DatabasePathOption = Annotated[
     Path | None,
     typer.Option(

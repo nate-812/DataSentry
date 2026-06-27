@@ -44,51 +44,35 @@ def test_alertmanager_routes_to_datasentry_and_wecom_placeholders() -> None:
 
 def test_alertmanager_routes_critical_alerts_to_datasentry_and_wecom() -> None:
     data = yaml.safe_load(
-        (ROOT / "monitoring/alertmanager/alertmanager.example.yml").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "monitoring/alertmanager/alertmanager.example.yml").read_text(encoding="utf-8")
     )
     routes = data["route"]["routes"]
 
-    datasentry_route = next(
-        route for route in routes if route["receiver"] == "datasentry-webhook"
-    )
+    datasentry_route = next(route for route in routes if route["receiver"] == "datasentry-webhook")
     assert datasentry_route["matchers"] == ['severity =~ "warning|critical"']
     assert datasentry_route["continue"] is True
 
-    wecom_route = next(
-        route for route in routes if route["receiver"] == "wecom-robot-placeholder"
-    )
+    wecom_route = next(route for route in routes if route["receiver"] == "wecom-robot-placeholder")
     assert wecom_route["matchers"] == ['severity = "critical"']
 
 
 def test_prometheus_example_scrapes_streamlake_api_jobs() -> None:
     data = yaml.safe_load(
-        (ROOT / "monitoring/prometheus/prometheus.example.yml").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "monitoring/prometheus/prometheus.example.yml").read_text(encoding="utf-8")
     )
 
     scrape_configs = {
         scrape_config["job_name"]: scrape_config for scrape_config in data["scrape_configs"]
     }
-    assert scrape_configs["spring_api"]["static_configs"][0]["targets"] == [
-        "data1:8080"
-    ]
-    assert scrape_configs["spring_api"]["static_configs"][0]["labels"]["service"] == (
-        "streamlake"
-    )
+    assert scrape_configs["spring_api"]["static_configs"][0]["targets"] == ["data1:8080"]
+    assert scrape_configs["spring_api"]["static_configs"][0]["labels"]["service"] == ("streamlake")
     assert scrape_configs["ai_engine"]["static_configs"][0]["targets"] == ["data1:8000"]
-    assert scrape_configs["ai_engine"]["static_configs"][0]["labels"]["service"] == (
-        "streamlake"
-    )
+    assert scrape_configs["ai_engine"]["static_configs"][0]["labels"]["service"] == ("streamlake")
 
 
 def test_prometheus_rules_have_required_groups_and_alert_labels() -> None:
     data = yaml.safe_load(
-        (ROOT / "monitoring/prometheus/rules/streamlake.rules.yml").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "monitoring/prometheus/rules/streamlake.rules.yml").read_text(encoding="utf-8")
     )
 
     groups = data["groups"]
