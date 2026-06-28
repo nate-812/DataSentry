@@ -15,6 +15,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -40,6 +41,7 @@ button:disabled {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid #cbd6ce;
@@ -56,6 +58,7 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   outline: 2px solid #7fb7aa;
   outline-offset: 2px;
@@ -330,6 +333,69 @@ h2 {
   padding: 0;
 }
 
+.incident-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.45fr);
+  gap: 14px;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.incident-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px 92px;
+  justify-content: stretch;
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid #edf0ea;
+  padding: 10px;
+  color: #17201a;
+  background: #fbfcfa;
+  text-align: left;
+}
+
+.incident-row.selected,
+.incident-row:hover {
+  border-color: #8fbdb2;
+  background: #eef7f4;
+}
+
+.incident-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.incident-detail h2 {
+  margin-top: 8px;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.markdown-preview {
+  overflow-x: auto;
+  min-height: 220px;
+  border: 1px solid #edf0ea;
+  border-radius: 8px;
+  margin: 0;
+  padding: 12px;
+  background: #fbfcfa;
+  color: #26332d;
+  white-space: pre-wrap;
+}
+
+.panel-watermark {
+  display: none;
+}
+
 .evidence-list {
   display: grid;
   gap: 10px;
@@ -393,6 +459,7 @@ h2 {
   }
 
   .page-grid,
+  .incident-workspace,
   .metric-row,
   .inline-form {
     grid-template-columns: 1fr;
@@ -403,7 +470,9 @@ h2 {
   }
 
   .table-row,
-  .action-row {
+  .action-row,
+  .filter-row,
+  .incident-row {
     grid-template-columns: 1fr;
   }
 }

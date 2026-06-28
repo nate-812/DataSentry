@@ -68,9 +68,61 @@ export type EvidenceResponse = {
 export type Incident = {
   id: string;
   title: string;
+  symptom: string;
   status: string;
   severity: string;
+  root_cause: string | null;
+  opened_at: string;
   updated_at: string;
+  resolved_at: string | null;
+};
+
+export type IncidentLink = {
+  id: string;
+  incident_id: string;
+  kind: string;
+  target_id: string;
+  summary: string;
+  created_at: string;
+};
+
+export type IncidentTimelineEvent = {
+  id: string;
+  incident_id: string;
+  event_type: string;
+  summary: string;
+  source: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+};
+
+export type IncidentFingerprint = {
+  id: string;
+  incident_id: string;
+  component: string;
+  failure_type: string;
+  stable_labels_hash: string;
+  severity: string;
+  first_seen_at: string;
+  last_seen_at: string;
+};
+
+export type IncidentRCAReport = {
+  id: string;
+  incident_id: string;
+  version: number;
+  markdown: string;
+  structured: Record<string, unknown>;
+  generated_by: string;
+  created_at: string;
+};
+
+export type IncidentDetail = {
+  incident: Incident;
+  links: IncidentLink[];
+  timeline: IncidentTimelineEvent[];
+  fingerprints: IncidentFingerprint[];
+  latest_rca: IncidentRCAReport | null;
 };
 
 export type Operation = {

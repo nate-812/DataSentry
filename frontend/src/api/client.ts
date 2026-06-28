@@ -5,6 +5,8 @@ import type {
   EvidenceResponse,
   HealthResponse,
   Incident,
+  IncidentDetail,
+  IncidentRCAReport,
   Operation,
   OverviewResponse
 } from "./types";
@@ -34,6 +36,12 @@ export const api = {
   health: () => requestJson<HealthResponse>("/api/health"),
   overview: () => requestJson<OverviewResponse>("/api/overview"),
   incidents: () => requestJson<Incident[]>("/api/incidents"),
+  incident: (incidentId: string) => requestJson<IncidentDetail>(`/api/incidents/${incidentId}`),
+  incidentSimilar: (incidentId: string) =>
+    requestJson<Incident[]>(`/api/incidents/${incidentId}/similar`),
+  generateIncidentRca: (incidentId: string) =>
+    requestJson<IncidentRCAReport>(`/api/incidents/${incidentId}/rca`, { method: "POST" }),
+  exportIncident: (incidentId: string) => requestText(`/api/incidents/${incidentId}/export`),
   operations: () => requestJson<Operation[]>("/api/operations"),
   evidence: (inspectionId: string) =>
     requestJson<EvidenceResponse>(`/api/evidence/inspections/${inspectionId}`),
