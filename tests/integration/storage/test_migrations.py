@@ -205,6 +205,7 @@ def test_foreign_keys_are_enforced(tmp_path: Path) -> None:
 
 
 def test_upgrade_does_not_leak_sqlite_connections(tmp_path: Path) -> None:
+    gc.collect()
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always", ResourceWarning)
         upgrade_database(tmp_path / "datasentry.db")

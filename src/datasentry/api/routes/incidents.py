@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 
 from datasentry.api.dependencies import get_incident_service, get_repository
 from datasentry.domain import IncidentStatus
-from datasentry.incidents import IncidentService
+from datasentry.incidents.service import IncidentService
 from datasentry.storage import SQLiteRepository
 
 router = APIRouter(tags=["incidents"])

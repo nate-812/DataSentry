@@ -36,9 +36,9 @@ from datasentry.incidents.models import (
     IncidentTimelineEvent,
     IncidentTimelineEventType,
 )
+from datasentry.redaction import redact_value
 from datasentry.storage.migrations import connect, upgrade_database
 from datasentry.storage.repository import InspectionAggregate
-from datasentry.tools.redaction import redact_value
 
 EVIDENCE_LIST_ADAPTER = TypeAdapter(list[Evidence])
 STRING_LIST_ADAPTER = TypeAdapter(list[str])

@@ -156,9 +156,9 @@ def test_incident_detail_timeline_rca_and_export_routes(tmp_path, monkeypatch) -
 
     app = create_app(Settings())
 
-    def incident_service() -> IncidentService:
-        repository = SQLiteRepository(database_path)
-        return IncidentService(repository=repository, diagnosis_runner=NoopDiagnosisRunner())
+    def incident_service():
+        with SQLiteRepository(database_path) as repository:
+            yield IncidentService(repository=repository, diagnosis_runner=NoopDiagnosisRunner())
 
     app.dependency_overrides[get_incident_service] = incident_service
     client = TestClient(app)

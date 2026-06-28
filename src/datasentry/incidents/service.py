@@ -1,6 +1,6 @@
 """Incident 记忆编排服务。"""
 
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 
 from datasentry.domain import EvidenceStatus, Finding, Incident, IncidentStatus, Severity
 from datasentry.domain.common import utc_now
@@ -18,18 +18,22 @@ from datasentry.incidents.models import (
     IncidentUpsertResult,
 )
 from datasentry.incidents.rca import build_rca_report
-from datasentry.notifications import AlertmanagerPayload
+from datasentry.notifications.alertmanager import AlertmanagerPayload
 from datasentry.notifications.deduplication import build_alert_deduplication_key
-from datasentry.notifications.service import map_alert_to_question
+from datasentry.redaction import redact_text, redact_value
 from datasentry.storage import Repository
-from datasentry.tools import LiveInspectionResult
-from datasentry.tools.redaction import redact_text, redact_value
+
+ALERT_QUESTIONS = {
+    "FlinkJobNotRunning": "为什么 Flink 关键 Job 未运行",
+    "KlineFreshnessStale": "为什么 K线数据不更新",
+    "KafkaConsumerLagHigh": "为什么 Kafka 消费延迟升高",
+}
 
 
 class DiagnosisRunner(Protocol):
     """执行现场只读诊断的最小协议。"""
 
-    def run(self, question: str) -> LiveInspectionResult:
+    def run(self, question: str) -> Any:
         raise NotImplementedError  # pragma: no cover
 
 
@@ -42,7 +46,7 @@ class IncidentService:
 
     def handle_alertmanager_payload(self, payload: AlertmanagerPayload) -> IncidentUpsertResult:
         labels = self._labels(payload)
-        question = map_alert_to_question(payload)
+        question = self._map_alert_to_question(payload)
         deduplication_key = build_alert_deduplication_key(payload)
         probe = build_alert_fingerprint(incident_id="pending", labels=labels)
         incident_id = self._repository.find_active_incident_by_fingerprint(probe)
@@ -200,7 +204,7 @@ class IncidentService:
         self._repository.save_incident(incident)
         return incident
 
-    def _link_diagnosis(self, incident: Incident, result: LiveInspectionResult) -> None:
+    def _link_diagnosis(self, incident: Incident, result: Any) -> None:
         aggregate = result.diagnosis.aggregate
         self._repository.save_incident_link(
             IncidentLink(
@@ -262,6 +266,11 @@ class IncidentService:
     @staticmethod
     def _labels(payload: AlertmanagerPayload) -> dict[str, str]:
         return payload.common_labels | payload.group_labels | payload.primary_alert.labels
+
+    @staticmethod
+    def _map_alert_to_question(payload: AlertmanagerPayload) -> str:
+        labels = IncidentService._labels(payload)
+        return ALERT_QUESTIONS.get(labels.get("alertname", ""), "请巡检 StreamLake 当前状态")
 
     @staticmethod
     def _max_severity(left: Severity, right: Severity) -> Severity:

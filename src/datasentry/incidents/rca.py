@@ -2,7 +2,7 @@
 
 from datasentry.domain import Incident
 from datasentry.incidents.models import IncidentRCAReport, IncidentTimelineEvent
-from datasentry.tools.redaction import redact_text
+from datasentry.redaction import redact_text
 
 BOUNDARY = "历史事件仅用于经验参考，当前状态必须以本次只读巡检证据为准。"
 

@@ -8,7 +8,7 @@ from fastapi import Depends, Request
 
 from datasentry.chat import ChatService
 from datasentry.config import Settings
-from datasentry.incidents import IncidentService
+from datasentry.incidents.service import IncidentService
 from datasentry.llm import (
     AnswerSummarizer,
     DisabledLLMProvider,

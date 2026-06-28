@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from fastapi.encoders import jsonable_encoder
 
 from datasentry.api.dependencies import get_incident_service
-from datasentry.incidents import IncidentService
+from datasentry.incidents.service import IncidentService
 from datasentry.notifications import parse_alertmanager_payload
 
 router = APIRouter(tags=["alertmanager"])

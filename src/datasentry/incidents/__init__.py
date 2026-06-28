@@ -13,9 +13,7 @@ from datasentry.incidents.models import (
     IncidentTimelineEventType,
     IncidentUpsertResult,
 )
-from datasentry.incidents.rca import build_rca_report
 from datasentry.incidents.search import IncidentSearchCandidate, rank_similar_incidents
-from datasentry.incidents.service import IncidentService
 
 __all__ = [
     "IncidentAction",
@@ -36,3 +34,15 @@ __all__ = [
     "rank_similar_incidents",
     "stable_labels_hash",
 ]
+
+
+def __getattr__(name: str) -> object:
+    if name == "IncidentService":
+        from datasentry.incidents.service import IncidentService
+
+        return IncidentService
+    if name == "build_rca_report":
+        from datasentry.incidents.rca import build_rca_report
+
+        return build_rca_report
+    raise AttributeError(name)
