@@ -13,6 +13,7 @@ from datasentry.incidents.models import (
     IncidentTimelineEventType,
     IncidentUpsertResult,
 )
+from datasentry.incidents.rca import build_rca_report
 from datasentry.incidents.search import IncidentSearchCandidate, rank_similar_incidents
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "IncidentTimelineEventType",
     "IncidentUpsertResult",
     "build_alert_fingerprint",
+    "build_rca_report",
     "next_status_for_alert",
     "next_status_for_diagnosis_failure",
     "rank_similar_incidents",
