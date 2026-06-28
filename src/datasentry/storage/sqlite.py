@@ -28,6 +28,15 @@ from datasentry.domain import (
 )
 from datasentry.domain.enums import IncidentStatus, InspectionStatus, OperationStatus
 from datasentry.errors import NotFoundError, StorageError
+from datasentry.incidents.models import (
+    IncidentFingerprint,
+    IncidentLink,
+    IncidentLinkKind,
+    IncidentRCAReport,
+    IncidentTimelineEvent,
+    IncidentTimelineEventType,
+)
+from datasentry.redaction import redact_value
 from datasentry.storage.migrations import connect, upgrade_database
 from datasentry.storage.repository import InspectionAggregate
 
@@ -347,6 +356,233 @@ class SQLiteRepository:
                 (status.value, limit),
             ).fetchall()
         return [self._row_to_incident(row) for row in rows]
+
+    def save_incident_link(self, link: IncidentLink) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO incident_links (
+                        id, incident_id, kind, target_id, summary, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        link.id,
+                        link.incident_id,
+                        link.kind.value,
+                        link.target_id,
+                        link.summary,
+                        _dump_datetime(link.created_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_incident_links(self, incident_id: str) -> list[IncidentLink]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, incident_id, kind, target_id, summary, created_at
+            FROM incident_links
+            WHERE incident_id = ?
+            ORDER BY created_at, id
+            """,
+            (incident_id,),
+        ).fetchall()
+        return [self._row_to_incident_link(row) for row in rows]
+
+    def save_timeline_event(self, event: IncidentTimelineEvent) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO incident_timeline_events (
+                        id, incident_id, event_type, summary, source,
+                        payload_json, occurred_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.id,
+                        event.incident_id,
+                        event.event_type.value,
+                        event.summary,
+                        event.source,
+                        _dump_json(redact_value(event.payload)),
+                        _dump_datetime(event.occurred_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_timeline_events(self, incident_id: str) -> list[IncidentTimelineEvent]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, incident_id, event_type, summary, source, payload_json, occurred_at
+            FROM incident_timeline_events
+            WHERE incident_id = ?
+            ORDER BY occurred_at, id
+            """,
+            (incident_id,),
+        ).fetchall()
+        return [self._row_to_timeline_event(row) for row in rows]
+
+    def save_incident_fingerprint(self, fingerprint: IncidentFingerprint) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO incident_fingerprints (
+                        id, incident_id, component, failure_type, stable_labels_hash,
+                        severity, first_seen_at, last_seen_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(incident_id, component, failure_type, stable_labels_hash)
+                    DO UPDATE SET
+                        severity = excluded.severity,
+                        last_seen_at = excluded.last_seen_at
+                    """,
+                    (
+                        fingerprint.id,
+                        fingerprint.incident_id,
+                        fingerprint.component,
+                        fingerprint.failure_type,
+                        fingerprint.stable_labels_hash,
+                        fingerprint.severity.value,
+                        _dump_datetime(fingerprint.first_seen_at),
+                        _dump_datetime(fingerprint.last_seen_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_incident_fingerprints(self, incident_id: str) -> list[IncidentFingerprint]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, incident_id, component, failure_type, stable_labels_hash,
+                   severity, first_seen_at, last_seen_at
+            FROM incident_fingerprints
+            WHERE incident_id = ?
+            ORDER BY last_seen_at DESC, id DESC
+            """,
+            (incident_id,),
+        ).fetchall()
+        return [self._row_to_incident_fingerprint(row) for row in rows]
+
+    def find_active_incident_by_fingerprint(
+        self,
+        fingerprint: IncidentFingerprint,
+    ) -> str | None:
+        connection = self._require_open()
+        row = connection.execute(
+            """
+            SELECT incident_fingerprints.incident_id
+            FROM incident_fingerprints
+            JOIN incidents ON incidents.id = incident_fingerprints.incident_id
+            WHERE incident_fingerprints.component = ?
+              AND incident_fingerprints.failure_type = ?
+              AND incident_fingerprints.stable_labels_hash = ?
+              AND incidents.status != ?
+            ORDER BY incident_fingerprints.last_seen_at DESC,
+                     incident_fingerprints.incident_id DESC
+            LIMIT 1
+            """,
+            (
+                fingerprint.component,
+                fingerprint.failure_type,
+                fingerprint.stable_labels_hash,
+                IncidentStatus.RESOLVED.value,
+            ),
+        ).fetchone()
+        if row is None:
+            return None
+        return str(row["incident_id"])
+
+    def search_similar_incidents(
+        self,
+        fingerprint: IncidentFingerprint,
+        *,
+        limit: int = 5,
+    ) -> list[Incident]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT DISTINCT incidents.*
+            FROM incident_fingerprints
+            JOIN incidents ON incidents.id = incident_fingerprints.incident_id
+            WHERE incident_fingerprints.component = ?
+               OR incident_fingerprints.failure_type = ?
+               OR incident_fingerprints.stable_labels_hash = ?
+            ORDER BY incidents.updated_at DESC, incidents.id DESC
+            LIMIT ?
+            """,
+            (
+                fingerprint.component,
+                fingerprint.failure_type,
+                fingerprint.stable_labels_hash,
+                limit,
+            ),
+        ).fetchall()
+        return [self._row_to_incident(row) for row in rows]
+
+    def save_rca_report(self, report: IncidentRCAReport) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO incident_rca_reports (
+                        id, incident_id, version, markdown, structured_json,
+                        generated_by, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        report.id,
+                        report.incident_id,
+                        report.version,
+                        report.markdown,
+                        _dump_json(redact_value(report.structured)),
+                        report.generated_by,
+                        _dump_datetime(report.created_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def get_latest_rca_report(self, incident_id: str) -> IncidentRCAReport | None:
+        connection = self._require_open()
+        row = connection.execute(
+            """
+            SELECT id, incident_id, version, markdown, structured_json,
+                   generated_by, created_at
+            FROM incident_rca_reports
+            WHERE incident_id = ?
+            ORDER BY version DESC, created_at DESC, id DESC
+            LIMIT 1
+            """,
+            (incident_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_rca_report(row)
+
+    def list_rca_reports(self, incident_id: str) -> list[IncidentRCAReport]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, incident_id, version, markdown, structured_json,
+                   generated_by, created_at
+            FROM incident_rca_reports
+            WHERE incident_id = ?
+            ORDER BY version, created_at, id
+            """,
+            (incident_id,),
+        ).fetchall()
+        return [self._row_to_rca_report(row) for row in rows]
 
     def save_operation(self, operation: Operation) -> None:
         connection = self._require_open()
@@ -856,6 +1092,54 @@ class SQLiteRepository:
             opened_at=_load_required_datetime(row["opened_at"]),
             updated_at=_load_required_datetime(row["updated_at"]),
             resolved_at=_load_datetime(row["resolved_at"]),
+        )
+
+    @staticmethod
+    def _row_to_incident_link(row: sqlite3.Row) -> IncidentLink:
+        return IncidentLink(
+            id=row["id"],
+            incident_id=row["incident_id"],
+            kind=IncidentLinkKind(row["kind"]),
+            target_id=row["target_id"],
+            summary=row["summary"],
+            created_at=_load_required_datetime(row["created_at"]),
+        )
+
+    @staticmethod
+    def _row_to_timeline_event(row: sqlite3.Row) -> IncidentTimelineEvent:
+        return IncidentTimelineEvent(
+            id=row["id"],
+            incident_id=row["incident_id"],
+            event_type=IncidentTimelineEventType(row["event_type"]),
+            summary=row["summary"],
+            source=row["source"],
+            payload=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["payload_json"])),
+            occurred_at=_load_required_datetime(row["occurred_at"]),
+        )
+
+    @staticmethod
+    def _row_to_incident_fingerprint(row: sqlite3.Row) -> IncidentFingerprint:
+        return IncidentFingerprint(
+            id=row["id"],
+            incident_id=row["incident_id"],
+            component=row["component"],
+            failure_type=row["failure_type"],
+            stable_labels_hash=row["stable_labels_hash"],
+            severity=row["severity"],
+            first_seen_at=_load_required_datetime(row["first_seen_at"]),
+            last_seen_at=_load_required_datetime(row["last_seen_at"]),
+        )
+
+    @staticmethod
+    def _row_to_rca_report(row: sqlite3.Row) -> IncidentRCAReport:
+        return IncidentRCAReport(
+            id=row["id"],
+            incident_id=row["incident_id"],
+            version=row["version"],
+            markdown=row["markdown"],
+            structured=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["structured_json"])),
+            generated_by=row["generated_by"],
+            created_at=_load_required_datetime(row["created_at"]),
         )
 
     @staticmethod

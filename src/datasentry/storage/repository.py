@@ -13,6 +13,12 @@ from datasentry.domain import (
     ToolInvocation,
 )
 from datasentry.domain.enums import IncidentStatus, OperationStatus
+from datasentry.incidents.models import (
+    IncidentFingerprint,
+    IncidentLink,
+    IncidentRCAReport,
+    IncidentTimelineEvent,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +79,47 @@ class Repository(Protocol):
         status: IncidentStatus | None = None,
         limit: int = 20,
     ) -> list[Incident]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_incident_link(self, link: IncidentLink) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_incident_links(self, incident_id: str) -> list[IncidentLink]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_timeline_event(self, event: IncidentTimelineEvent) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_timeline_events(self, incident_id: str) -> list[IncidentTimelineEvent]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_incident_fingerprint(self, fingerprint: IncidentFingerprint) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_incident_fingerprints(self, incident_id: str) -> list[IncidentFingerprint]:
+        raise NotImplementedError  # pragma: no cover
+
+    def find_active_incident_by_fingerprint(
+        self,
+        fingerprint: IncidentFingerprint,
+    ) -> str | None:
+        raise NotImplementedError  # pragma: no cover
+
+    def search_similar_incidents(
+        self,
+        fingerprint: IncidentFingerprint,
+        *,
+        limit: int = 5,
+    ) -> list[Incident]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_rca_report(self, report: IncidentRCAReport) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def get_latest_rca_report(self, incident_id: str) -> IncidentRCAReport | None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_rca_reports(self, incident_id: str) -> list[IncidentRCAReport]:
         raise NotImplementedError  # pragma: no cover
 
     def save_operation(self, operation: Operation) -> None:

@@ -14,7 +14,7 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
 
     version = upgrade_database(database_path)
 
-    assert version == 3
+    assert version == 4
     with closing(sqlite3.connect(database_path)) as connection:
         tables = {
             row[0]
@@ -33,18 +33,19 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
             (1,),
             (2,),
             (3,),
+            (4,),
         ]
 
 
 def test_upgrade_is_idempotent(tmp_path: Path) -> None:
     database_path = tmp_path / "datasentry.db"
 
-    assert upgrade_database(database_path) == 3
-    assert upgrade_database(database_path) == 3
+    assert upgrade_database(database_path) == 4
+    assert upgrade_database(database_path) == 4
 
     with closing(connect(database_path)) as connection:
-        assert current_schema_version(connection) == 3
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 3
+        assert current_schema_version(connection) == 4
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 4
 
 
 def test_tool_invocations_schema_contains_audit_fields(tmp_path: Path) -> None:
@@ -86,6 +87,26 @@ def test_upgrade_database_applies_m4_chat_console_schema(tmp_path: Path) -> None
             ).fetchall()
         }
     assert {"chat_sessions", "chat_messages", "chat_runs", "chat_run_events"} <= names
+
+
+def test_migration_0004_creates_incident_memory_tables(tmp_path: Path) -> None:
+    database_path = tmp_path / "datasentry.db"
+
+    version = upgrade_database(database_path)
+
+    assert version >= 4
+    with closing(connect(database_path)) as connection:
+        names = {
+            row["name"]
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+        }
+
+    assert "incident_links" in names
+    assert "incident_timeline_events" in names
+    assert "incident_fingerprints" in names
+    assert "incident_rca_reports" in names
 
 
 def test_chat_runs_reject_invalid_error_state_combinations(tmp_path: Path) -> None:
@@ -184,6 +205,7 @@ def test_foreign_keys_are_enforced(tmp_path: Path) -> None:
 
 
 def test_upgrade_does_not_leak_sqlite_connections(tmp_path: Path) -> None:
+    gc.collect()
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always", ResourceWarning)
         upgrade_database(tmp_path / "datasentry.db")

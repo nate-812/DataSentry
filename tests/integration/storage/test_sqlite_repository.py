@@ -30,6 +30,14 @@ from datasentry.domain import (
     ToolStatus,
 )
 from datasentry.errors import NotFoundError, StorageError
+from datasentry.incidents import (
+    IncidentFingerprint,
+    IncidentLink,
+    IncidentLinkKind,
+    IncidentRCAReport,
+    IncidentTimelineEvent,
+    IncidentTimelineEventType,
+)
 from datasentry.storage.sqlite import SQLiteRepository
 
 NOW = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)
@@ -568,6 +576,65 @@ def test_incident_save_update_and_get(repository: SQLiteRepository) -> None:
     repository.update_incident(updated)
 
     assert repository.get_incident(incident.id) == updated
+
+
+def test_incident_memory_round_trip(repository: SQLiteRepository) -> None:
+    incident = Incident(
+        id="67676767-6767-4767-8767-676767676767",
+        title="K线数据不更新",
+        symptom="页面显示旧 Kline",
+        severity=Severity.WARNING,
+        opened_at=NOW,
+        updated_at=NOW,
+    )
+    link = IncidentLink(
+        id="77777777-7777-4777-8777-777777777777",
+        incident_id=incident.id,
+        kind=IncidentLinkKind.ALERT,
+        target_id="dedup-key-1",
+        summary="Alertmanager firing",
+        created_at=NOW,
+    )
+    event = IncidentTimelineEvent(
+        id="88888888-8888-4888-8888-888888888888",
+        incident_id=incident.id,
+        event_type=IncidentTimelineEventType.ALERT_FIRED,
+        summary="收到 KlineFreshnessStale 告警",
+        source="alertmanager",
+        payload={"token": "secret-token", "status": "firing"},
+        occurred_at=NOW,
+    )
+    fingerprint = IncidentFingerprint(
+        id="99999999-9999-4999-8999-999999999999",
+        incident_id=incident.id,
+        component="flink",
+        failure_type="KlineFreshnessStale",
+        stable_labels_hash="hash-1",
+        severity=Severity.WARNING,
+        first_seen_at=NOW,
+        last_seen_at=NOW,
+    )
+    report = IncidentRCAReport(
+        id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        incident_id=incident.id,
+        version=1,
+        markdown="# RCA\n\n历史事件仅用于经验参考，当前状态必须以本次只读巡检证据为准。",
+        structured={"unknowns": []},
+        generated_by="deterministic_template",
+        created_at=NOW,
+    )
+
+    repository.save_incident(incident)
+    repository.save_incident_link(link)
+    repository.save_timeline_event(event)
+    repository.save_incident_fingerprint(fingerprint)
+    repository.save_rca_report(report)
+
+    assert repository.list_incident_links(incident.id) == [link]
+    assert repository.list_timeline_events(incident.id)[0].payload["token"] == "[REDACTED]"
+    assert repository.find_active_incident_by_fingerprint(fingerprint) == incident.id
+    assert repository.get_latest_rca_report(incident.id) == report
+    assert repository.list_rca_reports(incident.id) == [report]
 
 
 def test_operation_save_update_and_get(repository: SQLiteRepository) -> None:

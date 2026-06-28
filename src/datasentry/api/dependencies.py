@@ -8,6 +8,7 @@ from fastapi import Depends, Request
 
 from datasentry.chat import ChatService
 from datasentry.config import Settings
+from datasentry.incidents.service import IncidentService
 from datasentry.llm import (
     AnswerSummarizer,
     DisabledLLMProvider,
@@ -74,3 +75,16 @@ def get_chat_service(
         live_inspection=live_inspection,
         summarizer=summarizer,
     )
+
+
+def get_incident_service(
+    settings: Annotated[Settings, Depends(get_settings)],
+    repository: Annotated[SQLiteRepository, Depends(get_repository)],
+) -> IncidentService:
+    targets = TargetCatalog.load(settings.targets_file)
+    live_inspection = build_live_inspection_service(
+        repository=repository,
+        targets=targets,
+        knowledge_root=Path("knowledge"),
+    )
+    return IncidentService(repository=repository, diagnosis_runner=live_inspection)
