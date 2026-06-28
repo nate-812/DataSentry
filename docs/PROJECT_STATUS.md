@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M3 监控看板与通知仓库内基线已通过 Pull Request #3 合并到 `main` |
 | 当前阶段 | M4：对话与 Web 控制台实施中 |
-| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 后端、React Command Center、文档同步、自动化验证和桌面浏览器 smoke QA |
-| 下一里程碑 | 提交并推送 M4 收尾变更，准备 Pull Request；移动宽度截图 QA 后续在具备 macOS 自动化窗口调整权限的环境补跑 |
+| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 后端、React Command Center、文档同步、自动化验证和桌面浏览器 smoke QA；功能分支已推送到 GitHub |
+| 下一里程碑 | 创建 M4 Pull Request 并进入评审；移动宽度截图 QA 后续在具备 macOS 自动化窗口调整权限的环境补跑 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,12 +37,12 @@
 ## 正在进行
 
 - M4 设计和实施计划已完成；首版目标是 FastAPI Agent、OpenAI-compatible LLM、React Command Center、事件/证据查看和本地模拟审批闭环。
-- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成后端 API、聊天诊断、LLM 摘要降级、本地模拟审批、React 控制台脚手架、Command Center 核心页面、文档同步、自动化验证和桌面浏览器 smoke QA。
+- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成后端 API、聊天诊断、LLM 摘要降级、本地模拟审批、React 控制台脚手架、Command Center 核心页面、文档同步、自动化验证和桌面浏览器 smoke QA，并已推送到 GitHub。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M4 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 提交并推送 M4 收尾变更，准备后续 Pull Request 评审。
+1. 创建 M4 Pull Request 并进入评审。
 2. 在具备 macOS 自动化窗口调整权限的环境补跑移动宽度截图 QA。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
@@ -214,3 +214,4 @@
 - M4 桌面浏览器 smoke QA 通过：使用本机 Chrome 打开 `http://127.0.0.1:5173/`，验证概览页 `API ok / LLM mock`、对话诊断提交和 SSE 事件回放、证据页按 inspection id 查询 Finding、审批页创建并批准 `simulate_restart_preview` 本地模拟 Operation。
 - 真实浏览器 QA 发现并修复本地 CORS 默认来源问题：Vite 默认打开 `http://127.0.0.1:5173`，后端默认 CORS 原先只允许 `http://localhost:5173`；现已默认同时允许 `localhost` 和 `127.0.0.1`。
 - 移动宽度截图 QA 未完成：调整 Chrome 窗口的 `osascript` 调用受 macOS 自动化权限卡住；CSS 响应式规则仍已随前端 build/typecheck 覆盖，后续在具备窗口调整权限的环境补跑实际移动截图。
+- M4 功能分支 `codex/m4-dialog-web-console` 已推送到 GitHub，最新提交为 `eb75416`。
