@@ -38,6 +38,12 @@ from datasentry.incidents import (
     IncidentTimelineEvent,
     IncidentTimelineEventType,
 )
+from datasentry.runbooks import (
+    BuiltInRunbookCatalog,
+    OperationEvent,
+    OperationEventType,
+    OperationLock,
+)
 from datasentry.storage.sqlite import SQLiteRepository
 
 NOW = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)
@@ -677,6 +683,53 @@ def test_operation_idempotency_key_round_trips(repository: SQLiteRepository) -> 
     repository.save_operation(operation)
 
     assert repository.get_operation(operation.id).idempotency_key == operation.idempotency_key
+
+
+def test_runbook_snapshot_event_and_lock_round_trip(repository: SQLiteRepository) -> None:
+    runbook = BuiltInRunbookCatalog().get("mock.restart_preview")
+    operation = Operation(
+        name=runbook.name,
+        version=runbook.version,
+        parameters={"target": "api", "reason": "演练"},
+        risk=runbook.risk,
+        requester="operator",
+        idempotency_key="mock.restart_preview:1.0.0:api:none",
+    )
+    event = OperationEvent(
+        operation_id=operation.id,
+        event_type=OperationEventType.OPERATION_REQUESTED,
+        summary="创建 Runbook 操作",
+        actor="operator",
+        payload={"target": "api"},
+    )
+    lock = OperationLock(
+        lock_key="runbook:mock.restart_preview:api",
+        operation_id=operation.id,
+        runbook_name=runbook.name,
+        target="api",
+        expires_at=operation.requested_at + timedelta(minutes=5),
+    )
+
+    repository.save_runbook(runbook)
+    repository.save_operation(operation)
+    repository.save_operation_event(event)
+    repository.acquire_operation_lock(lock)
+
+    assert repository.list_runbooks() == [runbook]
+    assert repository.get_runbook(runbook.name) == runbook
+    assert repository.list_operation_events(operation.id) == [event]
+    assert (
+        repository.get_active_operation_by_idempotency_key(operation.idempotency_key)
+        == operation
+    )
+    assert repository.get_active_lock(lock.lock_key) == lock
+
+    repository.release_operation_lock(
+        lock.lock_key,
+        released_at=operation.requested_at + timedelta(minutes=1),
+    )
+
+    assert repository.get_active_lock(lock.lock_key) is None
 
 
 def test_closed_repository_rejects_calls(tmp_path: Path) -> None:

@@ -28,6 +28,9 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
             "incidents",
             "operations",
             "tool_invocations",
+            "runbooks",
+            "operation_events",
+            "operation_locks",
         } <= tables
         assert connection.execute("SELECT version FROM schema_migrations").fetchall() == [
             (1,),
@@ -120,7 +123,12 @@ def test_migration_0005_adds_operation_idempotency_key(tmp_path) -> None:
             row[1]
             for row in connection.execute("PRAGMA table_info(operations)").fetchall()
         }
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
     assert "idempotency_key" in columns
+    assert {"runbooks", "operation_events", "operation_locks"} <= tables
 
 
 def test_chat_runs_reject_invalid_error_state_combinations(tmp_path: Path) -> None:

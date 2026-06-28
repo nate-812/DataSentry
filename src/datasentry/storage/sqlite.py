@@ -26,6 +26,7 @@ from datasentry.domain import (
     Operation,
     ToolInvocation,
 )
+from datasentry.domain.common import utc_now
 from datasentry.domain.enums import IncidentStatus, InspectionStatus, OperationStatus
 from datasentry.errors import NotFoundError, StorageError
 from datasentry.incidents.models import (
@@ -37,6 +38,13 @@ from datasentry.incidents.models import (
     IncidentTimelineEventType,
 )
 from datasentry.redaction import redact_value
+from datasentry.runbooks import (
+    ExecutionMode,
+    OperationEvent,
+    OperationEventType,
+    OperationLock,
+    Runbook,
+)
 from datasentry.storage.migrations import connect, upgrade_database
 from datasentry.storage.repository import InspectionAggregate
 
@@ -670,6 +678,183 @@ class SQLiteRepository:
             ).fetchall()
         return [self._row_to_operation(row) for row in rows]
 
+    def save_runbook(self, runbook: Runbook) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT OR REPLACE INTO runbooks (
+                        name, version, title, description, risk, execution_mode,
+                        parameter_schema_json, precheck_json, postcheck_json,
+                        lock_key_template, idempotency_key_template, enabled,
+                        audit_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        runbook.name,
+                        runbook.version,
+                        runbook.title,
+                        runbook.description,
+                        runbook.risk.value,
+                        runbook.execution_mode.value,
+                        _dump_json(runbook.parameter_schema),
+                        _dump_json(runbook.precheck),
+                        _dump_json(runbook.postcheck),
+                        runbook.lock_key_template,
+                        runbook.idempotency_key_template,
+                        int(runbook.enabled),
+                        runbook.audit_notes,
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def get_runbook(self, name: str) -> Runbook:
+        connection = self._require_open()
+        row = connection.execute(
+            "SELECT * FROM runbooks WHERE name = ?",
+            (name,),
+        ).fetchone()
+        if row is None:
+            raise NotFoundError(
+                code="storage.runbook_not_found",
+                message="未找到指定 Runbook",
+                details={"runbook_name": name},
+            )
+        return self._row_to_runbook(row)
+
+    def list_runbooks(self) -> list[Runbook]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT * FROM runbooks
+            ORDER BY name
+            """
+        ).fetchall()
+        return [self._row_to_runbook(row) for row in rows]
+
+    def save_operation_event(self, event: OperationEvent) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO operation_events (
+                        id, operation_id, event_type, summary, actor,
+                        payload_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.id,
+                        event.operation_id,
+                        event.event_type.value,
+                        event.summary,
+                        event.actor,
+                        _dump_json(redact_value(event.payload)),
+                        _dump_datetime(event.created_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_operation_events(self, operation_id: str) -> list[OperationEvent]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT * FROM operation_events
+            WHERE operation_id = ?
+            ORDER BY created_at, id
+            """,
+            (operation_id,),
+        ).fetchall()
+        return [self._row_to_operation_event(row) for row in rows]
+
+    def get_active_operation_by_idempotency_key(
+        self,
+        idempotency_key: str | None,
+    ) -> Operation | None:
+        if idempotency_key is None:
+            return None
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT * FROM operations
+            WHERE idempotency_key = ?
+              AND status IN (?, ?, ?, ?, ?)
+            ORDER BY requested_at DESC, id DESC
+            LIMIT 1
+            """,
+            (
+                idempotency_key,
+                OperationStatus.REQUESTED.value,
+                OperationStatus.AWAITING_APPROVAL.value,
+                OperationStatus.APPROVED.value,
+                OperationStatus.RUNNING.value,
+                OperationStatus.VERIFYING.value,
+            ),
+        ).fetchone()
+        if rows is None:
+            return None
+        return self._row_to_operation(rows)
+
+    def acquire_operation_lock(self, lock: OperationLock) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO operation_locks (
+                        lock_key, operation_id, runbook_name, target,
+                        acquired_at, expires_at, released_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        lock.lock_key,
+                        lock.operation_id,
+                        lock.runbook_name,
+                        lock.target,
+                        _dump_datetime(lock.acquired_at),
+                        _dump_datetime(lock.expires_at),
+                        _dump_datetime(lock.released_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            if "unique constraint failed" in str(error).lower():
+                raise StorageError(
+                    code="operation.lock_conflict",
+                    message="操作锁已被占用",
+                ) from error
+            raise self._integrity_error(error) from error
+
+    def get_active_lock(self, lock_key: str) -> OperationLock | None:
+        connection = self._require_open()
+        row = connection.execute(
+            """
+            SELECT * FROM operation_locks
+            WHERE lock_key = ?
+              AND released_at IS NULL
+              AND expires_at > ?
+            LIMIT 1
+            """,
+            (lock_key, _dump_datetime(utc_now())),
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_operation_lock(row)
+
+    def release_operation_lock(self, lock_key: str, *, released_at: datetime) -> None:
+        connection = self._require_open()
+        with connection:
+            connection.execute(
+                """
+                UPDATE operation_locks
+                SET released_at = ?
+                WHERE lock_key = ? AND released_at IS NULL
+                """,
+                (_dump_datetime(released_at), lock_key),
+            )
+
     def save_chat_session(self, session: ChatSession) -> None:
         connection = self._require_open()
         try:
@@ -1168,6 +1353,50 @@ class SQLiteRepository:
             approved_at=_load_datetime(row["approved_at"]),
             executed_at=_load_datetime(row["executed_at"]),
             verified_at=_load_datetime(row["verified_at"]),
+        )
+
+    @staticmethod
+    def _row_to_runbook(row: sqlite3.Row) -> Runbook:
+        return Runbook(
+            name=row["name"],
+            version=row["version"],
+            title=row["title"],
+            description=row["description"],
+            risk=row["risk"],
+            execution_mode=ExecutionMode(row["execution_mode"]),
+            parameter_schema=JSON_OBJECT_ADAPTER.validate_python(
+                _load_json(row["parameter_schema_json"])
+            ),
+            precheck=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["precheck_json"])),
+            postcheck=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["postcheck_json"])),
+            lock_key_template=row["lock_key_template"],
+            idempotency_key_template=row["idempotency_key_template"],
+            enabled=bool(row["enabled"]),
+            audit_notes=row["audit_notes"],
+        )
+
+    @staticmethod
+    def _row_to_operation_event(row: sqlite3.Row) -> OperationEvent:
+        return OperationEvent(
+            id=row["id"],
+            operation_id=row["operation_id"],
+            event_type=OperationEventType(row["event_type"]),
+            summary=row["summary"],
+            actor=row["actor"],
+            payload=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["payload_json"])),
+            created_at=_load_required_datetime(row["created_at"]),
+        )
+
+    @staticmethod
+    def _row_to_operation_lock(row: sqlite3.Row) -> OperationLock:
+        return OperationLock(
+            lock_key=row["lock_key"],
+            operation_id=row["operation_id"],
+            runbook_name=row["runbook_name"],
+            target=row["target"],
+            acquired_at=_load_required_datetime(row["acquired_at"]),
+            expires_at=_load_required_datetime(row["expires_at"]),
+            released_at=_load_datetime(row["released_at"]),
         )
 
     @staticmethod

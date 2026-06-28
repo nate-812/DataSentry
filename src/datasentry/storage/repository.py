@@ -1,6 +1,7 @@
 """应用 Service 使用的存储抽象。"""
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from datasentry.chat import ChatMessage, ChatRun, ChatSession
@@ -19,6 +20,7 @@ from datasentry.incidents.models import (
     IncidentRCAReport,
     IncidentTimelineEvent,
 )
+from datasentry.runbooks import OperationEvent, OperationLock, Runbook
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,6 +139,36 @@ class Repository(Protocol):
         status: OperationStatus | None = None,
         limit: int = 20,
     ) -> list[Operation]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_runbook(self, runbook: Runbook) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def get_runbook(self, name: str) -> Runbook:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_runbooks(self) -> list[Runbook]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_operation_event(self, event: OperationEvent) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_operation_events(self, operation_id: str) -> list[OperationEvent]:
+        raise NotImplementedError  # pragma: no cover
+
+    def get_active_operation_by_idempotency_key(
+        self,
+        idempotency_key: str | None,
+    ) -> Operation | None:
+        raise NotImplementedError  # pragma: no cover
+
+    def acquire_operation_lock(self, lock: OperationLock) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def get_active_lock(self, lock_key: str) -> OperationLock | None:
+        raise NotImplementedError  # pragma: no cover
+
+    def release_operation_lock(self, lock_key: str, *, released_at: datetime) -> None:
         raise NotImplementedError  # pragma: no cover
 
     def save_chat_session(self, session: ChatSession) -> None:
