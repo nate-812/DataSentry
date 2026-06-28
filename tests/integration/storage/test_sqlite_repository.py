@@ -664,6 +664,21 @@ def test_operation_save_update_and_get(repository: SQLiteRepository) -> None:
     assert repository.get_operation(operation.id) == updated
 
 
+def test_operation_idempotency_key_round_trips(repository: SQLiteRepository) -> None:
+    operation = Operation(
+        name="mock.restart_preview",
+        version="1.0.0",
+        parameters={"target": "api", "reason": "演练"},
+        risk=OperationRisk.L1,
+        requester="operator",
+        idempotency_key="mock.restart_preview:1.0.0:api:none",
+    )
+
+    repository.save_operation(operation)
+
+    assert repository.get_operation(operation.id).idempotency_key == operation.idempotency_key
+
+
 def test_closed_repository_rejects_calls(tmp_path: Path) -> None:
     repository = SQLiteRepository(tmp_path / "datasentry.db")
     repository.close()

@@ -591,10 +591,11 @@ class SQLiteRepository:
                 connection.execute(
                     """
                     INSERT INTO operations (
-                        id, incident_id, name, version, parameters_json,
-                        risk, status, requester, approver, result_json,
-                        requested_at, approved_at, executed_at, verified_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        id, incident_id, name, version, idempotency_key,
+                        parameters_json, risk, status, requester, approver,
+                        result_json, requested_at, approved_at, executed_at,
+                        verified_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     self._operation_values(operation),
                 )
@@ -608,10 +609,11 @@ class SQLiteRepository:
                 cursor = connection.execute(
                     """
                     UPDATE operations SET
-                        incident_id = ?, name = ?, version = ?, parameters_json = ?,
-                        risk = ?, status = ?, requester = ?, approver = ?,
-                        result_json = ?, requested_at = ?, approved_at = ?,
-                        executed_at = ?, verified_at = ?
+                        incident_id = ?, name = ?, version = ?,
+                        idempotency_key = ?, parameters_json = ?, risk = ?,
+                        status = ?, requester = ?, approver = ?, result_json = ?,
+                        requested_at = ?, approved_at = ?, executed_at = ?,
+                        verified_at = ?
                     WHERE id = ?
                     """,
                     (*self._operation_values(operation)[1:], operation.id),
@@ -1013,6 +1015,7 @@ class SQLiteRepository:
             operation.incident_id,
             operation.name,
             operation.version,
+            operation.idempotency_key,
             _dump_json(operation.parameters),
             operation.risk.value,
             operation.status.value,
@@ -1150,6 +1153,7 @@ class SQLiteRepository:
             incident_id=row["incident_id"],
             name=row["name"],
             version=row["version"],
+            idempotency_key=row["idempotency_key"],
             parameters=JSON_OBJECT_ADAPTER.validate_python(_load_json(row["parameters_json"])),
             risk=row["risk"],
             status=row["status"],

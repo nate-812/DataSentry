@@ -29,6 +29,7 @@ class Operation(DomainModel):
     incident_id: str | None = None
     name: str = Field(min_length=1)
     version: str = Field(min_length=1)
+    idempotency_key: str | None = None
     parameters: dict[str, JsonValue] = Field(default_factory=dict)
     risk: OperationRisk
     status: OperationStatus = OperationStatus.REQUESTED

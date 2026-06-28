@@ -47,3 +47,17 @@ def test_operation_rejects_invalid_time_order(observed_at: datetime) -> None:
             executed_at=observed_at + timedelta(seconds=1),
             verified_at=observed_at + timedelta(seconds=3),
         )
+
+
+def test_operation_accepts_optional_idempotency_key(observed_at: datetime) -> None:
+    operation = Operation(
+        name="mock.restart_preview",
+        version="1.0.0",
+        parameters={"target": "api", "reason": "演练"},
+        risk=OperationRisk.L1,
+        requester="operator",
+        idempotency_key="mock.restart_preview:1.0.0:api:none",
+        requested_at=observed_at,
+    )
+
+    assert operation.idempotency_key == "mock.restart_preview:1.0.0:api:none"
