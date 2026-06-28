@@ -7,9 +7,9 @@
 | 项目 | 当前状态 |
 |---|---|
 | 总体状态 | M5 事件记忆与 RCA 已在功能分支完成本地实现和自动化验证 |
-| 当前阶段 | M5：事件记忆与 RCA 本地完成，待 PR/可选只读 smoke |
+| 当前阶段 | M5：事件记忆与 RCA 本地完成，Draft PR #5 已创建 |
 | 当前工作 | 已完成 Incident 记忆模型、SQLite 持久化、Alertmanager upsert、历史相似检索、RCA、API 和前端事件工作台 |
-| 下一里程碑 | 创建 M5 Pull Request；如需要，打开云实例执行 Alertmanager → DataSentry API 的只读 smoke 验收 |
+| 下一里程碑 | 等待 M5 Draft PR #5 的 GitHub quality check 和代码评审；如需要，打开云实例执行 Alertmanager → DataSentry API 的只读 smoke 验收 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -42,7 +42,7 @@
 
 ## 下一步
 
-1. 创建 M5 Pull Request 并等待 GitHub checks。
+1. 等待 M5 Draft PR #5 的 GitHub quality check 和代码评审结果。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -232,3 +232,4 @@
 - 为避免循环依赖，将通用脱敏能力拆到 `datasentry.redaction`，`datasentry.tools.redaction` 保留兼容导出。
 - M5 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 262 个测试通过，覆盖率 91.36%。
 - M5 云实例 smoke 未执行：本地开发和自动化验证不需要打开云实例，后续如需可在只读边界内补跑 Alertmanager → DataSentry API smoke。
+- M5 功能分支 `codex/m5-incident-memory-rca` 已推送到 GitHub，并创建 [M5 Draft PR #5](https://github.com/nate-812/DataSentry/pull/5)；创建后 `secrets` check 已通过，`quality` check 仍在 pending。
