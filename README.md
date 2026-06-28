@@ -2,7 +2,8 @@
 
 DataSentry 是面向 StreamLake-Binance 的证据驱动智能运维 Agent。当前 M2
 已完成真实只读工具和现场只读契约验证；M3 已完成仓库内监控模板、
-告警通知内核、本地模拟 CLI 和 DataSentry 自监控指标基线。
+告警通知内核、本地模拟 CLI 和 DataSentry 自监控指标基线；M4 正在增加
+FastAPI Agent、OpenAI-compatible LLM 摘要和 React Command Center。
 
 > M2 只允许固定 HTTP GET、固定 SSH 命令、固定数据库 SELECT 和受限 Redis
 > 查询。项目不提供任意 Shell、任意 SQL、任意 URL 或任何生产写操作。
@@ -136,6 +137,46 @@ datasentry notification simulate \
 真实企业微信机器人 key、Webhook URL、认证 token 和生产目标配置必须由部署环境
 注入，不得提交到 Git。
 
+## M4 对话 Agent 与 Web 控制台
+
+升级本地数据库后启动 FastAPI：
+
+```bash
+datasentry db upgrade --database-path var/datasentry-m4.db
+DATASENTRY_DATABASE_PATH=var/datasentry-m4.db \
+DATASENTRY_TARGETS_FILE=config/targets.example.toml \
+DATASENTRY_LLM_PROVIDER=mock \
+  uvicorn datasentry.api:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+启动 React 控制台：
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+控制台默认访问 `http://127.0.0.1:8000`，可通过
+`VITE_DATASENTRY_API_BASE` 指向其他 DataSentry API。M4 首版页面包含概览、
+对话诊断、Incident、证据、模拟审批和 Grafana 入口。Web 控制台不直连生产组件，
+只访问 DataSentry API。
+
+LLM 首版按 API key 优先设计，不默认依赖本地大模型：
+
+```bash
+export DATASENTRY_LLM_PROVIDER=openai_compatible
+export DATASENTRY_LLM_BASE_URL='https://llm.example.test/v1'
+export DATASENTRY_LLM_MODEL='ops-model'
+export DATASENTRY_LLM_API_KEY='只在本机环境中设置'
+```
+
+未配置或调用失败时，诊断仍使用确定性中文模板回答。API key 不会返回到
+`/api/health`、前端响应、日志或异常详情。
+
+本地模拟审批只允许 `simulate_` 前缀 Operation，批准或拒绝只更新 SQLite 状态，
+不执行生产 Runbook。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -145,6 +186,15 @@ datasentry notification simulate \
 | `DATASENTRY_LOG_LEVEL` | `INFO` | 日志级别 |
 | `DATASENTRY_LOG_FORMAT` | `json` | `json` 或 `console` |
 | `DATASENTRY_ENVIRONMENT` | `development` | `development`、`test` 或 `production` |
+| `DATASENTRY_API_HOST` | `127.0.0.1` | FastAPI 本地监听地址 |
+| `DATASENTRY_API_PORT` | `8000` | FastAPI 本地监听端口 |
+| `DATASENTRY_API_CORS_ORIGINS` | `["http://localhost:5173","http://127.0.0.1:5173"]` | 允许访问 API 的前端来源 |
+| `DATASENTRY_GRAFANA_URL` | 空 | 控制台展示的 Grafana 链接 |
+| `DATASENTRY_LLM_PROVIDER` | `disabled` | `disabled`、`mock` 或 `openai_compatible` |
+| `DATASENTRY_LLM_BASE_URL` | 空 | OpenAI-compatible API base URL |
+| `DATASENTRY_LLM_MODEL` | 空 | OpenAI-compatible 模型名称 |
+| `DATASENTRY_LLM_API_KEY` | 空 | OpenAI-compatible API key，仅从环境读取 |
+| `DATASENTRY_LLM_TIMEOUT_SECONDS` | `20` | 单次 LLM 请求超时秒数 |
 
 真实秘密不得写入 `.env`、日志、SQLite、命令输出或 Git。
 
@@ -158,6 +208,8 @@ pytest tests -q -W error::ResourceWarning \
   --cov=datasentry \
   --cov-report=term-missing \
   --cov-fail-under=90
+cd frontend && npm run typecheck
+cd frontend && npm run build
 ```
 
 ## 知识库接入
@@ -179,3 +231,5 @@ Agent 新会话按顺序读取：
 - [`M2 真实只读工具实施计划`](docs/superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
 - [`M3 监控看板与通知设计`](docs/superpowers/specs/2026-06-26-m3-observability-notifications-design.md)
 - [`M3 监控看板与通知实施计划`](docs/superpowers/plans/2026-06-26-m3-observability-notifications.md)
+- [`M4 对话式 Agent 与 Web 控制台设计`](docs/superpowers/specs/2026-06-27-m4-dialog-web-console-design.md)
+- [`M4 对话式 Agent 与 Web 控制台实施计划`](docs/superpowers/plans/2026-06-27-m4-dialog-web-console.md)

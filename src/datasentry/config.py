@@ -24,7 +24,9 @@ class Settings(BaseSettings):
     log_format: Literal["json", "console"] = "json"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
-    api_cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    api_cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"]
+    )
     grafana_url: AnyHttpUrl | None = None
     llm_provider: Literal["disabled", "mock", "openai_compatible"] = "disabled"
     llm_base_url: AnyHttpUrl | None = None

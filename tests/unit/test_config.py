@@ -41,7 +41,7 @@ def test_m4_llm_settings_default_to_disabled(monkeypatch: pytest.MonkeyPatch) ->
 
     assert settings.llm_provider == "disabled"
     assert settings.llm_api_key is None
-    assert settings.api_cors_origins == ["http://localhost:5173"]
+    assert settings.api_cors_origins == ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
 def test_m4_llm_settings_load_openai_compatible(monkeypatch: pytest.MonkeyPatch) -> None:
