@@ -13,7 +13,7 @@ from datasentry.domain import (
     ToolInvocation,
 )
 from datasentry.domain.enums import IncidentStatus, OperationStatus
-from datasentry.incidents import (
+from datasentry.incidents.models import (
     IncidentFingerprint,
     IncidentLink,
     IncidentRCAReport,
@@ -94,6 +94,9 @@ class Repository(Protocol):
         raise NotImplementedError  # pragma: no cover
 
     def save_incident_fingerprint(self, fingerprint: IncidentFingerprint) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_incident_fingerprints(self, incident_id: str) -> list[IncidentFingerprint]:
         raise NotImplementedError  # pragma: no cover
 
     def find_active_incident_by_fingerprint(

@@ -28,7 +28,7 @@ from datasentry.domain import (
 )
 from datasentry.domain.enums import IncidentStatus, InspectionStatus, OperationStatus
 from datasentry.errors import NotFoundError, StorageError
-from datasentry.incidents import (
+from datasentry.incidents.models import (
     IncidentFingerprint,
     IncidentLink,
     IncidentLinkKind,
@@ -457,6 +457,20 @@ class SQLiteRepository:
                 )
         except sqlite3.IntegrityError as error:
             raise self._integrity_error(error) from error
+
+    def list_incident_fingerprints(self, incident_id: str) -> list[IncidentFingerprint]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, incident_id, component, failure_type, stable_labels_hash,
+                   severity, first_seen_at, last_seen_at
+            FROM incident_fingerprints
+            WHERE incident_id = ?
+            ORDER BY last_seen_at DESC, id DESC
+            """,
+            (incident_id,),
+        ).fetchall()
+        return [self._row_to_incident_fingerprint(row) for row in rows]
 
     def find_active_incident_by_fingerprint(
         self,

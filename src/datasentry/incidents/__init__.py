@@ -15,6 +15,7 @@ from datasentry.incidents.models import (
 )
 from datasentry.incidents.rca import build_rca_report
 from datasentry.incidents.search import IncidentSearchCandidate, rank_similar_incidents
+from datasentry.incidents.service import IncidentService
 
 __all__ = [
     "IncidentAction",
@@ -24,6 +25,7 @@ __all__ = [
     "IncidentLinkKind",
     "IncidentRCAReport",
     "IncidentSearchCandidate",
+    "IncidentService",
     "IncidentTimelineEvent",
     "IncidentTimelineEventType",
     "IncidentUpsertResult",
