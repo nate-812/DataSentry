@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M5 事件记忆与 RCA 已在功能分支完成本地实现和自动化验证 |
-| 当前阶段 | M5：事件记忆与 RCA 本地完成，Draft PR #5 已创建 |
-| 当前工作 | 已完成 Incident 记忆模型、SQLite 持久化、Alertmanager upsert、历史相似检索、RCA、API 和前端事件工作台 |
-| 下一里程碑 | 等待 M5 Draft PR #5 的 GitHub quality check 和代码评审；如需要，打开云实例执行 Alertmanager → DataSentry API 的只读 smoke 验收 |
+| 总体状态 | M5 事件记忆与 RCA 已通过 Pull Request #5 合并到 `main` |
+| 当前阶段 | M6：审批式自动运维准备启动 |
+| 当前工作 | M5 已完成并合并；下一步可从最新 `main` 启动 M6 设计与实施计划 |
+| 下一里程碑 | 启动 M6：Runbook、审批、执行、审计和操作后验证；如需要，可先补 M5 云端只读 smoke |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,12 +37,12 @@
 
 ## 正在进行
 
-- M5 本地实现已完成；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
+- M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 等待 M5 Draft PR #5 的 GitHub quality check 和代码评审结果。
+1. 启动 M6 设计与实施计划，重点定义 Runbook 风险分级、审批、执行审计、回滚/恢复方案和操作后验证。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -99,7 +99,7 @@
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
-| M5 事件记忆与 RCA | 本地实现完成 | Incident 生命周期、历史检索和复盘 |
+| M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
 
@@ -232,4 +232,6 @@
 - 为避免循环依赖，将通用脱敏能力拆到 `datasentry.redaction`，`datasentry.tools.redaction` 保留兼容导出。
 - M5 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 262 个测试通过，覆盖率 91.36%。
 - M5 云实例 smoke 未执行：本地开发和自动化验证不需要打开云实例，后续如需可在只读边界内补跑 Alertmanager → DataSentry API smoke。
-- M5 功能分支 `codex/m5-incident-memory-rca` 已推送到 GitHub，并创建 [M5 Draft PR #5](https://github.com/nate-812/DataSentry/pull/5)；创建后 `secrets` check 已通过，`quality` check 仍在 pending。
+- M5 功能分支 `codex/m5-incident-memory-rca` 已推送到 GitHub，并创建 [M5 Draft PR #5](https://github.com/nate-812/DataSentry/pull/5)；`secrets` 与 `quality` checks 均通过。
+- M5 PR #5 已合并到 `main`，合并提交为 `38fe943`；本地 `main` 已 fast-forward 同步到 `origin/main`。
+- M5 合并后在 `main` 重新完成自动化验证：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 262 个测试通过，覆盖率 91.36%。
