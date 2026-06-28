@@ -2,8 +2,9 @@
 
 DataSentry 是面向 StreamLake-Binance 的证据驱动智能运维 Agent。当前 M2
 已完成真实只读工具和现场只读契约验证；M3 已完成仓库内监控模板、
-告警通知内核、本地模拟 CLI 和 DataSentry 自监控指标基线；M4 正在增加
-FastAPI Agent、OpenAI-compatible LLM 摘要和 React Command Center。
+告警通知内核、本地模拟 CLI 和 DataSentry 自监控指标基线；M4 已完成
+FastAPI Agent、OpenAI-compatible LLM 摘要和 React Command Center；M5 已增加
+事件记忆、历史相似检索、RCA 草稿和 Incident 工作台。
 
 > M2 只允许固定 HTTP GET、固定 SSH 命令、固定数据库 SELECT 和受限 Redis
 > 查询。项目不提供任意 Shell、任意 SQL、任意 URL 或任何生产写操作。
@@ -177,6 +178,44 @@ export DATASENTRY_LLM_API_KEY='只在本机环境中设置'
 本地模拟审批只允许 `simulate_` 前缀 Operation，批准或拒绝只更新 SQLite 状态，
 不执行生产 Runbook。
 
+## M5 事件记忆与 RCA
+
+M5 开发和主要验证不需要打开云实例。使用本地 SQLite、Alertmanager fixture、
+模拟诊断和前端构建即可验证自动建档、Incident 合并、时间线、历史相似事件、
+RCA 草稿和 Markdown 导出。云实例只用于末尾可选的只读 smoke，不作为本地开发前置条件。
+
+升级本地数据库并启动 API：
+
+```bash
+datasentry db upgrade --database-path var/datasentry-m5.db
+DATASENTRY_DATABASE_PATH=var/datasentry-m5.db \
+DATASENTRY_TARGETS_FILE=config/targets.example.toml \
+DATASENTRY_LLM_PROVIDER=mock \
+  uvicorn datasentry.api:create_app --factory --host 127.0.0.1 --port 8000
+```
+
+用本地 Alertmanager fixture 创建或合并 Incident：
+
+```bash
+curl -sS -X POST http://127.0.0.1:8000/api/alertmanager/webhook \
+  -H 'Content-Type: application/json' \
+  --data @tests/fixtures/alertmanager/kline_freshness_firing.json
+```
+
+Incident API 包含：
+
+- `GET /api/incidents/{incident_id}`：读取 Incident 详情、关联证据、时间线、相似事件和最新 RCA。
+- `GET /api/incidents/{incident_id}/timeline`：读取时间线。
+- `GET /api/incidents/{incident_id}/similar`：读取历史相似 Incident。
+- `POST /api/incidents/{incident_id}/rca`：生成并保存确定性 RCA 草稿。
+- `GET /api/incidents/{incident_id}/export`：导出 Markdown 复盘草稿。
+
+React 控制台的 Incident 页面已升级为事件工作台，可查看状态、严重级别、
+时间线、关联巡检、相似事件、RCA 预览和 Markdown 导出。M5 仍保持只读诊断边界：
+RCA 和历史记忆只作为经验参考，当前事实必须来自本次受限只读巡检证据；不实现 RAG、
+任意 Shell、自动重启、自动补数、自动改配置、自动 Savepoint 恢复，也不读取
+MySQL 异常表内容。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -233,3 +272,5 @@ Agent 新会话按顺序读取：
 - [`M3 监控看板与通知实施计划`](docs/superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [`M4 对话式 Agent 与 Web 控制台设计`](docs/superpowers/specs/2026-06-27-m4-dialog-web-console-design.md)
 - [`M4 对话式 Agent 与 Web 控制台实施计划`](docs/superpowers/plans/2026-06-27-m4-dialog-web-console.md)
+- [`M5 事件记忆与 RCA 设计`](docs/superpowers/specs/2026-06-28-m5-incident-memory-rca-design.md)
+- [`M5 事件记忆与 RCA 实施计划`](docs/superpowers/plans/2026-06-28-m5-incident-memory-rca.md)

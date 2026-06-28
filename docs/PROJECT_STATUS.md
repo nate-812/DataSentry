@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M4 对话与 Web 控制台已通过 Pull Request #4 合并到 `main` |
-| 当前阶段 | M5：事件记忆与 RCA 准备启动 |
-| 当前工作 | M5 事件记忆与 RCA 设计已通过评审，实施计划草稿已起草，等待选择执行方式 |
-| 下一里程碑 | 按实施计划启动 M5：Incident 记忆模型、SQLite 持久化、Alertmanager upsert、RCA、API 和前端事件工作台 |
+| 总体状态 | M5 事件记忆与 RCA 已在功能分支完成本地实现和自动化验证 |
+| 当前阶段 | M5：事件记忆与 RCA 本地完成，待 PR/可选只读 smoke |
+| 当前工作 | 已完成 Incident 记忆模型、SQLite 持久化、Alertmanager upsert、历史相似检索、RCA、API 和前端事件工作台 |
+| 下一里程碑 | 创建 M5 Pull Request；如需要，打开云实例执行 Alertmanager → DataSentry API 的只读 smoke 验收 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,15 +37,16 @@
 
 ## 正在进行
 
-- M5 尚未开始实施；设计已通过评审，实施计划草稿已起草，下一步是选择执行方式并进入实现。
+- M5 本地实现已完成；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 选择 M5 实施计划执行方式，并启动本地开发；云实例仅用于末尾可选只读 smoke 验收。
-2. 在具备 macOS 自动化窗口调整权限的环境补跑 M4 移动宽度截图 QA。
-3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
-4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
+1. 创建 M5 Pull Request 并等待 GitHub checks。
+2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
+3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
+4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
+5. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
 ## 阻塞与风险
 
@@ -61,6 +62,7 @@
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka 真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 - M3 目前只完成仓库内模板和本地模拟，尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
+- M5 已通过本地自动化验证，但尚未在云实例上执行真实 Alertmanager → DataSentry API smoke。
 
 ## 已确认的关键决策
 
@@ -97,7 +99,7 @@
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
-| M5 事件记忆与 RCA | 计划待执行 | Incident 生命周期、历史检索和复盘 |
+| M5 事件记忆与 RCA | 本地实现完成 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
 
@@ -221,3 +223,12 @@
 - 启动 M5 设计；用户选择完整闭环方案，并确认 Alertmanager Webhook 作为自动创建和合并 Incident 的主要入口。M5 首版将覆盖 Incident 生命周期、时间线、历史相似事件检索、RCA 草稿和 Markdown 导出，但仍不执行生产写操作、不引入 RAG、不读取 MySQL 异常表内容。
 - M5 设计通过用户评审；确认开发阶段不需要打开云实例，可用本地 SQLite、Alertmanager fixture、模拟诊断和前端构建完成主要验证，云实例仅作为末尾可选只读 smoke。
 - 起草 M5 实施计划，按 TDD 拆分 Incident 记忆模型、SQLite 持久化、fingerprint/lifecycle/search、RCA、IncidentService、FastAPI API、React 事件工作台、文档和最终验证。
+- 创建 M5 功能分支 `codex/m5-incident-memory-rca`，完成 Incident 记忆领域模型、事件关联、时间线、fingerprint、RCA 报告和 upsert 结果模型。
+- 新增 SQLite `0004_incident_memory` 迁移和 Repository 持久化接口，覆盖 Incident link、timeline、fingerprint 和 RCA report。
+- 完成 Alertmanager 告警指纹、Incident 生命周期推进、历史相似事件排序和确定性 RCA Markdown 草稿生成；历史事件仅作为经验参考，当前事实仍必须来自本次只读巡检证据。
+- 完成 IncidentService，将 Alertmanager Webhook 接入自动建档/合并 Incident、关联诊断结果、写入时间线、检索相似事件并生成 RCA。
+- 完成 M5 API：`POST /api/alertmanager/webhook` 返回 Incident upsert 结果，新增 Incident 详情、时间线、相似事件、RCA 生成和 Markdown 导出接口。
+- 完成 React Incident 工作台，支持状态/严重级别筛选、Incident 详情、时间线、关联证据、相似事件、RCA 预览和 Markdown 导出。
+- 为避免循环依赖，将通用脱敏能力拆到 `datasentry.redaction`，`datasentry.tools.redaction` 保留兼容导出。
+- M5 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 262 个测试通过，覆盖率 91.36%。
+- M5 云实例 smoke 未执行：本地开发和自动化验证不需要打开云实例，后续如需可在只读边界内补跑 Alertmanager → DataSentry API smoke。
