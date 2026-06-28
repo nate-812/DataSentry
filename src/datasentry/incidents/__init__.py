@@ -1,5 +1,7 @@
-"""事件记忆领域模型导出。"""
+"""事件记忆领域模型和纯函数导出。"""
 
+from datasentry.incidents.fingerprints import build_alert_fingerprint, stable_labels_hash
+from datasentry.incidents.lifecycle import next_status_for_alert, next_status_for_diagnosis_failure
 from datasentry.incidents.models import (
     IncidentAction,
     IncidentDetail,
@@ -11,6 +13,7 @@ from datasentry.incidents.models import (
     IncidentTimelineEventType,
     IncidentUpsertResult,
 )
+from datasentry.incidents.search import IncidentSearchCandidate, rank_similar_incidents
 
 __all__ = [
     "IncidentAction",
@@ -19,7 +22,13 @@ __all__ = [
     "IncidentLink",
     "IncidentLinkKind",
     "IncidentRCAReport",
+    "IncidentSearchCandidate",
     "IncidentTimelineEvent",
     "IncidentTimelineEventType",
     "IncidentUpsertResult",
+    "build_alert_fingerprint",
+    "next_status_for_alert",
+    "next_status_for_diagnosis_failure",
+    "rank_similar_incidents",
+    "stable_labels_hash",
 ]
