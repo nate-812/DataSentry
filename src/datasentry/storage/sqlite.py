@@ -26,7 +26,7 @@ from datasentry.domain import (
     Operation,
     ToolInvocation,
 )
-from datasentry.domain.common import utc_now
+from datasentry.domain.common import new_id, utc_now
 from datasentry.domain.enums import IncidentStatus, InspectionStatus, OperationStatus
 from datasentry.errors import NotFoundError, StorageError
 from datasentry.incidents.models import (
@@ -804,12 +804,27 @@ class SQLiteRepository:
             with connection:
                 connection.execute(
                     """
-                    INSERT INTO operation_locks (
-                        lock_key, operation_id, runbook_name, target,
-                        acquired_at, expires_at, released_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    UPDATE operation_locks
+                    SET released_at = ?
+                    WHERE lock_key = ?
+                      AND released_at IS NULL
+                      AND expires_at <= ?
                     """,
                     (
+                        _dump_datetime(lock.acquired_at),
+                        lock.lock_key,
+                        _dump_datetime(lock.acquired_at),
+                    ),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO operation_locks (
+                        id, lock_key, operation_id, runbook_name, target,
+                        acquired_at, expires_at, released_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        new_id(),
                         lock.lock_key,
                         lock.operation_id,
                         lock.runbook_name,

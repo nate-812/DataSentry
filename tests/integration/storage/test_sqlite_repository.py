@@ -732,6 +732,96 @@ def test_runbook_snapshot_event_and_lock_round_trip(repository: SQLiteRepository
     assert repository.get_active_lock(lock.lock_key) is None
 
 
+def test_operation_lock_can_be_reacquired_after_release(
+    repository: SQLiteRepository,
+) -> None:
+    base_time = datetime.now(UTC)
+    first_operation = Operation(
+        name="mock.restart_preview",
+        version="1.0.0",
+        risk=OperationRisk.L1,
+        requester="operator",
+        requested_at=base_time,
+    )
+    second_operation = Operation(
+        name="mock.restart_preview",
+        version="1.0.0",
+        risk=OperationRisk.L1,
+        requester="operator",
+        requested_at=base_time + timedelta(minutes=2),
+    )
+    first_lock = OperationLock(
+        lock_key="runbook:mock.restart_preview:api",
+        operation_id=first_operation.id,
+        runbook_name="mock.restart_preview",
+        target="api",
+        acquired_at=base_time,
+        expires_at=base_time + timedelta(minutes=5),
+    )
+    second_lock = OperationLock(
+        lock_key=first_lock.lock_key,
+        operation_id=second_operation.id,
+        runbook_name="mock.restart_preview",
+        target="api",
+        acquired_at=base_time + timedelta(minutes=2),
+        expires_at=base_time + timedelta(minutes=7),
+    )
+
+    repository.save_operation(first_operation)
+    repository.save_operation(second_operation)
+    repository.acquire_operation_lock(first_lock)
+    repository.release_operation_lock(
+        first_lock.lock_key,
+        released_at=base_time + timedelta(minutes=1),
+    )
+    repository.acquire_operation_lock(second_lock)
+
+    assert repository.get_active_lock(first_lock.lock_key) == second_lock
+
+
+def test_operation_lock_can_be_reacquired_after_expiry(
+    repository: SQLiteRepository,
+) -> None:
+    base_time = datetime.now(UTC)
+    first_operation = Operation(
+        name="mock.restart_preview",
+        version="1.0.0",
+        risk=OperationRisk.L1,
+        requester="operator",
+        requested_at=base_time - timedelta(minutes=10),
+    )
+    second_operation = Operation(
+        name="mock.restart_preview",
+        version="1.0.0",
+        risk=OperationRisk.L1,
+        requester="operator",
+        requested_at=base_time,
+    )
+    expired_lock = OperationLock(
+        lock_key="runbook:mock.restart_preview:api",
+        operation_id=first_operation.id,
+        runbook_name="mock.restart_preview",
+        target="api",
+        acquired_at=base_time - timedelta(minutes=10),
+        expires_at=base_time - timedelta(minutes=5),
+    )
+    new_lock = OperationLock(
+        lock_key=expired_lock.lock_key,
+        operation_id=second_operation.id,
+        runbook_name="mock.restart_preview",
+        target="api",
+        acquired_at=base_time,
+        expires_at=base_time + timedelta(minutes=5),
+    )
+
+    repository.save_operation(first_operation)
+    repository.save_operation(second_operation)
+    repository.acquire_operation_lock(expired_lock)
+    repository.acquire_operation_lock(new_lock)
+
+    assert repository.get_active_lock(expired_lock.lock_key) == new_lock
+
+
 def test_closed_repository_rejects_calls(tmp_path: Path) -> None:
     repository = SQLiteRepository(tmp_path / "datasentry.db")
     repository.close()

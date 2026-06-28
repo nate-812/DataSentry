@@ -2,6 +2,7 @@ import gc
 import sqlite3
 import warnings
 from contextlib import closing
+from importlib import resources
 from pathlib import Path
 
 import pytest
@@ -9,12 +10,46 @@ import pytest
 from datasentry.storage.migrations import connect, current_schema_version, upgrade_database
 
 
+def _apply_migrations_through(database_path: Path, target_version: int) -> None:
+    with closing(connect(database_path)) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.commit()
+        migration_root = resources.files("datasentry.storage.sql")
+        migrations = sorted(
+            (
+                resource
+                for resource in migration_root.iterdir()
+                if resource.name[:4].isdigit() and resource.name.endswith(".sql")
+            ),
+            key=lambda resource: resource.name,
+        )
+        for migration in migrations:
+            version = int(migration.name[:4])
+            if version > target_version:
+                continue
+            script = migration.read_text(encoding="utf-8")
+            connection.executescript(
+                "BEGIN IMMEDIATE;\n"
+                f"{script}\n"
+                "INSERT INTO schema_migrations(version, applied_at) "
+                f"VALUES ({version}, '2026-06-28T00:00:00Z');\n"
+                "COMMIT;"
+            )
+
+
 def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
     database_path = tmp_path / "nested" / "datasentry.db"
 
     version = upgrade_database(database_path)
 
-    assert version == 5
+    assert version == 6
     with closing(sqlite3.connect(database_path)) as connection:
         tables = {
             row[0]
@@ -38,18 +73,19 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
             (3,),
             (4,),
             (5,),
+            (6,),
         ]
 
 
 def test_upgrade_is_idempotent(tmp_path: Path) -> None:
     database_path = tmp_path / "datasentry.db"
 
-    assert upgrade_database(database_path) == 5
-    assert upgrade_database(database_path) == 5
+    assert upgrade_database(database_path) == 6
+    assert upgrade_database(database_path) == 6
 
     with closing(connect(database_path)) as connection:
-        assert current_schema_version(connection) == 5
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 5
+        assert current_schema_version(connection) == 6
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 6
 
 
 def test_tool_invocations_schema_contains_audit_fields(tmp_path: Path) -> None:
@@ -116,7 +152,7 @@ def test_migration_0004_creates_incident_memory_tables(tmp_path: Path) -> None:
 def test_migration_0005_adds_operation_idempotency_key(tmp_path) -> None:
     database_path = tmp_path / "datasentry.db"
 
-    upgrade_database(database_path)
+    _apply_migrations_through(database_path, 5)
 
     with sqlite3.connect(database_path) as connection:
         columns = {
@@ -128,6 +164,23 @@ def test_migration_0005_adds_operation_idempotency_key(tmp_path) -> None:
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
     assert "idempotency_key" in columns
+    assert {"runbooks", "operation_events", "operation_locks"}.isdisjoint(tables)
+
+
+def test_database_at_version_5_upgrades_to_runbook_audit_locks_schema(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "datasentry.db"
+    _apply_migrations_through(database_path, 5)
+
+    version = upgrade_database(database_path)
+
+    assert version == 6
+    with sqlite3.connect(database_path) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
     assert {"runbooks", "operation_events", "operation_locks"} <= tables
 
 
