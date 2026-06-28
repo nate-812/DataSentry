@@ -9,6 +9,14 @@ from typing import Self
 
 from pydantic import JsonValue, TypeAdapter
 
+from datasentry.chat import (
+    ChatEventType,
+    ChatMessage,
+    ChatRole,
+    ChatRun,
+    ChatRunStatus,
+    ChatSession,
+)
 from datasentry.domain import (
     Evidence,
     Finding,
@@ -18,7 +26,7 @@ from datasentry.domain import (
     Operation,
     ToolInvocation,
 )
-from datasentry.domain.enums import InspectionStatus
+from datasentry.domain.enums import IncidentStatus, InspectionStatus, OperationStatus
 from datasentry.errors import NotFoundError, StorageError
 from datasentry.storage.migrations import connect, upgrade_database
 from datasentry.storage.repository import InspectionAggregate
@@ -27,6 +35,7 @@ EVIDENCE_LIST_ADAPTER = TypeAdapter(list[Evidence])
 STRING_LIST_ADAPTER = TypeAdapter(list[str])
 JSON_VALUE_ADAPTER: TypeAdapter[JsonValue] = TypeAdapter(JsonValue)
 JSON_OBJECT_ADAPTER = TypeAdapter(dict[str, JsonValue])
+MAX_LIST_LIMIT = 100
 
 
 def _dump_json(value: object) -> str:
@@ -194,6 +203,19 @@ class SQLiteRepository:
             findings=[self._row_to_finding(row) for row in finding_rows],
         )
 
+    def list_inspections(self, limit: int = 20) -> list[InspectionAggregate]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id FROM inspections
+            ORDER BY started_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [self.get_inspection(row["id"]) for row in rows]
+
     def save_tool_invocation(self, invocation: ToolInvocation) -> None:
         """保存已脱敏的工具调用审计。"""
         connection = self._require_open()
@@ -297,6 +319,35 @@ class SQLiteRepository:
             )
         return self._row_to_incident(row)
 
+    def list_incidents(
+        self,
+        *,
+        status: IncidentStatus | None = None,
+        limit: int = 20,
+    ) -> list[Incident]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        if status is None:
+            rows = connection.execute(
+                """
+                SELECT * FROM incidents
+                ORDER BY updated_at DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT * FROM incidents
+                WHERE status = ?
+                ORDER BY updated_at DESC, id DESC
+                LIMIT ?
+                """,
+                (status.value, limit),
+            ).fetchall()
+        return [self._row_to_incident(row) for row in rows]
+
     def save_operation(self, operation: Operation) -> None:
         connection = self._require_open()
         try:
@@ -352,6 +403,227 @@ class SQLiteRepository:
             )
         return self._row_to_operation(row)
 
+    def list_operations(
+        self,
+        *,
+        status: OperationStatus | None = None,
+        limit: int = 20,
+    ) -> list[Operation]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        if status is None:
+            rows = connection.execute(
+                """
+                SELECT * FROM operations
+                ORDER BY requested_at DESC, id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        else:
+            rows = connection.execute(
+                """
+                SELECT * FROM operations
+                WHERE status = ?
+                ORDER BY requested_at DESC, id DESC
+                LIMIT ?
+                """,
+                (status.value, limit),
+            ).fetchall()
+        return [self._row_to_operation(row) for row in rows]
+
+    def save_chat_session(self, session: ChatSession) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO chat_sessions (
+                        id, title, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        session.id,
+                        session.title,
+                        _dump_datetime(session.created_at),
+                        _dump_datetime(session.updated_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def get_chat_session(self, session_id: str) -> ChatSession:
+        connection = self._require_open()
+        row = connection.execute(
+            """
+            SELECT id, title, created_at, updated_at
+            FROM chat_sessions
+            WHERE id = ?
+            """,
+            (session_id,),
+        ).fetchone()
+        if row is None:
+            raise NotFoundError(
+                code="storage.chat_session_not_found",
+                message="未找到指定聊天会话",
+                details={"session_id": session_id},
+            )
+        return self._row_to_chat_session(row)
+
+    def list_chat_sessions(self, limit: int = 20) -> list[ChatSession]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, title, created_at, updated_at
+            FROM chat_sessions
+            ORDER BY updated_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [self._row_to_chat_session(row) for row in rows]
+
+    def save_chat_message(self, message: ChatMessage) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO chat_messages (
+                        id, session_id, role, content, inspection_id,
+                        llm_status, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        message.id,
+                        message.session_id,
+                        message.role.value,
+                        message.content,
+                        message.inspection_id,
+                        message.llm_status,
+                        _dump_datetime(message.created_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_chat_messages(self, session_id: str, limit: int = 20) -> list[ChatMessage]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, session_id, role, content, inspection_id, llm_status, created_at
+            FROM chat_messages
+            WHERE session_id = ?
+            ORDER BY created_at, id
+            LIMIT ?
+            """,
+            (session_id, limit),
+        ).fetchall()
+        return [self._row_to_chat_message(row) for row in rows]
+
+    def save_chat_run(self, run: ChatRun) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO chat_runs (
+                        id, session_id, user_message_id, status, inspection_id,
+                        error_code, error_message, created_at, finished_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    self._chat_run_values(run),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def update_chat_run(self, run: ChatRun) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                cursor = connection.execute(
+                    """
+                    UPDATE chat_runs SET
+                        status = ?, inspection_id = ?, error_code = ?,
+                        error_message = ?, finished_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        run.status.value,
+                        run.inspection_id,
+                        run.error_code,
+                        run.error_message,
+                        _dump_datetime(run.finished_at),
+                        run.id,
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+        if cursor.rowcount == 0:
+            raise NotFoundError(
+                code="storage.chat_run_not_found",
+                message="未找到指定聊天任务",
+                details={"run_id": run.id},
+            )
+
+    def get_chat_run(self, run_id: str) -> ChatRun:
+        connection = self._require_open()
+        row = connection.execute(
+            """
+            SELECT
+                id, session_id, user_message_id, status, inspection_id,
+                error_code, error_message, created_at, finished_at
+            FROM chat_runs
+            WHERE id = ?
+            """,
+            (run_id,),
+        ).fetchone()
+        if row is None:
+            raise NotFoundError(
+                code="storage.chat_run_not_found",
+                message="未找到指定聊天任务",
+                details={"run_id": run_id},
+            )
+        return self._row_to_chat_run(row)
+
+    def save_chat_run_event(self, event: ChatRun.Event) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO chat_run_events (
+                        id, run_id, event_type, payload_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        event.id,
+                        event.run_id,
+                        event.event_type.value,
+                        _dump_json(event.payload),
+                        _dump_datetime(event.created_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def list_chat_run_events(self, run_id: str, limit: int = 100) -> list[ChatRun.Event]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT id, run_id, event_type, payload_json, created_at
+            FROM chat_run_events
+            WHERE run_id = ?
+            ORDER BY created_at, id
+            LIMIT ?
+            """,
+            (run_id, limit),
+        ).fetchall()
+        return [self._row_to_chat_run_event(row) for row in rows]
+
     def close(self) -> None:
         if not self._closed:
             self._connection.close()
@@ -371,6 +643,16 @@ class SQLiteRepository:
             code="storage.invalid_inspection_transition",
             message="巡检状态转换无效",
         )
+
+    @staticmethod
+    def _validate_list_limit(limit: int) -> int:
+        if not 1 <= limit <= MAX_LIST_LIMIT:
+            raise StorageError(
+                code="storage.invalid_limit",
+                message=f"列表查询 limit 必须在 1 到 {MAX_LIST_LIMIT} 之间",
+                details={"limit": limit, "max_limit": MAX_LIST_LIMIT},
+            )
+        return limit
 
     @classmethod
     def _update_running_inspection(
@@ -508,6 +790,20 @@ class SQLiteRepository:
         )
 
     @staticmethod
+    def _chat_run_values(run: ChatRun) -> tuple[object, ...]:
+        return (
+            run.id,
+            run.session_id,
+            run.user_message_id,
+            run.status.value,
+            run.inspection_id,
+            run.error_code,
+            run.error_message,
+            _dump_datetime(run.created_at),
+            _dump_datetime(run.finished_at),
+        )
+
+    @staticmethod
     def _row_to_inspection(row: sqlite3.Row) -> Inspection:
         return Inspection(
             id=row["id"],
@@ -584,6 +880,52 @@ class SQLiteRepository:
             approved_at=_load_datetime(row["approved_at"]),
             executed_at=_load_datetime(row["executed_at"]),
             verified_at=_load_datetime(row["verified_at"]),
+        )
+
+    @staticmethod
+    def _row_to_chat_session(row: sqlite3.Row) -> ChatSession:
+        return ChatSession(
+            id=row["id"],
+            title=row["title"],
+            created_at=_load_required_datetime(row["created_at"]),
+            updated_at=_load_required_datetime(row["updated_at"]),
+        )
+
+    @staticmethod
+    def _row_to_chat_message(row: sqlite3.Row) -> ChatMessage:
+        return ChatMessage(
+            id=row["id"],
+            session_id=row["session_id"],
+            role=ChatRole(row["role"]),
+            content=row["content"],
+            inspection_id=row["inspection_id"],
+            llm_status=row["llm_status"],
+            created_at=_load_required_datetime(row["created_at"]),
+        )
+
+    @staticmethod
+    def _row_to_chat_run(row: sqlite3.Row) -> ChatRun:
+        return ChatRun(
+            id=row["id"],
+            session_id=row["session_id"],
+            user_message_id=row["user_message_id"],
+            status=ChatRunStatus(row["status"]),
+            inspection_id=row["inspection_id"],
+            error_code=row["error_code"],
+            error_message=row["error_message"],
+            created_at=_load_required_datetime(row["created_at"]),
+            finished_at=_load_datetime(row["finished_at"]),
+        )
+
+    @staticmethod
+    def _row_to_chat_run_event(row: sqlite3.Row) -> ChatRun.Event:
+        payload = JSON_OBJECT_ADAPTER.validate_python(_load_json(row["payload_json"]))
+        return ChatRun.Event(
+            id=row["id"],
+            run_id=row["run_id"],
+            event_type=ChatEventType(row["event_type"]),
+            payload=payload,
+            created_at=_load_required_datetime(row["created_at"]),
         )
 
     @staticmethod

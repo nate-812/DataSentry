@@ -7,13 +7,13 @@
 | 项目 | 当前状态 |
 |---|---|
 | 总体状态 | M3 监控看板与通知仓库内基线已通过 Pull Request #3 合并到 `main` |
-| 当前阶段 | M4：对话与 Web 控制台实施准备中 |
-| 当前工作 | M4 设计与实施计划已完成；首版按完整 Web 控制台推进，采用 Command Center 布局、FastAPI、React、SSE、OpenAI-compatible LLM API key 优先和本地模拟审批 |
-| 下一里程碑 | 按 M4 实施计划开始 TDD 开发，建议先创建隔离分支或工作区 |
+| 当前阶段 | M4：对话与 Web 控制台实施中 |
+| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 后端、React Command Center、文档同步、自动化验证和桌面浏览器 smoke QA；功能分支已推送并创建草稿 PR #4 |
+| 下一里程碑 | 评审并完善 M4 Pull Request；移动宽度截图 QA 后续在具备 macOS 自动化窗口调整权限的环境补跑 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
-| 最近状态更新时间 | 2026-06-27 |
+| 最近状态更新时间 | 2026-06-28 |
 
 ## 已完成
 
@@ -37,12 +37,13 @@
 ## 正在进行
 
 - M4 设计和实施计划已完成；首版目标是 FastAPI Agent、OpenAI-compatible LLM、React Command Center、事件/证据查看和本地模拟审批闭环。
+- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成后端 API、聊天诊断、LLM 摘要降级、本地模拟审批、React 控制台脚手架、Command Center 核心页面、文档同步、自动化验证和桌面浏览器 smoke QA，并已创建 [M4 草稿 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M4 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 按 M4 实施计划开始 TDD 开发：`docs/superpowers/plans/2026-06-27-m4-dialog-web-console.md`。
-2. 创建 M4 隔离开发分支或工作区，避免直接在 `main` 上实施大功能。
+1. 评审并完善 [M4 草稿 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
+2. 在具备 macOS 自动化窗口调整权限的环境补跑移动宽度截图 QA。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
@@ -84,6 +85,7 @@
 | LLM 边界 | 只做可读总结，不选择工具、不判定权限、不生成生产写操作 |
 | 审批页面 | 本地模拟审批状态流，可批准/拒绝模拟操作，不接生产 Runbook |
 | Web 边界 | React 控制台只访问 DataSentry API，不直连生产组件 |
+| 前端实现 | React + TypeScript + Vite + 普通 CSS；首版不引入状态管理框架 |
 
 ## 阶段进度
 
@@ -94,7 +96,7 @@
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
-| M4 对话与 Web | 实施准备中 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
+| M4 对话与 Web | 实施中 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
@@ -187,3 +189,29 @@
 - M3 仍保持仓库内基线边界：尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
 - 启动 M4 设计；用户选择完整 Web 控制台首版、Command Center 布局和本地模拟审批流。LLM 首版改为 OpenAI-compatible API key 优先，同时保留 Mock 与 disabled 降级，不默认依赖本地 Ollama。
 - 完成 M4 实施计划，按 TDD 拆分运行配置、聊天领域模型、SQLite 持久化、LLM Provider、摘要器、模拟审批、ChatService、FastAPI API、Alertmanager API、React 控制台、文档和最终验证。
+- 创建 M4 隔离工作区与功能分支 `codex/m4-dialog-web-console`；基线验证通过：`ruff format --check`、`ruff check`、`mypy src` 和全量 pytest 覆盖率门槛。
+- 完成 M4 运行配置：新增 FastAPI/Uvicorn 依赖，补充 API、CORS、Grafana 与 LLM 配置；`DATASENTRY_LLM_API_KEY` 只从环境读取且不出现在配置 repr。
+- 完成聊天领域模型与 SQLite `0003_chat_console` 迁移，包含 chat session、message、run、run event；失败 run 必须包含非空错误信息，非失败 run 不允许错误字段。
+- 完成 Repository 与 SQLite 聊天持久化接口：Inspection/Incident/Operation 列表、聊天会话/消息/任务/事件保存和读取；新增列表查询统一限制 `1..100`，避免 SQLite `LIMIT -1` 无界读取；`ChatRun` 更新只允许修改状态、关联巡检、错误和结束时间。
+- 完成可插拔 LLM Provider：disabled、mock、OpenAI-compatible；OpenAI-compatible 调用 `/chat/completions`，发送 Bearer API key 与标准 payload。LLM 上游异常统一映射为脱敏 `LLMProviderError`，并清理 `__cause__` 与 `__context__`，避免 traceback 或调试工具泄露 API key 和上游正文。
+- 完成 Answer Summarizer：先生成确定性中文证据摘要，LLM 可用且返回非空内容时使用模型回答；disabled、空内容或 provider 异常时安全降级，不暴露 provider 错误详情。
+- 完成本地模拟审批服务：只处理 `simulate_` 前缀 Operation，可在 SQLite 中推进本地 approve/reject 状态，不执行生产 Runbook。
+- 完成 ChatService：保存聊天会话、用户消息、诊断 run、助手回答和有序事件；失败时记录 failed run 与安全失败事件。
+- 完成基础 FastAPI API：`/api/health` 不泄露 LLM API key，`/api/overview` 返回 Command Center 基础段，Evidence/Incident/Operation 读取和本地模拟 approve/reject 可用；每个请求独立打开并关闭 SQLite Repository。
+- 完成 Chat API 与 SSE 回放：支持创建/列出/读取会话，提交同步诊断 run，读取 run 状态，并以 `text/event-stream` 回放已保存事件。
+- 完成 Alertmanager API：`POST /api/alertmanager/webhook` 复用 M3 Alertmanager payload 解析并返回 accepted 摘要。
+- M4 当前验证快照：全量 `pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 通过，246 个测试通过，覆盖率 91.46%。FastAPI `TestClient` 当前有 StarletteDeprecationWarning，不影响 ResourceWarning 门槛。
+
+### 2026-06-28
+
+- 完成 React Command Center 前端脚手架：`frontend/` 使用 React、TypeScript、Vite 和 lucide-react，`VITE_DATASENTRY_API_BASE` 默认指向本地 DataSentry API。
+- 完成控制台核心页面：概览、对话诊断、Incident、证据、模拟审批和 Grafana 入口；页面只访问 DataSentry API，不直连生产组件。
+- 完成前端 API client 与类型定义，覆盖 health、overview、chat、SSE 回放、evidence、incidents、operations 和本地模拟 approve/reject。
+- M4 前端验证快照：`cd frontend && npm run typecheck` 通过，`cd frontend && npm run build` 通过。构建产物 `frontend/dist/`、`frontend/node_modules/` 和 `frontend/tsconfig.tsbuildinfo` 均保持 ignored。
+- M4 LLM 选择已落地为 OpenAI-compatible API key 优先，同时保留 mock 和 disabled 降级；不默认依赖本地大模型。LLM 只做可读摘要，不选择工具、不判断权限、不生成生产写操作。
+- M4 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 246 个测试通过，覆盖率 91.46%。
+- M4 API smoke 使用 FastAPI `TestClient` 进程内验证通过：`/api/health`、`/api/overview`、`POST /api/chat/sessions`、`POST /api/operations/simulations` 分别返回 200、200、201、201。
+- M4 桌面浏览器 smoke QA 通过：使用本机 Chrome 打开 `http://127.0.0.1:5173/`，验证概览页 `API ok / LLM mock`、对话诊断提交和 SSE 事件回放、证据页按 inspection id 查询 Finding、审批页创建并批准 `simulate_restart_preview` 本地模拟 Operation。
+- 真实浏览器 QA 发现并修复本地 CORS 默认来源问题：Vite 默认打开 `http://127.0.0.1:5173`，后端默认 CORS 原先只允许 `http://localhost:5173`；现已默认同时允许 `localhost` 和 `127.0.0.1`。
+- 移动宽度截图 QA 未完成：调整 Chrome 窗口的 `osascript` 调用受 macOS 自动化权限卡住；CSS 响应式规则仍已随前端 build/typecheck 覆盖，后续在具备窗口调整权限的环境补跑实际移动截图。
+- M4 功能分支 `codex/m4-dialog-web-console` 已推送到 GitHub，并创建 [M4 草稿 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
