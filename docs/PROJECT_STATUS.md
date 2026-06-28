@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M3 监控看板与通知仓库内基线已通过 Pull Request #3 合并到 `main` |
-| 当前阶段 | M4：对话与 Web 控制台实施中 |
-| 当前工作 | 已在 `codex/m4-dialog-web-console` 完成 M4 后端、React Command Center、文档同步、自动化验证和桌面浏览器 smoke QA；功能分支已推送并创建草稿 PR #4 |
-| 下一里程碑 | 评审并完善 M4 Pull Request；移动宽度截图 QA 后续在具备 macOS 自动化窗口调整权限的环境补跑 |
+| 总体状态 | M4 对话与 Web 控制台已通过 Pull Request #4 合并到 `main` |
+| 当前阶段 | M5：事件记忆与 RCA 准备启动 |
+| 当前工作 | M4 后端、React Command Center、文档同步、自动化验证和桌面浏览器 smoke QA 已完成并合并；准备开启 M5 事件记忆与 RCA |
+| 下一里程碑 | 在新会话读取本状态文档后，启动 M5 事件生命周期、历史检索和 RCA 复盘设计与实施计划 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -33,17 +33,17 @@
 - 完成首批确定性规则、历史证据隔离、诊断编排和本地模拟诊断 CLI。
 - 完成 M2 真实只读工具、工具审计、受控传输、真实巡检编排和现场只读契约验证，并通过 Pull Request #2 合并到 `main`。
 - 完成 M3 仓库内监控与通知基线：Prometheus 规则、Alertmanager 路由模板、Grafana dashboard、Alertmanager payload 解析、通知消息格式、本地模拟 CLI 和自监控指标。
+- 完成 M4 对话与 Web 控制台：FastAPI Agent、Chat API/SSE、Alertmanager API、OpenAI-compatible LLM 摘要、React Command Center、证据查看和本地模拟审批。
 
 ## 正在进行
 
-- M4 设计和实施计划已完成；首版目标是 FastAPI Agent、OpenAI-compatible LLM、React Command Center、事件/证据查看和本地模拟审批闭环。
-- M4 功能分支 `codex/m4-dialog-web-console` 正在实施；当前已完成后端 API、聊天诊断、LLM 摘要降级、本地模拟审批、React 控制台脚手架、Command Center 核心页面、文档同步、自动化验证和桌面浏览器 smoke QA，并已创建 [M4 草稿 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
-- MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M4 设计和仓库内工程启动。
+- M5 尚未开始实施；下一步应先起草事件记忆与 RCA 复盘设计，再拆分可验证实施计划。
+- MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 评审并完善 [M4 草稿 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
-2. 在具备 macOS 自动化窗口调整权限的环境补跑移动宽度截图 QA。
+1. 在新会话启动 M5：先读取本状态文档，再起草 M5 事件记忆与 RCA 设计。
+2. 在具备 macOS 自动化窗口调整权限的环境补跑 M4 移动宽度截图 QA。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
 
@@ -96,8 +96,8 @@
 | M1 知识驱动诊断 | 已完成 | 知识路由、血缘模型和确定性规则 |
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
-| M4 对话与 Web | 实施中 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
-| M5 事件记忆与 RCA | 未开始 | Incident 生命周期、历史检索和复盘 |
+| M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
+| M5 事件记忆与 RCA | 准备启动 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
 
@@ -214,4 +214,5 @@
 - M4 桌面浏览器 smoke QA 通过：使用本机 Chrome 打开 `http://127.0.0.1:5173/`，验证概览页 `API ok / LLM mock`、对话诊断提交和 SSE 事件回放、证据页按 inspection id 查询 Finding、审批页创建并批准 `simulate_restart_preview` 本地模拟 Operation。
 - 真实浏览器 QA 发现并修复本地 CORS 默认来源问题：Vite 默认打开 `http://127.0.0.1:5173`，后端默认 CORS 原先只允许 `http://localhost:5173`；现已默认同时允许 `localhost` 和 `127.0.0.1`。
 - 移动宽度截图 QA 未完成：调整 Chrome 窗口的 `osascript` 调用受 macOS 自动化权限卡住；CSS 响应式规则仍已随前端 build/typecheck 覆盖，后续在具备窗口调整权限的环境补跑实际移动截图。
-- M4 功能分支 `codex/m4-dialog-web-console` 已推送到 GitHub，并创建 [M4 草稿 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
+- M4 功能分支 `codex/m4-dialog-web-console` 已推送到 GitHub，并创建 [M4 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
+- M4 PR #4 已合并到 `main`，合并提交为 `2699c12`；本地 `main` 已 fast-forward 同步到 `origin/main`。M4 仍有一个非阻塞后续验证项：在具备 macOS 自动化窗口调整权限的环境补跑移动宽度截图 QA。
