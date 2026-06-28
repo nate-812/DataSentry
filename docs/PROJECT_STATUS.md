@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M5 事件记忆与 RCA 已通过 Pull Request #5 合并到 `main` |
 | 当前阶段 | M6：审批式自动运维准备启动 |
-| 当前工作 | M5 已完成并合并；下一步可从最新 `main` 启动 M6 设计与实施计划 |
+| 当前工作 | M6 审批式自动运维设计已起草，待用户评审；尚未进入代码实现 |
 | 下一里程碑 | 启动 M6：Runbook、审批、执行、审计和操作后验证；如需要，可先补 M5 云端只读 smoke |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
@@ -37,6 +37,7 @@
 
 ## 正在进行
 
+- M6 第一版选择 Mock/本地受控执行器优先，设计文档已起草；真实生产写操作仍不在当前实现范围内。
 - M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
@@ -112,6 +113,7 @@
 - [M3 监控看板与通知设计](superpowers/specs/2026-06-26-m3-observability-notifications-design.md)
 - [M4 对话式 Agent 与 Web 控制台设计](superpowers/specs/2026-06-27-m4-dialog-web-console-design.md)
 - [M5 事件记忆与 RCA 设计](superpowers/specs/2026-06-28-m5-incident-memory-rca-design.md)
+- [M6 审批式自动运维设计](superpowers/specs/2026-06-28-m6-approval-runbooks-design.md)
 - [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M4 对话式 Agent 与 Web 控制台实施计划](superpowers/plans/2026-06-27-m4-dialog-web-console.md)
 - [M5 事件记忆与 RCA 实施计划](superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
@@ -235,3 +237,4 @@
 - M5 功能分支 `codex/m5-incident-memory-rca` 已推送到 GitHub，并创建 [M5 Draft PR #5](https://github.com/nate-812/DataSentry/pull/5)；`secrets` 与 `quality` checks 均通过。
 - M5 PR #5 已合并到 `main`，合并提交为 `38fe943`；本地 `main` 已 fast-forward 同步到 `origin/main`。
 - M5 合并后在 `main` 重新完成自动化验证：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 262 个测试通过，覆盖率 91.36%。
+- 启动 M6 设计；用户选择 Mock/本地受控执行器优先，先完成 Runbook、审批、审计、幂等、并发锁和操作后验证的本地闭环，不依赖云端实例在线，不执行生产写操作。
