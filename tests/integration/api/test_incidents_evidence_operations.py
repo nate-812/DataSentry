@@ -3,15 +3,22 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from datasentry.api import create_app
+from datasentry.api.dependencies import get_incident_service
 from datasentry.config import Settings
 from datasentry.domain import (
     Evidence,
     EvidenceStatus,
     Finding,
+    Incident,
     Inspection,
     InspectionStatus,
     Observation,
     Severity,
+)
+from datasentry.incidents import (
+    IncidentService,
+    IncidentTimelineEvent,
+    IncidentTimelineEventType,
 )
 from datasentry.storage import SQLiteRepository
 
@@ -118,3 +125,54 @@ def test_operations_reject_non_simulation_name(tmp_path, monkeypatch) -> None:
 
     assert response.status_code == 400
     assert response.json()["code"] == "operation.not_simulation"
+
+
+class NoopDiagnosisRunner:
+    def run(self, question: str):  # pragma: no cover - RCA route does not call diagnostics
+        raise AssertionError(f"不应执行诊断：{question}")
+
+
+def test_incident_detail_timeline_rca_and_export_routes(tmp_path, monkeypatch) -> None:
+    database_path = tmp_path / "datasentry.db"
+    monkeypatch.setenv("DATASENTRY_DATABASE_PATH", str(database_path))
+    incident = Incident(
+        id="99999999-9999-4999-8999-999999999999",
+        title="K线数据不更新",
+        symptom="页面显示旧 Kline",
+        severity=Severity.WARNING,
+        opened_at=NOW,
+        updated_at=NOW,
+    )
+    event = IncidentTimelineEvent(
+        incident_id=incident.id,
+        event_type=IncidentTimelineEventType.ALERT_FIRED,
+        summary="收到 KlineFreshnessStale 告警",
+        source="alertmanager",
+        occurred_at=NOW,
+    )
+    with SQLiteRepository(database_path) as repository:
+        repository.save_incident(incident)
+        repository.save_timeline_event(event)
+
+    app = create_app(Settings())
+
+    def incident_service() -> IncidentService:
+        repository = SQLiteRepository(database_path)
+        return IncidentService(repository=repository, diagnosis_runner=NoopDiagnosisRunner())
+
+    app.dependency_overrides[get_incident_service] = incident_service
+    client = TestClient(app)
+
+    detail = client.get(f"/api/incidents/{incident.id}")
+    timeline = client.get(f"/api/incidents/{incident.id}/timeline")
+    rca = client.post(f"/api/incidents/{incident.id}/rca")
+    exported = client.get(f"/api/incidents/{incident.id}/export")
+
+    assert detail.status_code == 200
+    assert detail.json()["incident"]["id"] == incident.id
+    assert timeline.status_code == 200
+    assert timeline.json()[0]["summary"] == "收到 KlineFreshnessStale 告警"
+    assert rca.status_code == 200
+    assert "历史事件仅用于经验参考" in rca.json()["markdown"]
+    assert exported.status_code == 200
+    assert "text/markdown" in exported.headers["content-type"]

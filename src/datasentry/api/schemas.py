@@ -46,3 +46,30 @@ class ChatSessionCreateRequest(BaseModel):
 
 class ChatRunCreateRequest(BaseModel):
     question: str = Field(min_length=1)
+
+
+class AlertmanagerIncidentResponse(BaseModel):
+    accepted: bool
+    incident_id: str
+    action: str
+    status: str
+    deduplication_key: str
+    diagnosis_question: str
+
+
+class IncidentDetailResponse(BaseModel):
+    incident: dict[str, object]
+    links: list[dict[str, object]]
+    timeline: list[dict[str, object]]
+    fingerprints: list[dict[str, object]]
+    latest_rca: dict[str, object] | None
+
+
+class IncidentRCAResponse(BaseModel):
+    id: str
+    incident_id: str
+    version: int
+    markdown: str
+    structured: dict[str, object]
+    generated_by: str
+    created_at: str
