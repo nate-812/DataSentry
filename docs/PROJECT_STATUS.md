@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M4 对话与 Web 控制台已通过 Pull Request #4 合并到 `main` |
 | 当前阶段 | M5：事件记忆与 RCA 准备启动 |
-| 当前工作 | M4 后端、React Command Center、文档同步、自动化验证和桌面浏览器 smoke QA 已完成并合并；准备开启 M5 事件记忆与 RCA |
-| 下一里程碑 | 在新会话读取本状态文档后，启动 M5 事件生命周期、历史检索和 RCA 复盘设计与实施计划 |
+| 当前工作 | M5 事件记忆与 RCA 已确认采用 Alertmanager 驱动完整闭环方案；设计草稿已起草，等待评审后拆分实施计划 |
+| 下一里程碑 | 评审 M5 设计文档后，拆分 Incident 生命周期、历史检索、RCA 导出和前端事件工作台实施计划 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,12 +37,12 @@
 
 ## 正在进行
 
-- M5 尚未开始实施；下一步应先起草事件记忆与 RCA 复盘设计，再拆分可验证实施计划。
+- M5 尚未开始实施；已进入设计评审，下一步是确认设计文档并拆分可验证实施计划。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 在新会话启动 M5：先读取本状态文档，再起草 M5 事件记忆与 RCA 设计。
+1. 评审 M5 事件记忆与 RCA 设计，通过后起草实施计划。
 2. 在具备 macOS 自动化窗口调整权限的环境补跑 M4 移动宽度截图 QA。
 3. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
 4. 如果页面仍显示 K 线不更新，继续检查 Spring API 查询参数、缓存和前端轮询；M2 主链路证据显示 Collector → Kafka → Flink → Doris 正在推进。
@@ -97,7 +97,7 @@
 | M2 真实只读工具 | 已完成并合并 | 接入 Flink、API、主机、Kafka、Doris、Redis/MySQL 和有限日志 |
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
-| M5 事件记忆与 RCA | 准备启动 | Incident 生命周期、历史检索和复盘 |
+| M5 事件记忆与 RCA | 设计评审中 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
 
@@ -109,6 +109,7 @@
 - [M2 真实只读工具实施计划](superpowers/plans/2026-06-25-m2-real-readonly-tools.md)
 - [M3 监控看板与通知设计](superpowers/specs/2026-06-26-m3-observability-notifications-design.md)
 - [M4 对话式 Agent 与 Web 控制台设计](superpowers/specs/2026-06-27-m4-dialog-web-console-design.md)
+- [M5 事件记忆与 RCA 设计](superpowers/specs/2026-06-28-m5-incident-memory-rca-design.md)
 - [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M4 对话式 Agent 与 Web 控制台实施计划](superpowers/plans/2026-06-27-m4-dialog-web-console.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
@@ -216,3 +217,4 @@
 - 移动宽度截图 QA 未完成：调整 Chrome 窗口的 `osascript` 调用受 macOS 自动化权限卡住；CSS 响应式规则仍已随前端 build/typecheck 覆盖，后续在具备窗口调整权限的环境补跑实际移动截图。
 - M4 功能分支 `codex/m4-dialog-web-console` 已推送到 GitHub，并创建 [M4 PR #4](https://github.com/nate-812/DataSentry/pull/4)。
 - M4 PR #4 已合并到 `main`，合并提交为 `2699c12`；本地 `main` 已 fast-forward 同步到 `origin/main`。M4 仍有一个非阻塞后续验证项：在具备 macOS 自动化窗口调整权限的环境补跑移动宽度截图 QA。
+- 启动 M5 设计；用户选择完整闭环方案，并确认 Alertmanager Webhook 作为自动创建和合并 Incident 的主要入口。M5 首版将覆盖 Incident 生命周期、时间线、历史相似事件检索、RCA 草稿和 Markdown 导出，但仍不执行生产写操作、不引入 RAG、不读取 MySQL 异常表内容。
