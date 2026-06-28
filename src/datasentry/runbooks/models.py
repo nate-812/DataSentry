@@ -105,19 +105,23 @@ class RunbookExecutionResult(DomainModel):
     status: str = Field(pattern=r"^(succeeded|failed)$")
     summary: str = Field(min_length=1)
     details: dict[str, JsonValue] = Field(default_factory=dict)
-    started_at: datetime = Field(default_factory=utc_now)
-    finished_at: datetime = Field(default_factory=utc_now)
+    started_at: datetime
+    finished_at: datetime
 
     _normalize_started_at = field_validator("started_at")(require_aware_datetime)
     _normalize_finished_at = field_validator("finished_at")(require_aware_datetime)
+
+    @model_validator(mode="after")
+    def validate_execution_window(self) -> Self:
+        if self.finished_at < self.started_at:
+            raise ValueError("执行结束时间不能早于开始时间")
+        return self
 
 
 class RunbookVerificationResult(DomainModel):
     status: str = Field(pattern=r"^(succeeded|failed)$")
     summary: str = Field(min_length=1)
     details: dict[str, JsonValue] = Field(default_factory=dict)
-    started_at: datetime = Field(default_factory=utc_now)
-    finished_at: datetime = Field(default_factory=utc_now)
+    verified_at: datetime
 
-    _normalize_started_at = field_validator("started_at")(require_aware_datetime)
-    _normalize_finished_at = field_validator("finished_at")(require_aware_datetime)
+    _normalize_verified_at = field_validator("verified_at")(require_aware_datetime)

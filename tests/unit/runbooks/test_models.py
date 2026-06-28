@@ -9,6 +9,8 @@ from datasentry.runbooks import (
     OperationEventType,
     OperationLock,
     Runbook,
+    RunbookExecutionResult,
+    RunbookVerificationResult,
 )
 
 
@@ -71,4 +73,47 @@ def test_operation_lock_requires_expiry_after_acquire_time() -> None:
             target="api",
             acquired_at=acquired_at,
             expires_at=acquired_at - timedelta(seconds=1),
+        )
+
+
+def test_runbook_execution_result_requires_explicit_timestamps() -> None:
+    with pytest.raises(ValueError):
+        RunbookExecutionResult(
+            status="succeeded",
+            summary="执行完成",
+        )
+
+
+def test_runbook_execution_result_rejects_finished_before_started() -> None:
+    started_at = datetime(2026, 6, 28, 10, 0, tzinfo=UTC)
+
+    with pytest.raises(ValueError, match="执行结束时间不能早于开始时间"):
+        RunbookExecutionResult(
+            status="failed",
+            summary="执行失败",
+            started_at=started_at,
+            finished_at=started_at - timedelta(seconds=1),
+        )
+
+
+def test_runbook_verification_result_uses_verified_at() -> None:
+    verified_at = datetime(2026, 6, 28, 10, 0, tzinfo=UTC)
+
+    result = RunbookVerificationResult(
+        status="succeeded",
+        summary="验证通过",
+        verified_at=verified_at,
+    )
+
+    assert result.verified_at == verified_at
+    assert not hasattr(result, "started_at")
+    assert not hasattr(result, "finished_at")
+
+
+def test_runbook_verification_result_requires_timezone_aware_verified_at() -> None:
+    with pytest.raises(ValueError, match="datetime 必须包含时区信息"):
+        RunbookVerificationResult(
+            status="failed",
+            summary="验证失败",
+            verified_at=datetime(2026, 6, 28, 10, 0),
         )
