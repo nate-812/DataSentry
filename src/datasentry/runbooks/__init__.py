@@ -13,6 +13,7 @@ from datasentry.runbooks.models import (
     RunbookVerificationResult,
 )
 from datasentry.runbooks.policy import RunbookPolicy
+from datasentry.runbooks.service import RunbookOperationService
 from datasentry.runbooks.verifier import MockOperationVerifier
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "OperationLock",
     "Runbook",
     "RunbookExecutionResult",
+    "RunbookOperationService",
     "RunbookPolicy",
     "RunbookVerificationResult",
     "render_idempotency_key",
