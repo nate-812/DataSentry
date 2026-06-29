@@ -96,6 +96,7 @@ class RunbookOperationService:
         self._executor = executor or MockRunbookExecutor(clock=clock)
         self._verifier = verifier or MockOperationVerifier(clock=clock)
         self._lock_ttl = lock_ttl
+        self._last_event_at: datetime | None = None
 
     def request(
         self,
@@ -113,12 +114,10 @@ class RunbookOperationService:
             idempotency_key,
         )
         if existing_operation is not None:
-            self._save_event(
+            self._save_idempotency_reused_event(
                 existing_operation.id,
-                OperationEventType.IDEMPOTENCY_REUSED,
-                actor=requester,
-                summary="复用已有未完成 Runbook 操作",
-                payload={"idempotency_key": idempotency_key},
+                requester,
+                idempotency_key,
             )
             return existing_operation
 
@@ -133,7 +132,22 @@ class RunbookOperationService:
             requester=requester,
             requested_at=self._clock(),
         )
-        self._repository.save_operation(operation)
+        try:
+            self._repository.save_operation(operation)
+        except DataSentryError as error:
+            if error.code != "storage.conflict":
+                raise
+            existing_operation = self._repository.get_active_operation_by_idempotency_key(
+                idempotency_key,
+            )
+            if existing_operation is None:
+                raise
+            self._save_idempotency_reused_event(
+                existing_operation.id,
+                requester,
+                idempotency_key,
+            )
+            return existing_operation
         self._save_event(
             operation.id,
             OperationEventType.OPERATION_REQUESTED,
@@ -237,7 +251,10 @@ class RunbookOperationService:
         current_operation = operation
         try:
             current_operation = self._mark_running(operation, actor)
-            execution = self._executor.execute(runbook, current_operation)
+            try:
+                execution = self._executor.execute(runbook, current_operation)
+            except Exception as error:
+                return self._mark_failed_from_error(current_operation, actor, error)
             self._save_event(
                 current_operation.id,
                 OperationEventType.EXECUTOR_OUTPUT_RECORDED,
@@ -258,7 +275,10 @@ class RunbookOperationService:
                 payload={"status": current_operation.status.value},
             )
 
-            verification = self._verifier.verify(runbook, current_operation)
+            try:
+                verification = self._verifier.verify(runbook, current_operation)
+            except Exception as error:
+                return self._mark_failed_from_error(current_operation, actor, error)
             final_operation = self._complete_execution(
                 current_operation,
                 actor,
@@ -266,15 +286,6 @@ class RunbookOperationService:
                 verification,
             )
             return final_operation
-        except Exception as error:
-            failed_operation = self._mark_failed_from_error(
-                current_operation,
-                actor,
-                error,
-            )
-            if isinstance(error, DataSentryError):
-                return failed_operation
-            return failed_operation
         finally:
             self._repository.release_operation_lock(lock_key, released_at=self._clock())
 
@@ -387,9 +398,30 @@ class RunbookOperationService:
                 summary=summary,
                 actor=actor,
                 payload=payload or {},
-                created_at=self._clock(),
+                created_at=self._event_timestamp(),
             ),
         )
+
+    def _save_idempotency_reused_event(
+        self,
+        operation_id: str,
+        actor: str,
+        idempotency_key: str,
+    ) -> None:
+        self._save_event(
+            operation_id,
+            OperationEventType.IDEMPOTENCY_REUSED,
+            actor=actor,
+            summary="复用已有未完成 Runbook 操作",
+            payload={"idempotency_key": idempotency_key},
+        )
+
+    def _event_timestamp(self) -> datetime:
+        current_at = self._clock()
+        if self._last_event_at is not None and current_at <= self._last_event_at:
+            current_at = self._last_event_at + timedelta(microseconds=1)
+        self._last_event_at = current_at
+        return current_at
 
     def _get_operation_in_state(
         self,
