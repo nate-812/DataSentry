@@ -175,3 +175,38 @@ export type OperationCreatePayload = {
   requester: string;
   incident_id?: string | null;
 };
+
+export type AutonomyPolicy = {
+  runbook_name: string;
+  enabled: boolean;
+  shadow_mode: boolean;
+  circuit_breaker_state: "closed" | "open" | "half_open";
+  min_success_rate: number;
+  min_success_samples: number;
+  failure_threshold: number;
+};
+
+export type AutonomyDecision = {
+  status: "allowed" | "shadowed" | "blocked" | "escalated";
+  reason_code: string;
+  reason: string;
+  runbook_name: string;
+  target: string | null;
+  incident_id: string | null;
+  operation_id: string | null;
+  window_matched: boolean;
+};
+
+export type AutonomyRunRecord = {
+  id: string;
+  runbook_name: string;
+  target: string;
+  incident_id: string | null;
+  operation_id: string | null;
+  decision_status: "allowed" | "shadowed" | "blocked" | "escalated";
+  reason_code: string;
+  reason: string;
+  created_at: string;
+  finished_at: string | null;
+  succeeded: boolean | null;
+};

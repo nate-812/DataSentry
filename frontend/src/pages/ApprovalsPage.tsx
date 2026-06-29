@@ -2,12 +2,22 @@ import { Ban, Check, Play, Plus, RefreshCw, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { api } from "../api/client";
-import type { Operation, OperationEvent, Runbook } from "../api/types";
+import type {
+  AutonomyDecision,
+  AutonomyPolicy,
+  AutonomyRunRecord,
+  Operation,
+  OperationEvent,
+  Runbook
+} from "../api/types";
 
 export function ApprovalsPage() {
   const [runbooks, setRunbooks] = useState<Runbook[]>([]);
   const [operations, setOperations] = useState<Operation[]>([]);
   const [events, setEvents] = useState<OperationEvent[]>([]);
+  const [autonomyPolicies, setAutonomyPolicies] = useState<AutonomyPolicy[]>([]);
+  const [autonomyRuns, setAutonomyRuns] = useState<AutonomyRunRecord[]>([]);
+  const [autonomyDecision, setAutonomyDecision] = useState<AutonomyDecision | null>(null);
   const [runbookName, setRunbookName] = useState("");
   const [target, setTarget] = useState("api-server");
   const [reason, setReason] = useState("本地 M6 审批演练");
@@ -40,10 +50,23 @@ export function ApprovalsPage() {
     setEvents(await api.operationEvents(operationId));
   }
 
+  async function refreshAutonomy() {
+    const [policies, runs] = await Promise.all([api.autonomyPolicies(), api.autonomyRuns()]);
+    setAutonomyPolicies(policies);
+    setAutonomyRuns(runs);
+  }
+
   async function refreshAll() {
-    const [runbookItems, operationItems] = await Promise.all([api.runbooks(), api.operations()]);
+    const [runbookItems, operationItems, policies, runs] = await Promise.all([
+      api.runbooks(),
+      api.operations(),
+      api.autonomyPolicies(),
+      api.autonomyRuns()
+    ]);
     setRunbooks(runbookItems);
     setOperations(operationItems);
+    setAutonomyPolicies(policies);
+    setAutonomyRuns(runs);
     setRunbookName((current) => current || runbookItems.find((item) => item.enabled)?.name || "");
     setSelectedOperationId((current) => current ?? operationItems[0]?.id ?? null);
   }
@@ -120,6 +143,36 @@ export function ApprovalsPage() {
     });
   }
 
+  async function updateAutonomyPolicy(
+    runbookName: string,
+    payload: { enabled?: boolean; shadow_mode?: boolean }
+  ) {
+    await runAction(async () => {
+      await api.updateAutonomyPolicy(runbookName, payload);
+      await refreshAutonomy();
+    });
+  }
+
+  async function executeAutonomy(runbookName: string) {
+    await runAction(async () => {
+      const cleanIncidentId = incidentId.trim();
+      const decision = await api.executeAutonomyCandidate({
+        runbook_name: runbookName,
+        parameters: {
+          target: target.trim(),
+          reason: reason.trim() || "本地 M7 自治演练"
+        },
+        incident_id: cleanIncidentId || null
+      });
+      setAutonomyDecision(decision);
+      await refreshAutonomy();
+      if (decision.operation_id) {
+        await refreshOperations(decision.operation_id);
+        await refreshOperationEvents(decision.operation_id);
+      }
+    });
+  }
+
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -186,6 +239,69 @@ export function ApprovalsPage() {
           </div>
         ) : null}
         {error ? <p className="error-text">{error}</p> : null}
+      </section>
+
+      <section className="panel autonomy-panel">
+        <div className="panel-heading">
+          <h2>有限自治</h2>
+          <button type="button" title="刷新自治" onClick={() => void refreshAutonomy()} disabled={busy}>
+            <RefreshCw size={16} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="autonomy-grid">
+          {autonomyPolicies.map((policy) => (
+            <article className="autonomy-row" key={policy.runbook_name}>
+              <div>
+                <strong>{policy.runbook_name}</strong>
+                <span>{policy.circuit_breaker_state}</span>
+              </div>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={policy.enabled}
+                  onChange={(event) =>
+                    void updateAutonomyPolicy(policy.runbook_name, {
+                      enabled: event.target.checked
+                    })
+                  }
+                />
+                启用
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={policy.shadow_mode}
+                  onChange={(event) =>
+                    void updateAutonomyPolicy(policy.runbook_name, {
+                      shadow_mode: event.target.checked
+                    })
+                  }
+                />
+                Shadow
+              </label>
+              <button type="button" disabled={busy} onClick={() => void executeAutonomy(policy.runbook_name)}>
+                <Play size={16} aria-hidden="true" />
+                演练
+              </button>
+            </article>
+          ))}
+        </div>
+        {autonomyDecision ? (
+          <div className={`decision-banner decision-${autonomyDecision.status}`}>
+            <strong>{autonomyDecision.status}</strong>
+            <span>{autonomyDecision.reason}</span>
+          </div>
+        ) : null}
+        <div className="decision-list">
+          {autonomyRuns.slice(0, 5).map((run) => (
+            <div className="decision-row" key={run.id}>
+              <span>{run.decision_status}</span>
+              <strong>{run.runbook_name}</strong>
+              <small>{run.reason}</small>
+            </div>
+          ))}
+          {autonomyRuns.length === 0 ? <p className="muted">暂无自治决策</p> : null}
+        </div>
       </section>
 
       <section className="panel">

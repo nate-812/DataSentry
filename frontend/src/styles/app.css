@@ -372,6 +372,120 @@ h2 {
   font-weight: 700;
 }
 
+.autonomy-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.autonomy-grid,
+.decision-list {
+  display: grid;
+  gap: 8px;
+}
+
+.autonomy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 102px 96px;
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  border: 1px solid #edf0ea;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfa;
+}
+
+.autonomy-row strong,
+.decision-row strong,
+.decision-row small {
+  overflow-wrap: anywhere;
+}
+
+.autonomy-row span {
+  display: block;
+  margin-top: 4px;
+  color: #65726d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.autonomy-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #44534d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.autonomy-row input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.autonomy-row button {
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.decision-banner {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #d8ded5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfa;
+}
+
+.decision-banner strong {
+  font-size: 13px;
+}
+
+.decision-banner span {
+  color: #4a5b54;
+  font-size: 13px;
+}
+
+.decision-allowed {
+  border-color: #9bc8ae;
+  background: #edf8f0;
+}
+
+.decision-shadowed,
+.decision-escalated {
+  border-color: #e0c28e;
+  background: #fff8ea;
+}
+
+.decision-blocked {
+  border-color: #d9a3a0;
+  background: #fff0ef;
+}
+
+.decision-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 6px 10px;
+  border: 1px solid #edf0ea;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfa;
+}
+
+.decision-row span {
+  color: #65726d;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.decision-row small {
+  grid-column: span 2;
+  color: #4a5b54;
+  line-height: 1.5;
+}
+
 .operation-list {
   display: grid;
   gap: 8px;
@@ -557,6 +671,8 @@ h2 {
 
   .table-row,
   .action-row,
+  .autonomy-row,
+  .decision-row,
   .operation-row,
   .runbook-form,
   .filter-row,
@@ -566,6 +682,10 @@ h2 {
 
   .runbook-form select,
   .runbook-form button {
+    grid-column: span 1;
+  }
+
+  .decision-row small {
     grid-column: span 1;
   }
 }

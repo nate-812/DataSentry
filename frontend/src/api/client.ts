@@ -1,4 +1,7 @@
 import type {
+  AutonomyDecision,
+  AutonomyPolicy,
+  AutonomyRunRecord,
   ChatSessionDetail,
   ChatRunResponse,
   ChatSession,
@@ -94,5 +97,24 @@ export const api = {
       body: JSON.stringify({ actor })
     }),
   operationEvents: (operationId: string) =>
-    requestJson<OperationEvent[]>(`/api/operations/${operationId}/events`)
+    requestJson<OperationEvent[]>(`/api/operations/${operationId}/events`),
+  autonomyPolicies: () => requestJson<AutonomyPolicy[]>("/api/autonomy/policies"),
+  updateAutonomyPolicy: (
+    runbookName: string,
+    payload: { enabled?: boolean; shadow_mode?: boolean }
+  ) =>
+    requestJson<AutonomyPolicy>(`/api/autonomy/policies/${runbookName}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  executeAutonomyCandidate: (payload: {
+    runbook_name: string;
+    parameters: Record<string, unknown>;
+    incident_id?: string | null;
+  }) =>
+    requestJson<AutonomyDecision>("/api/autonomy/execute", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  autonomyRuns: () => requestJson<AutonomyRunRecord[]>("/api/autonomy/runs")
 };
