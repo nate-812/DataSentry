@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from datasentry.autonomy import AutonomyService, BuiltInAutonomyPolicyCatalog
 from datasentry.chat import ChatService
 from datasentry.config import Settings
 from datasentry.incidents.service import IncidentService
@@ -50,6 +51,29 @@ def get_runbook_operation_service(
     catalog: Annotated[BuiltInRunbookCatalog, Depends(get_runbook_catalog)],
 ) -> RunbookOperationService:
     return RunbookOperationService(repository=repository, catalog=catalog)
+
+
+def ensure_default_autonomy_policies(repository: SQLiteRepository) -> None:
+    existing = {policy.runbook_name for policy in repository.list_autonomy_policies()}
+    for policy in BuiltInAutonomyPolicyCatalog().list_policies():
+        if policy.runbook_name not in existing:
+            repository.save_autonomy_policy(policy)
+
+
+def get_autonomy_service(
+    repository: Annotated[SQLiteRepository, Depends(get_repository)],
+    catalog: Annotated[BuiltInRunbookCatalog, Depends(get_runbook_catalog)],
+    runbook_operation_service: Annotated[
+        RunbookOperationService,
+        Depends(get_runbook_operation_service),
+    ],
+) -> AutonomyService:
+    ensure_default_autonomy_policies(repository)
+    return AutonomyService(
+        repository=repository,
+        runbook_catalog=catalog,
+        runbook_operation_service=runbook_operation_service,
+    )
 
 
 def build_llm_provider(settings: Settings) -> LLMProvider:

@@ -55,6 +55,17 @@ class OperationCancelRequest(BaseModel):
     actor: str = Field(min_length=1)
 
 
+class AutonomyCandidateRequest(BaseModel):
+    runbook_name: str = Field(min_length=1)
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    incident_id: str | None = None
+
+
+class AutonomyPolicyUpdateRequest(BaseModel):
+    enabled: bool | None = None
+    shadow_mode: bool | None = None
+
+
 class ChatSessionCreateRequest(BaseModel):
     title: str = Field(min_length=1)
 

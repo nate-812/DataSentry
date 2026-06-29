@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from datasentry.api.routes import (
     alertmanager,
+    autonomy,
     chat,
     evidence,
     incidents,
@@ -25,7 +26,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=resolved.api_cors_origins,
         allow_credentials=False,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "PATCH", "POST"],
         allow_headers=["Content-Type"],
     )
     app.add_exception_handler(DataSentryError, _datasentry_error_handler)
@@ -36,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(incidents.router, prefix="/api")
     app.include_router(operations.router, prefix="/api")
     app.include_router(runbooks.router, prefix="/api")
+    app.include_router(autonomy.router, prefix="/api")
     return app
 
 
