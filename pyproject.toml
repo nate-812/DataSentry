@@ -44,7 +44,7 @@ include = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-config --strict-markers"
+addopts = "-ra --strict-config --strict-markers --import-mode=importlib"
 testpaths = ["tests"]
 
 [tool.coverage.run]

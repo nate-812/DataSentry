@@ -6,14 +6,14 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M5 事件记忆与 RCA 已通过 Pull Request #5 合并到 `main` |
-| 当前阶段 | M6：审批式自动运维准备启动 |
-| 当前工作 | M6 审批式自动运维设计已批准，实施计划已起草；尚未进入代码实现 |
-| 下一里程碑 | 启动 M6：Runbook、审批、执行、审计和操作后验证；如需要，可先补 M5 云端只读 smoke |
+| 总体状态 | M6 审批式自动运维正在功能分支实现中，已完成本地 Runbook 后端闭环与 API |
+| 当前阶段 | M6：审批式自动运维实现中 |
+| 当前工作 | 已完成 Runbook 领域模型、幂等键、SQLite 审计/锁、策略、mock 执行器、操作服务、FastAPI API 和 React 审批操作台；正在进行最终自动化验证与提交 |
+| 下一里程碑 | 完成 M6 最终自动化验证、推送功能分支并准备 Pull Request；如需要，可在后续补 M5/M6 云端只读 smoke |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
-| 最近状态更新时间 | 2026-06-28 |
+| 最近状态更新时间 | 2026-06-29 |
 
 ## 已完成
 
@@ -37,13 +37,13 @@
 
 ## 正在进行
 
-- M6 第一版选择 Mock/本地受控执行器优先，设计文档已批准并起草实施计划；真实生产写操作仍不在当前实现范围内。
+- M6 第一版选择 Mock/本地受控执行器优先，后端本地闭环、API 和 React 审批操作台已完成；真实生产写操作仍不在当前实现范围内。
 - M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 启动 M6 设计与实施计划，重点定义 Runbook 风险分级、审批、执行审计、回滚/恢复方案和操作后验证。
+1. 完成 M6 最终自动化验证、提交、推送并准备 Pull Request。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -101,7 +101,7 @@
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
-| M6 审批式自动运维 | 未开始 | Runbook、审批、执行、审计和验证 |
+| M6 审批式自动运维 | 实现中 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
 
 ## 关键文档
@@ -240,3 +240,11 @@
 - M5 合并后在 `main` 重新完成自动化验证：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 262 个测试通过，覆盖率 91.36%。
 - 启动 M6 设计；用户选择 Mock/本地受控执行器优先，先完成 Runbook、审批、审计、幂等、并发锁和操作后验证的本地闭环，不依赖云端实例在线，不执行生产写操作。
 - M6 设计通过用户确认；起草 M6 实施计划，按 TDD 拆分 Runbook 领域模型、SQLite 持久化、策略/幂等/锁、mock 执行器、Operation 服务、FastAPI、React 控制台、文档和最终验证。
+
+### 2026-06-29
+
+- M6 后端本地闭环完成阶段性实现：Runbook 领域模型、内置目录、Operation 幂等键、SQLite 审计事件与操作锁、策略校验、mock 执行器、操作后验证和 RunbookOperationService 已落地并提交。
+- 完成 M6 FastAPI API：新增 Runbook 目录接口、Runbook Operation 创建/审批/拒绝/执行/取消/事件接口，并保持旧的本地模拟审批入口兼容；缺少必填参数和不存在 Operation 的事件查询已补充回归测试。
+- M6 API 阶段验证通过：`tests/integration/api` 14 个测试通过，`ruff check src/datasentry/api src/datasentry/runbooks tests/integration/api` 与 `mypy src/datasentry/api src/datasentry/runbooks` 通过；下一步进入 React 控制台集成。
+- 完成 M6 React 审批操作台：支持读取 Runbook 目录、提交 Operation、审批、拒绝、取消、执行和查看审计事件；README 已补充 M6 本地 mock 使用方式和云端边界。
+- 当前环境曾因 sandbox 端口监听权限和额度审批限制未完成本地浏览器 smoke；后续以自动化验证为准，必要时在可监听本机端口的环境补跑浏览器 QA。

@@ -127,10 +127,51 @@ export type IncidentDetail = {
 
 export type Operation = {
   id: string;
+  incident_id: string | null;
   name: string;
+  version: string;
+  idempotency_key: string | null;
+  parameters: Record<string, unknown>;
+  risk: string;
   status: string;
   requester: string;
   approver: string | null;
   requested_at: string;
+  approved_at: string | null;
+  executed_at: string | null;
+  verified_at: string | null;
   result: Record<string, unknown> | null;
+};
+
+export type Runbook = {
+  name: string;
+  version: string;
+  title: string;
+  description: string;
+  risk: string;
+  execution_mode: string;
+  parameter_schema: Record<string, unknown>;
+  precheck: Record<string, unknown>;
+  postcheck: Record<string, unknown>;
+  lock_key_template: string;
+  idempotency_key_template: string;
+  enabled: boolean;
+  audit_notes: string | null;
+};
+
+export type OperationEvent = {
+  id: string;
+  operation_id: string;
+  event_type: string;
+  summary: string;
+  actor: string;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export type OperationCreatePayload = {
+  runbook_name: string;
+  parameters: Record<string, unknown>;
+  requester: string;
+  incident_id?: string | null;
 };

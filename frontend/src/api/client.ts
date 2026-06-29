@@ -8,7 +8,10 @@ import type {
   IncidentDetail,
   IncidentRCAReport,
   Operation,
-  OverviewResponse
+  OperationCreatePayload,
+  OperationEvent,
+  OverviewResponse,
+  Runbook
 } from "./types";
 
 export const API_BASE = import.meta.env.VITE_DATASENTRY_API_BASE ?? "http://127.0.0.1:8000";
@@ -42,7 +45,14 @@ export const api = {
   generateIncidentRca: (incidentId: string) =>
     requestJson<IncidentRCAReport>(`/api/incidents/${incidentId}/rca`, { method: "POST" }),
   exportIncident: (incidentId: string) => requestText(`/api/incidents/${incidentId}/export`),
+  runbooks: () => requestJson<Runbook[]>("/api/runbooks"),
+  runbook: (runbookName: string) => requestJson<Runbook>(`/api/runbooks/${runbookName}`),
   operations: () => requestJson<Operation[]>("/api/operations"),
+  createOperation: (payload: OperationCreatePayload) =>
+    requestJson<Operation>("/api/operations", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   evidence: (inspectionId: string) =>
     requestJson<EvidenceResponse>(`/api/evidence/inspections/${inspectionId}`),
   createSession: (title: string) =>
@@ -72,5 +82,17 @@ export const api = {
     requestJson<Operation>(`/api/operations/${operationId}/reject`, {
       method: "POST",
       body: JSON.stringify({ approver })
-    })
+    }),
+  executeOperation: (operationId: string, actor: string) =>
+    requestJson<Operation>(`/api/operations/${operationId}/execute`, {
+      method: "POST",
+      body: JSON.stringify({ actor })
+    }),
+  cancelOperation: (operationId: string, actor: string) =>
+    requestJson<Operation>(`/api/operations/${operationId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ actor })
+    }),
+  operationEvents: (operationId: string) =>
+    requestJson<OperationEvent[]>(`/api/operations/${operationId}/events`)
 };

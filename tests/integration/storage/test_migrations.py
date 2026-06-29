@@ -154,11 +154,8 @@ def test_migration_0005_adds_operation_idempotency_key(tmp_path) -> None:
 
     _apply_migrations_through(database_path, 5)
 
-    with sqlite3.connect(database_path) as connection:
-        columns = {
-            row[1]
-            for row in connection.execute("PRAGMA table_info(operations)").fetchall()
-        }
+    with closing(sqlite3.connect(database_path)) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(operations)").fetchall()}
         tables = {
             row[0]
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -176,7 +173,7 @@ def test_database_at_version_5_upgrades_to_runbook_audit_locks_schema(
     version = upgrade_database(database_path)
 
     assert version == 6
-    with sqlite3.connect(database_path) as connection:
+    with closing(sqlite3.connect(database_path)) as connection:
         tables = {
             row[0]
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")

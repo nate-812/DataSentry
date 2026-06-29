@@ -17,6 +17,7 @@ from datasentry.llm import (
     OpenAICompatibleProvider,
 )
 from datasentry.operations import SimulationOperationService
+from datasentry.runbooks import BuiltInRunbookCatalog, RunbookOperationService
 from datasentry.storage import SQLiteRepository
 from datasentry.tools import TargetCatalog, build_live_inspection_service
 
@@ -38,6 +39,17 @@ def get_simulation_service(
     repository: Annotated[SQLiteRepository, Depends(get_repository)],
 ) -> SimulationOperationService:
     return SimulationOperationService(repository=repository)
+
+
+def get_runbook_catalog() -> BuiltInRunbookCatalog:
+    return BuiltInRunbookCatalog()
+
+
+def get_runbook_operation_service(
+    repository: Annotated[SQLiteRepository, Depends(get_repository)],
+    catalog: Annotated[BuiltInRunbookCatalog, Depends(get_runbook_catalog)],
+) -> RunbookOperationService:
+    return RunbookOperationService(repository=repository, catalog=catalog)
 
 
 def build_llm_provider(settings: Settings) -> LLMProvider:

@@ -45,8 +45,10 @@ def test_mock_verifier_returns_independent_success() -> None:
 
 
 def test_mock_verifier_includes_postcheck_summary() -> None:
-    runbook = BuiltInRunbookCatalog().get("mock.restart_preview").model_copy(
-        update={"postcheck": {"summary": "确认 API 状态恢复"}}
+    runbook = (
+        BuiltInRunbookCatalog()
+        .get("mock.restart_preview")
+        .model_copy(update={"postcheck": {"summary": "确认 API 状态恢复"}})
     )
     operation = Operation(
         name=runbook.name,

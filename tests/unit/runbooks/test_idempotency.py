@@ -34,8 +34,10 @@ def test_render_key_rejects_invalid_target(target: object) -> None:
 
 
 def test_render_template_reports_missing_placeholder() -> None:
-    runbook = BuiltInRunbookCatalog().get("mock.restart_preview").model_copy(
-        update={"lock_key_template": "runbook:{name}:{scope}"}
+    runbook = (
+        BuiltInRunbookCatalog()
+        .get("mock.restart_preview")
+        .model_copy(update={"lock_key_template": "runbook:{name}:{scope}"})
     )
 
     with pytest.raises(DataSentryError) as error:

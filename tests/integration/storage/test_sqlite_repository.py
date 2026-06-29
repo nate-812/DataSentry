@@ -719,8 +719,7 @@ def test_runbook_snapshot_event_and_lock_round_trip(repository: SQLiteRepository
     assert repository.get_runbook(runbook.name) == runbook
     assert repository.list_operation_events(operation.id) == [event]
     assert (
-        repository.get_active_operation_by_idempotency_key(operation.idempotency_key)
-        == operation
+        repository.get_active_operation_by_idempotency_key(operation.idempotency_key) == operation
     )
     assert repository.get_active_lock(lock.lock_key) == lock
 

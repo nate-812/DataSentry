@@ -333,6 +333,91 @@ h2 {
   padding: 0;
 }
 
+.runbook-workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.35fr);
+  gap: 14px;
+}
+
+.runbook-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.runbook-form select,
+.runbook-form button {
+  grid-column: span 2;
+}
+
+.runbook-summary {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  border: 1px solid #edf0ea;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcfa;
+}
+
+.runbook-summary p {
+  margin-bottom: 0;
+  color: #4a5b54;
+  line-height: 1.6;
+}
+
+.runbook-summary span {
+  color: #65726d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.operation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.operation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px 72px 168px;
+  justify-content: stretch;
+  width: 100%;
+  min-height: 56px;
+  border: 1px solid #edf0ea;
+  padding: 10px;
+  color: #17201a;
+  background: #fbfcfa;
+  text-align: left;
+}
+
+.operation-row strong,
+.operation-row span {
+  overflow-wrap: anywhere;
+}
+
+.operation-row.selected,
+.operation-row:hover {
+  border-color: #8fbdb2;
+  background: #eef7f4;
+}
+
+.runbook-detail {
+  display: grid;
+  gap: 14px;
+}
+
+.operation-payload {
+  overflow-x: auto;
+  min-height: 140px;
+  border: 1px solid #edf0ea;
+  border-radius: 8px;
+  margin: 0;
+  padding: 12px;
+  background: #fbfcfa;
+  color: #26332d;
+  font-size: 12px;
+}
+
 .incident-workspace {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.45fr);
@@ -460,6 +545,7 @@ h2 {
 
   .page-grid,
   .incident-workspace,
+  .runbook-workspace,
   .metric-row,
   .inline-form {
     grid-template-columns: 1fr;
@@ -471,8 +557,15 @@ h2 {
 
   .table-row,
   .action-row,
+  .operation-row,
+  .runbook-form,
   .filter-row,
   .incident-row {
     grid-template-columns: 1fr;
+  }
+
+  .runbook-form select,
+  .runbook-form button {
+    grid-column: span 1;
   }
 }

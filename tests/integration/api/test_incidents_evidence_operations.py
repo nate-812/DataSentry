@@ -98,7 +98,14 @@ def test_operations_simulation_approve_and_reject(tmp_path, monkeypatch) -> None
     )
 
     assert approved.status_code == 200
-    assert approved.json()["status"] == "succeeded"
+    assert approved.json()["status"] == "approved"
+
+    executed = client.post(
+        f"/api/operations/{operation_id}/execute",
+        json={"actor": "operator"},
+    )
+    assert executed.status_code == 200
+    assert executed.json()["status"] == "succeeded"
 
     rejected_created = client.post(
         "/api/operations/simulations",

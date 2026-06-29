@@ -1,6 +1,6 @@
 """M4 API 的公开请求和响应模型。"""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, JsonValue
 
 
 class DatabaseHealth(BaseModel):
@@ -38,6 +38,21 @@ class OperationSimulationRequest(BaseModel):
 
 class OperationActionRequest(BaseModel):
     approver: str = Field(min_length=1)
+
+
+class OperationCreateRequest(BaseModel):
+    runbook_name: str = Field(min_length=1)
+    parameters: dict[str, JsonValue] = Field(default_factory=dict)
+    requester: str = Field(min_length=1)
+    incident_id: str | None = None
+
+
+class OperationExecuteRequest(BaseModel):
+    actor: str = Field(min_length=1)
+
+
+class OperationCancelRequest(BaseModel):
+    actor: str = Field(min_length=1)
 
 
 class ChatSessionCreateRequest(BaseModel):

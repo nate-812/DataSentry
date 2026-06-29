@@ -290,6 +290,7 @@ class RunbookOperationService:
             self._repository.release_operation_lock(lock_key, released_at=self._clock())
 
     def events(self, operation_id: str) -> list[OperationEvent]:
+        self._repository.get_operation(operation_id)
         return self._repository.list_operation_events(operation_id)
 
     def _mark_running(self, operation: Operation, actor: str) -> Operation:
