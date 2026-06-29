@@ -9,6 +9,7 @@ from typing import Self
 
 from pydantic import JsonValue, TypeAdapter
 
+from datasentry.autonomy import AutonomyPolicy, AutonomyRunRecord
 from datasentry.chat import (
     ChatEventType,
     ChatMessage,
@@ -870,6 +871,150 @@ class SQLiteRepository:
                 (_dump_datetime(released_at), lock_key),
             )
 
+    def save_autonomy_policy(self, policy: AutonomyPolicy) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO autonomy_policies (
+                        runbook_name, enabled, shadow_mode, payload_json, updated_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(runbook_name)
+                    DO UPDATE SET
+                        enabled = excluded.enabled,
+                        shadow_mode = excluded.shadow_mode,
+                        payload_json = excluded.payload_json,
+                        updated_at = excluded.updated_at
+                    """,
+                    (
+                        policy.runbook_name,
+                        int(policy.enabled),
+                        int(policy.shadow_mode),
+                        _dump_json(policy.model_dump(mode="json")),
+                        _dump_datetime(policy.updated_at),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def get_autonomy_policy(self, runbook_name: str) -> AutonomyPolicy:
+        connection = self._require_open()
+        row = connection.execute(
+            """
+            SELECT payload_json
+            FROM autonomy_policies
+            WHERE runbook_name = ?
+            """,
+            (runbook_name,),
+        ).fetchone()
+        if row is None:
+            raise NotFoundError(
+                code="storage.autonomy_policy_not_found",
+                message="未找到指定自治策略",
+                details={"runbook_name": runbook_name},
+            )
+        return self._row_to_autonomy_policy(row)
+
+    def list_autonomy_policies(self) -> list[AutonomyPolicy]:
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT payload_json
+            FROM autonomy_policies
+            ORDER BY runbook_name
+            """
+        ).fetchall()
+        return [self._row_to_autonomy_policy(row) for row in rows]
+
+    def save_autonomy_run(self, record: AutonomyRunRecord) -> None:
+        connection = self._require_open()
+        try:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO autonomy_runs (
+                        id, runbook_name, target, incident_id, operation_id,
+                        decision_status, reason_code, reason, created_at,
+                        finished_at, succeeded, payload_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    self._autonomy_run_values(record),
+                )
+        except sqlite3.IntegrityError as error:
+            raise self._integrity_error(error) from error
+
+    def update_autonomy_run(self, record: AutonomyRunRecord) -> None:
+        connection = self._require_open()
+        with connection:
+            cursor = connection.execute(
+                """
+                UPDATE autonomy_runs SET
+                    runbook_name = ?, target = ?, incident_id = ?, operation_id = ?,
+                    decision_status = ?, reason_code = ?, reason = ?, created_at = ?,
+                    finished_at = ?, succeeded = ?, payload_json = ?
+                WHERE id = ?
+                """,
+                (*self._autonomy_run_values(record)[1:], record.id),
+            )
+        if cursor.rowcount == 0:
+            raise NotFoundError(
+                code="storage.autonomy_run_not_found",
+                message="未找到指定自治记录",
+                details={"autonomy_run_id": record.id},
+            )
+
+    def list_autonomy_runs(self, *, limit: int = 20) -> list[AutonomyRunRecord]:
+        limit = self._validate_list_limit(limit)
+        connection = self._require_open()
+        rows = connection.execute(
+            """
+            SELECT payload_json
+            FROM autonomy_runs
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [self._row_to_autonomy_run(row) for row in rows]
+
+    def count_recent_allowed_autonomy_runs(
+        self,
+        *,
+        runbook_name: str,
+        target: str | None,
+        incident_id: str | None,
+        since: datetime,
+    ) -> int:
+        conditions = [
+            "decision_status = ?",
+            "runbook_name = ?",
+            "created_at >= ?",
+        ]
+        values: list[object] = [
+            "allowed",
+            runbook_name,
+            _dump_datetime(since),
+        ]
+        if target is not None:
+            conditions.append("target = ?")
+            values.append(target)
+        if incident_id is not None:
+            conditions.append("incident_id = ?")
+            values.append(incident_id)
+        connection = self._require_open()
+        row = connection.execute(
+            f"""
+            SELECT COUNT(*) AS count
+            FROM autonomy_runs
+            WHERE {" AND ".join(conditions)}
+            """,
+            values,
+        ).fetchone()
+        if row is None:
+            return 0
+        return int(row["count"])
+
     def save_chat_session(self, session: ChatSession) -> None:
         connection = self._require_open()
         try:
@@ -1243,6 +1388,23 @@ class SQLiteRepository:
         )
 
     @staticmethod
+    def _autonomy_run_values(record: AutonomyRunRecord) -> tuple[object, ...]:
+        return (
+            record.id,
+            record.runbook_name,
+            record.target,
+            record.incident_id,
+            record.operation_id,
+            record.decision_status.value,
+            record.reason_code,
+            record.reason,
+            _dump_datetime(record.created_at),
+            _dump_datetime(record.finished_at),
+            None if record.succeeded is None else int(record.succeeded),
+            _dump_json(record.model_dump(mode="json")),
+        )
+
+    @staticmethod
     def _row_to_inspection(row: sqlite3.Row) -> Inspection:
         return Inspection(
             id=row["id"],
@@ -1413,6 +1575,14 @@ class SQLiteRepository:
             expires_at=_load_required_datetime(row["expires_at"]),
             released_at=_load_datetime(row["released_at"]),
         )
+
+    @staticmethod
+    def _row_to_autonomy_policy(row: sqlite3.Row) -> AutonomyPolicy:
+        return AutonomyPolicy.model_validate(_load_json(row["payload_json"]))
+
+    @staticmethod
+    def _row_to_autonomy_run(row: sqlite3.Row) -> AutonomyRunRecord:
+        return AutonomyRunRecord.model_validate(_load_json(row["payload_json"]))
 
     @staticmethod
     def _row_to_chat_session(row: sqlite3.Row) -> ChatSession:

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
+from datasentry.autonomy import AutonomyPolicy, AutonomyRunRecord
 from datasentry.chat import ChatMessage, ChatRun, ChatSession
 from datasentry.domain import (
     Finding,
@@ -169,6 +170,34 @@ class Repository(Protocol):
         raise NotImplementedError  # pragma: no cover
 
     def release_operation_lock(self, lock_key: str, *, released_at: datetime) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_autonomy_policy(self, policy: AutonomyPolicy) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def get_autonomy_policy(self, runbook_name: str) -> AutonomyPolicy:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_autonomy_policies(self) -> list[AutonomyPolicy]:
+        raise NotImplementedError  # pragma: no cover
+
+    def save_autonomy_run(self, record: AutonomyRunRecord) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def update_autonomy_run(self, record: AutonomyRunRecord) -> None:
+        raise NotImplementedError  # pragma: no cover
+
+    def list_autonomy_runs(self, *, limit: int = 20) -> list[AutonomyRunRecord]:
+        raise NotImplementedError  # pragma: no cover
+
+    def count_recent_allowed_autonomy_runs(
+        self,
+        *,
+        runbook_name: str,
+        target: str | None,
+        incident_id: str | None,
+        since: datetime,
+    ) -> int:
         raise NotImplementedError  # pragma: no cover
 
     def save_chat_session(self, session: ChatSession) -> None:

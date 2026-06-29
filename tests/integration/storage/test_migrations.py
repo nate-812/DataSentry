@@ -49,7 +49,7 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
 
     version = upgrade_database(database_path)
 
-    assert version == 6
+    assert version == 7
     with closing(sqlite3.connect(database_path)) as connection:
         tables = {
             row[0]
@@ -66,6 +66,10 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
             "runbooks",
             "operation_events",
             "operation_locks",
+            "autonomy_policies",
+            "autonomy_runs",
+            "autonomy_circuit_breakers",
+            "autonomy_rate_counters",
         } <= tables
         assert connection.execute("SELECT version FROM schema_migrations").fetchall() == [
             (1,),
@@ -74,18 +78,19 @@ def test_upgrade_creates_schema_and_records_version(tmp_path: Path) -> None:
             (4,),
             (5,),
             (6,),
+            (7,),
         ]
 
 
 def test_upgrade_is_idempotent(tmp_path: Path) -> None:
     database_path = tmp_path / "datasentry.db"
 
-    assert upgrade_database(database_path) == 6
-    assert upgrade_database(database_path) == 6
+    assert upgrade_database(database_path) == 7
+    assert upgrade_database(database_path) == 7
 
     with closing(connect(database_path)) as connection:
-        assert current_schema_version(connection) == 6
-        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 6
+        assert current_schema_version(connection) == 7
+        assert connection.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 7
 
 
 def test_tool_invocations_schema_contains_audit_fields(tmp_path: Path) -> None:
@@ -172,13 +177,35 @@ def test_database_at_version_5_upgrades_to_runbook_audit_locks_schema(
 
     version = upgrade_database(database_path)
 
-    assert version == 6
+    assert version == 7
     with closing(sqlite3.connect(database_path)) as connection:
         tables = {
             row[0]
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
     assert {"runbooks", "operation_events", "operation_locks"} <= tables
+
+
+def test_database_at_version_6_upgrades_to_limited_autonomy_schema(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "datasentry.db"
+    _apply_migrations_through(database_path, 6)
+
+    version = upgrade_database(database_path)
+
+    assert version == 7
+    with closing(sqlite3.connect(database_path)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+    assert {
+        "autonomy_policies",
+        "autonomy_runs",
+        "autonomy_circuit_breakers",
+        "autonomy_rate_counters",
+    } <= tables
 
 
 def test_chat_runs_reject_invalid_error_state_combinations(tmp_path: Path) -> None:
