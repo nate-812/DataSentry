@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M6 审批式自动运维功能分支已完成本地实现与自动化验证 |
-| 当前阶段 | M6：审批式自动运维实现中 |
-| 当前工作 | 已完成 Runbook 领域模型、幂等键、SQLite 审计/锁、策略、mock 执行器、操作服务、FastAPI API 和 React 审批操作台；最终自动化验证已通过，准备推送功能分支 |
-| 下一里程碑 | 推送 M6 功能分支并准备 Pull Request；如需要，可在后续补 M5/M6 云端只读 smoke |
+| 总体状态 | M6 审批式自动运维已完成并合并到 `main` |
+| 当前阶段 | M7：有限自治准备启动 |
+| 当前工作 | M6 已完成 Runbook 本地 mock 闭环、审批/执行 API、React 操作台和自动化验证；M7 尚未开始 |
+| 下一里程碑 | 启动 M7 有限自治设计与实施计划，继续遵守低风险、可回滚、可验证的操作边界 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -34,16 +34,17 @@
 - 完成 M2 真实只读工具、工具审计、受控传输、真实巡检编排和现场只读契约验证，并通过 Pull Request #2 合并到 `main`。
 - 完成 M3 仓库内监控与通知基线：Prometheus 规则、Alertmanager 路由模板、Grafana dashboard、Alertmanager payload 解析、通知消息格式、本地模拟 CLI 和自监控指标。
 - 完成 M4 对话与 Web 控制台：FastAPI Agent、Chat API/SSE、Alertmanager API、OpenAI-compatible LLM 摘要、React Command Center、证据查看和本地模拟审批。
+- 完成 M6 审批式自动运维：Runbook 领域模型、SQLite 审计与锁、幂等、策略、mock 执行器、操作后验证、FastAPI API 和 React 审批操作台。
 
 ## 正在进行
 
-- M6 第一版选择 Mock/本地受控执行器优先，后端本地闭环、API 和 React 审批操作台已完成并通过自动化验证；真实生产写操作仍不在当前实现范围内。
+- M7 有限自治尚未开始；M6 仍保持 Mock/本地受控执行器边界，真实生产写操作不在 M6 实现范围内。
 - M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 推送 M6 功能分支并准备 Pull Request。
+1. 启动 M7 有限自治设计与实施计划，先定义可自动执行的低风险操作、观察窗口、回滚/停止条件和操作后验证。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -101,7 +102,7 @@
 | M3 监控看板与通知 | 已完成并合并 | Prometheus、Grafana、Alertmanager 和消息渠道 |
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
-| M6 审批式自动运维 | 实现中 | Runbook、审批、执行、审计和验证 |
+| M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
 
 ## 关键文档
@@ -249,3 +250,5 @@
 - 完成 M6 React 审批操作台：支持读取 Runbook 目录、提交 Operation、审批、拒绝、取消、执行和查看审计事件；README 已补充 M6 本地 mock 使用方式和云端边界。
 - 当前环境曾因 sandbox 端口监听权限和额度审批限制未完成本地浏览器 smoke；后续以自动化验证为准，必要时在可监听本机端口的环境补跑浏览器 QA。
 - M6 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 305 个测试通过，覆盖率 91.13%，仅保留 FastAPI TestClient 上游弃用 warning。
+- 合并前真实 Uvicorn/Vite 运行暴露 SQLite 请求级连接跨线程使用问题；已补充回归测试并将 SQLite 连接设为 `check_same_thread=False`，最终验证更新为 306 个测试通过、覆盖率 91.13%。
+- M6 分支 `codex/m6-approval-runbooks` 已 fast-forward 合并到本地 `main`，M7 可从最新 `main` 启动。
