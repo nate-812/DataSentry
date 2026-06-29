@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M6 审批式自动运维正在功能分支实现中，已完成本地 Runbook 后端闭环与 API |
+| 总体状态 | M6 审批式自动运维功能分支已完成本地实现与自动化验证 |
 | 当前阶段 | M6：审批式自动运维实现中 |
-| 当前工作 | 已完成 Runbook 领域模型、幂等键、SQLite 审计/锁、策略、mock 执行器、操作服务、FastAPI API 和 React 审批操作台；正在进行最终自动化验证与提交 |
-| 下一里程碑 | 完成 M6 最终自动化验证、推送功能分支并准备 Pull Request；如需要，可在后续补 M5/M6 云端只读 smoke |
+| 当前工作 | 已完成 Runbook 领域模型、幂等键、SQLite 审计/锁、策略、mock 执行器、操作服务、FastAPI API 和 React 审批操作台；最终自动化验证已通过，准备推送功能分支 |
+| 下一里程碑 | 推送 M6 功能分支并准备 Pull Request；如需要，可在后续补 M5/M6 云端只读 smoke |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,13 +37,13 @@
 
 ## 正在进行
 
-- M6 第一版选择 Mock/本地受控执行器优先，后端本地闭环、API 和 React 审批操作台已完成；真实生产写操作仍不在当前实现范围内。
+- M6 第一版选择 Mock/本地受控执行器优先，后端本地闭环、API 和 React 审批操作台已完成并通过自动化验证；真实生产写操作仍不在当前实现范围内。
 - M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 完成 M6 最终自动化验证、提交、推送并准备 Pull Request。
+1. 推送 M6 功能分支并准备 Pull Request。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -248,3 +248,4 @@
 - M6 API 阶段验证通过：`tests/integration/api` 14 个测试通过，`ruff check src/datasentry/api src/datasentry/runbooks tests/integration/api` 与 `mypy src/datasentry/api src/datasentry/runbooks` 通过；下一步进入 React 控制台集成。
 - 完成 M6 React 审批操作台：支持读取 Runbook 目录、提交 Operation、审批、拒绝、取消、执行和查看审计事件；README 已补充 M6 本地 mock 使用方式和云端边界。
 - 当前环境曾因 sandbox 端口监听权限和额度审批限制未完成本地浏览器 smoke；后续以自动化验证为准，必要时在可监听本机端口的环境补跑浏览器 QA。
+- M6 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 305 个测试通过，覆盖率 91.13%，仅保留 FastAPI TestClient 上游弃用 warning。
