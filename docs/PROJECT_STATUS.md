@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M6 审批式自动运维已完成并合并到 `main` |
-| 当前阶段 | M7：有限自治准备启动 |
-| 当前工作 | M6 已完成 Runbook 本地 mock 闭环、审批/执行 API、React 操作台和自动化验证；M7 尚未开始 |
-| 下一里程碑 | 启动 M7 有限自治设计与实施计划，继续遵守低风险、可回滚、可验证的操作边界 |
+| 总体状态 | M6 审批式自动运维已完成并合并到 `main`，M7 有限自治已启动设计与计划 |
+| 当前阶段 | M7：有限自治设计与计划已启动 |
+| 当前工作 | M7 已形成本地自治控制层设计与实施计划，首版限定 mock/shadow/审计/熔断，不依赖云端实例 |
+| 下一里程碑 | 实施 M7 本地有限自治控制层，继续遵守低风险、可回滚、可验证的操作边界 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -38,13 +38,13 @@
 
 ## 正在进行
 
-- M7 有限自治尚未开始；M6 仍保持 Mock/本地受控执行器边界，真实生产写操作不在 M6 实现范围内。
+- M7 有限自治已启动设计与计划；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
 - M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 启动 M7 有限自治设计与实施计划，先定义可自动执行的低风险操作、观察窗口、回滚/停止条件和操作后验证。
+1. 按 M7 实施计划开发本地有限自治控制层，先完成策略、shadow、维护窗口、速率限制、熔断、统计和 mock 自动执行闭环。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -103,7 +103,7 @@
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
-| M7 有限自治 | 未开始 | 对长期验证的低风险操作开放自动执行 |
+| M7 有限自治 | 设计与计划已启动 | 对长期验证的低风险操作开放自动执行 |
 
 ## 关键文档
 
@@ -115,10 +115,12 @@
 - [M4 对话式 Agent 与 Web 控制台设计](superpowers/specs/2026-06-27-m4-dialog-web-console-design.md)
 - [M5 事件记忆与 RCA 设计](superpowers/specs/2026-06-28-m5-incident-memory-rca-design.md)
 - [M6 审批式自动运维设计](superpowers/specs/2026-06-28-m6-approval-runbooks-design.md)
+- [M7 有限自治设计](superpowers/specs/2026-06-29-m7-limited-autonomy-design.md)
 - [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M4 对话式 Agent 与 Web 控制台实施计划](superpowers/plans/2026-06-27-m4-dialog-web-console.md)
 - [M5 事件记忆与 RCA 实施计划](superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
 - [M6 审批式自动运维实施计划](superpowers/plans/2026-06-28-m6-approval-runbooks.md)
+- [M7 有限自治实施计划](superpowers/plans/2026-06-29-m7-limited-autonomy.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
@@ -252,3 +254,4 @@
 - M6 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 305 个测试通过，覆盖率 91.13%，仅保留 FastAPI TestClient 上游弃用 warning。
 - 合并前真实 Uvicorn/Vite 运行暴露 SQLite 请求级连接跨线程使用问题；已补充回归测试并将 SQLite 连接设为 `check_same_thread=False`，最终验证更新为 306 个测试通过、覆盖率 91.13%。
 - M6 分支 `codex/m6-approval-runbooks` 已 fast-forward 合并到本地 `main`，M7 可从最新 `main` 启动。
+- 从最新 `main` 创建 M7 分支 `codex/m7-limited-autonomy`，完成 M7 有限自治设计与实施计划：首版采用本地 mock/shadow 控制层，不开启云端实例，不执行真实生产写操作。
