@@ -11,6 +11,7 @@ from datasentry.autonomy.models import (
     RateLimitRule,
 )
 from datasentry.autonomy.policy import AutonomyPolicyEngine
+from datasentry.autonomy.service import AUTONOMY_ACTOR, AutonomyService
 
 __all__ = [
     "AutonomyDecision",
@@ -18,8 +19,10 @@ __all__ = [
     "AutonomyPolicy",
     "AutonomyPolicyEngine",
     "AutonomyRunRecord",
+    "AutonomyService",
     "BuiltInAutonomyPolicyCatalog",
     "CircuitBreakerState",
     "MaintenanceWindow",
     "RateLimitRule",
+    "AUTONOMY_ACTOR",
 ]
