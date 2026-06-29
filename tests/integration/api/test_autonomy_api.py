@@ -1,12 +1,32 @@
 from fastapi.testclient import TestClient
 
 from datasentry.api import create_app
+from datasentry.autonomy import AutonomyPolicy, MaintenanceWindow
 from datasentry.config import Settings
+from datasentry.storage import SQLiteRepository
 
 
 def _client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setenv("DATASENTRY_DATABASE_PATH", str(tmp_path / "datasentry.db"))
     return TestClient(create_app(Settings()))
+
+
+def _save_always_open_policy(database_path) -> None:
+    with SQLiteRepository(database_path) as repository:
+        repository.save_autonomy_policy(
+            AutonomyPolicy(
+                runbook_name="mock.restart_preview",
+                enabled=True,
+                shadow_mode=False,
+                maintenance_windows=[
+                    MaintenanceWindow(
+                        weekdays=[0, 1, 2, 3, 4, 5, 6],
+                        start_minute_utc=0,
+                        end_minute_utc=1440,
+                    ),
+                ],
+            ),
+        )
 
 
 def test_list_autonomy_policies_returns_default_shadow_policy(tmp_path, monkeypatch) -> None:
@@ -69,11 +89,10 @@ def test_execute_autonomy_candidate_creates_mock_operation_when_allowed(
     tmp_path,
     monkeypatch,
 ) -> None:
+    database_path = tmp_path / "datasentry.db"
+    monkeypatch.setenv("DATASENTRY_DATABASE_PATH", str(database_path))
+    _save_always_open_policy(database_path)
     client = _client(tmp_path, monkeypatch)
-    client.patch(
-        "/api/autonomy/policies/mock.restart_preview",
-        json={"enabled": True, "shadow_mode": False},
-    )
 
     response = client.post(
         "/api/autonomy/execute",

@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M6 审批式自动运维已完成并合并到 `main`，M7 有限自治已启动设计与计划 |
-| 当前阶段 | M7：有限自治设计与计划已启动 |
-| 当前工作 | M7 已形成本地自治控制层设计与实施计划，首版限定 mock/shadow/审计/熔断，不依赖云端实例 |
-| 下一里程碑 | 实施 M7 本地有限自治控制层，继续遵守低风险、可回滚、可验证的操作边界 |
+| 总体状态 | M7 有限自治本地控制层已完成阶段性实现 |
+| 当前阶段 | M7：有限自治本地 mock/shadow 闭环已实现 |
+| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；真实生产自治仍未开放 |
+| 下一里程碑 | 在只读 smoke、测试环境和维护窗口人工审批样本充足后，评估低风险 Runbook 是否可从 shadow 转为真实有限自治 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -38,13 +38,13 @@
 
 ## 正在进行
 
-- M7 有限自治已启动设计与计划；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
+- M7 有限自治本地控制层已实现；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
 - M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 
 ## 下一步
 
-1. 按 M7 实施计划开发本地有限自治控制层，先完成策略、shadow、维护窗口、速率限制、熔断、统计和 mock 自动执行闭环。
+1. 视需要创建 M7 PR，并在后续只读 smoke、测试环境和维护窗口中收集低风险 Runbook 人工审批执行样本。
 2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
 3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
 4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、备份和访问日志。
@@ -103,7 +103,7 @@
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
-| M7 有限自治 | 设计与计划已启动 | 对长期验证的低风险操作开放自动执行 |
+| M7 有限自治 | 本地 mock/shadow 闭环已实现 | 对长期验证的低风险操作开放自动执行 |
 
 ## 关键文档
 
@@ -255,3 +255,5 @@
 - 合并前真实 Uvicorn/Vite 运行暴露 SQLite 请求级连接跨线程使用问题；已补充回归测试并将 SQLite 连接设为 `check_same_thread=False`，最终验证更新为 306 个测试通过、覆盖率 91.13%。
 - M6 分支 `codex/m6-approval-runbooks` 已 fast-forward 合并到本地 `main`，M7 可从最新 `main` 启动。
 - 从最新 `main` 创建 M7 分支 `codex/m7-limited-autonomy`，完成 M7 有限自治设计与实施计划：首版采用本地 mock/shadow 控制层，不开启云端实例，不执行真实生产写操作。
+- 完成 M7 本地有限自治阶段性实现：新增 `datasentry.autonomy` 策略模型、内置策略、策略评估、速率限制升级、SQLite `0007_limited_autonomy` 迁移、自治 run 记录、FastAPI `/api/autonomy/*` API 和 React 审批页自治面板；默认策略仍为 disabled + shadow。
+- M7 最终自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 333 个测试通过，覆盖率 91.32%，仅保留 FastAPI TestClient 上游弃用 warning。

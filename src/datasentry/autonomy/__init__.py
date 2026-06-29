@@ -14,6 +14,7 @@ from datasentry.autonomy.policy import AutonomyPolicyEngine
 from datasentry.autonomy.service import AUTONOMY_ACTOR, AutonomyService
 
 __all__ = [
+    "AUTONOMY_ACTOR",
     "AutonomyDecision",
     "AutonomyDecisionStatus",
     "AutonomyPolicy",
@@ -24,5 +25,4 @@ __all__ = [
     "CircuitBreakerState",
     "MaintenanceWindow",
     "RateLimitRule",
-    "AUTONOMY_ACTOR",
 ]

@@ -139,9 +139,6 @@ class AutonomyRunRecord(DomainModel):
 
     @model_validator(mode="after")
     def validate_allowed_operation_link(self) -> Self:
-        if (
-            self.decision_status is AutonomyDecisionStatus.ALLOWED
-            and self.operation_id is None
-        ):
+        if self.decision_status is AutonomyDecisionStatus.ALLOWED and self.operation_id is None:
             raise ValueError("allowed 决策必须关联 Operation")
         return self

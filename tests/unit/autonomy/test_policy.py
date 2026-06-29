@@ -10,7 +10,6 @@ from datasentry.autonomy.policy import AutonomyPolicyEngine
 from datasentry.domain import OperationRisk
 from datasentry.runbooks import BuiltInRunbookCatalog
 
-
 NOW = datetime(2026, 6, 29, 2, 0, tzinfo=UTC)
 
 

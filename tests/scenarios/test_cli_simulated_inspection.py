@@ -21,7 +21,7 @@ def test_database_upgrade_reports_schema_version(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert json.loads(result.stdout) == {
         "database_path": str(database_path),
-        "schema_version": 6,
+        "schema_version": 7,
     }
 
 

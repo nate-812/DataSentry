@@ -248,6 +248,31 @@ React 控制台的审批页已升级为 Runbook 操作台，可创建 mock Runbo
 `POST /api/operations/simulations` 入口保留兼容，但批准后需要通过执行接口进入
 `succeeded`。
 
+## M7 有限自治
+
+M7 第一版增加本地有限自治控制层，默认策略为 disabled + shadow，不会自动执行
+真实生产操作。本阶段只允许 mock Runbook 参与自治评估，所有真实 SSH、Shell、
+SQL 写入、Savepoint、补数、配置修改和删除数据仍被禁止。
+
+新增 API 包含：
+
+- `GET /api/autonomy/policies`：读取自治策略。
+- `PATCH /api/autonomy/policies/{runbook_name}`：开启或关闭策略与 shadow 模式。
+- `POST /api/autonomy/evaluate`：只评估候选，不创建 Operation。
+- `POST /api/autonomy/execute`：按策略记录 shadow、阻止、升级或执行本地 mock Operation。
+- `GET /api/autonomy/runs`：读取最近自治决策记录。
+
+本地演练流程：
+
+1. 启动 DataSentry API。
+2. 在审批页面查看“有限自治”区域。
+3. 打开 `mock.restart_preview` 的 shadow 策略并执行演练。
+4. 确认页面只记录 shadow 决策，不创建 Operation。
+5. 关闭 shadow 后再次演练，确认仅本地 mock Operation 会自动创建、批准、执行和验证。
+
+M7 开发不要求打开云实例。云端或测试环境只用于后续只读 smoke、人工审批低风险演练、
+成功率样本收集和生产自治评估。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
