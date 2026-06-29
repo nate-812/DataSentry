@@ -10,7 +10,7 @@ from datasentry.errors import StorageError
 def connect(database_path: Path) -> sqlite3.Connection:
     """创建已完成基础配置的 SQLite 连接。"""
     database_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(database_path)
+    connection = sqlite3.connect(database_path, check_same_thread=False)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     connection.execute("PRAGMA busy_timeout = 5000")

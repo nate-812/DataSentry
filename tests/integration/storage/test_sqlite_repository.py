@@ -1,4 +1,5 @@
 import inspect
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -132,6 +133,28 @@ def test_save_and_get_inspection_aggregate(
     assert aggregate.inspection == inspection
     assert aggregate.observations == [observation]
     assert aggregate.findings == [finding]
+
+
+def test_repository_connection_can_move_across_request_worker_threads(tmp_path: Path) -> None:
+    repository = SQLiteRepository(tmp_path / "datasentry.db")
+    errors: list[Exception] = []
+
+    def use_repository() -> None:
+        try:
+            repository.list_operations()
+            repository.close()
+        except Exception as error:  # pragma: no cover - asserted below
+            errors.append(error)
+
+    thread = threading.Thread(target=use_repository)
+    thread.start()
+    thread.join(timeout=5)
+    if thread.is_alive():
+        raise AssertionError("repository worker thread did not finish")
+
+    if errors:
+        repository.close()
+    assert errors == []
 
 
 def test_list_inspections_returns_recent_aggregates_with_limit(
