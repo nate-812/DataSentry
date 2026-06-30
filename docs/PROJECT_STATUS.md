@@ -280,3 +280,8 @@
 - StreamLake-Binance 改密源码提交 `3fdf9bb fix: 从环境变量读取作业密码` 已推送到 `feature/frontend-realtime-dashboard`，随后用户将该分支合并到 GitHub `main`，merge commit 为 `9123d01`。
 - 云端 `/opt/StreamLake-Binance` 已从 `feature/frontend-realtime-dashboard` 切换到 `main` 并同步 `origin/main`；`frontend/package-lock.json` 的现场差异已保存到 `stash@{0}`，两个改密回滚 `.bak` 文件已移出仓库到 `/root/streamlake-local-backups/20260630-password-rotation/`。
 - 后续 StreamLake 开发约定为本地开发验证、GitHub 合并、云端只拉取部署；云端不再作为开发工作区，真实秘密继续放在 `/root/.streamlake-secrets`，不进入 Git。
+- 云端实例再次打开后执行 DataSentry 只读 K 线巡检，Inspection `b9d03578-aaec-4b93-9d42-3991e76aa18a` 确认 Flink 三个作业均 RUNNING，Kline checkpoint 最近完成且连续失败数为 0，反压为 ok，Doris `kline_1min` 新鲜度约 49 秒，Spring API 固定 K 线查询返回 ok；SSH 类工具本次仍报 `tool.connection_failed`，因此主机、Collector 和 Kafka SSH 证据未闭合。
+- 本次安全暴露面初查显示，从当前网络可连接 MySQL `3306`、Redis `6379`、Flink Web `8081`、Spring API `8080`、AI Engine `8000`、Doris FE `9030/8030`；Kafka `9092` 拒绝连接。MySQL root 无密码被拒绝，Redis 无密码返回 `NOAUTH`，但 Doris `9030` 仍可用 root 无密码执行只读查询，需优先收口安全组或账号权限。
+- 本地 FastAPI M5 Alertmanager fixture smoke 通过：`POST /api/alertmanager/webhook` 返回 200 并创建 Incident `4d0261d3-8108-4ae9-8183-154f4f18ef00`，Incident 详情、时间线、相似事件、RCA 生成和 Markdown 导出接口均返回 200；仅保留 FastAPI TestClient 上游弃用 warning。
+- 运行事实补查确认 Flink REST 当前生效配置包括 RocksDB state backend、30s checkpoint、保留 3 个 checkpoint、`RETAIN_ON_CANCELLATION`、JM/TM bind-host 为 `0.0.0.0`；Doris 为 data1 FE + data2/data3 BE，`kline_1min` 为 `UNIQUE KEY(symbol, open_time)`、8 bucket、单副本、merge-on-write。Flink `/jobmanager/config` 会返回 OSS access key id 且仅掩码 secret，公网可读状态需视为安全风险。
+- 本地 M7 有限自治 API smoke 通过：`mock.restart_preview` 启用 shadow 后执行返回 `shadowed` 并记录自治 run；关闭 shadow 后因当前 UTC 时间超出默认维护窗口返回 `escalated`/`policy.maintenance_window_missed`，未创建 Operation，符合维护窗口拦截预期。
