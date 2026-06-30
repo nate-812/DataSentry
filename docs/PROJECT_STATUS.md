@@ -8,8 +8,8 @@
 |---|---|
 | 总体状态 | M7 有限自治本地控制层已完成阶段性实现 |
 | 当前阶段 | M7：有限自治本地 mock/shadow 闭环已实现 |
-| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；真实生产自治仍未开放 |
-| 下一里程碑 | 在只读 smoke、测试环境和维护窗口人工审批样本充足后，评估低风险 Runbook 是否可从 shadow 转为真实有限自治 |
+| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；本次云端 MySQL/Redis 改密、StreamLake Git 合并与云端 main 同步已收尾；真实生产自治仍未开放 |
+| 下一里程碑 | 新会话从本地/GitHub `main` 作为事实来源继续开发；云端仅作为部署运行环境按需 `pull --ff-only` 与重启作业 |
 | 生产权限 | 已执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；测试实例临时使用 root key，生产方案仍必须使用专用只读用户；写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -45,14 +45,17 @@
 - 2026-06-30 已按用户授权在可丢弃云实例上轮换 MySQL `root` 与 Redis `default` 密码，并通过 root-only `/root/.streamlake-secrets` 注入 StreamLake 作业运行环境；仓库文档和配置不保存真实密码。
 - 改密后已重启 `streamlake-whale-cep` 与 `streamlake-risk-control`，并确认 `streamlake-kline-aggregation`、`streamlake-whale-cep`、`streamlake-risk-control` 均为 RUNNING；Doris 仍按现场事实保持 root 无密码，MySQL 密码不控制 Doris 登录。
 - 真实改密巡检发现 Flink REST 会同时返回同名历史 CANCELED 作业和当前 RUNNING 作业；DataSentry 已修正为优先选择运行中作业，避免旧历史作业污染当前状态判断。
+- StreamLake-Binance `feature/frontend-realtime-dashboard` 已合并到 GitHub `main`，merge commit 为 `9123d01`；其中改密源码提交为 `3fdf9bb`，只包含 Flink job 从环境变量读取 MySQL/Redis 密码的源码改动。
+- 云端 `/opt/StreamLake-Binance` 已切换并同步到 `main...origin/main`；改密回滚备份已移出 Git 仓库到 `/root/streamlake-local-backups/20260630-password-rotation/`，云端只剩 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 三类未跟踪现场运行文件。
 
 ## 下一步
 
-1. 视需要创建 M7 PR，并在后续只读 smoke、测试环境和维护窗口中收集低风险 Runbook 人工审批执行样本。
-2. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
-3. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
-4. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；确认云端 root-only 改密备份文件无需回滚后可删除。
-5. 如果页面仍显示 K 线不更新，优先检查前端是否调用 `/api/kline/{symbol}?interval=1min&limit=...`，以及页面缓存、轮询和 symbol 选择；2026-06-30 现场证据显示 Collector → Kafka → Flink → Doris → Spring API 主链路正在推进。
+1. 新会话继续项目时，以本地/GitHub `main` 为事实来源；新改动使用新分支，本地开发验证后推送 GitHub，再由云端只执行部署拉取。
+2. 视需要创建 M7 PR，并在后续只读 smoke、测试环境和维护窗口中收集低风险 Runbook 人工审批执行样本。
+3. 如需要，打开云实例执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
+4. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
+5. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；确认云端 root-only 改密备份文件无需回滚后可删除。
+6. 如果页面仍显示 K 线不更新，优先检查前端是否调用 `/api/kline/{symbol}?interval=1min&limit=...`，以及页面缓存、轮询和 symbol 选择；2026-06-30 现场证据显示 Collector → Kafka → Flink → Doris → Spring API 主链路正在推进。
 
 ## 阻塞与风险
 
@@ -65,7 +68,8 @@
 - M3 合并后尚未进行真实部署验收；当前仅确认仓库内实现、PR checks 和本地验证。
 - 当前 SSH 使用 root 仅因用户确认实例可丢弃；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
-- 云端 `/root/bin` 和 StreamLake 作业源码的改密前备份文件仅 root 可读，短期用于回滚；确认运行稳定后应删除这些包含旧默认密码的备份。
+- 云端 `/root/bin` 和 StreamLake 作业源码的改密前备份文件仅 root 可读，短期用于回滚；其中仓库内 `.bak` 文件已移到 `/root/streamlake-local-backups/20260630-password-rotation/`，确认运行稳定后应删除这些包含旧默认密码的备份。
+- 云端 StreamLake 仓库已同步到 `main`，但 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 仍是未跟踪现场运行文件；后续应迁移到仓库外运行目录或明确纳入 `.gitignore`，避免云端工作区再次变脏。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka 真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 - M3 目前只完成仓库内模板和本地模拟，尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
@@ -269,3 +273,10 @@
 - 使用真实云实例复跑 DataSentry K 线只读巡检，Inspection `0e185f0e-ebec-4fc9-b343-51b05b12792a` 确认主机、Collector、Kafka、Flink、Doris 和 Spring API 探测成功，结论为“K线主链路当前正在推进”。
 - 现场排查发现当前 Spring API 源码实际暴露 `/api/kline/{symbol}`，旧 `/api/kline/latest` 会被路由解释为 `symbol=latest` 并返回空数组；已修正 DataSentry Spring API 探针为固定只读 `/api/kline/BTCUSDT?interval=1min&limit=1`。
 - 修正后再次复跑真实巡检，Inspection `c3e4cee7-0f2b-4fbc-b564-8a7e8fe3fd5f` 中 `api_read_probe.status` 为 `ok`，Doris `kline_1min` 新鲜度约 50 秒。
+- 按用户授权在可丢弃云实例上轮换 MySQL `root` 与 Redis `default` 密码；MySQL 无密码 root 已拒绝，Redis 无密码返回 `NOAUTH`，带新密码返回 `PONG`，业务表 `risk_rules=5`、`whale_thresholds=7`。
+- 云端 StreamLake 作业源码已改为从环境变量读取 MySQL/Redis 密码，并通过 root-only `/root/.streamlake-secrets` 注入运行环境；`job-whale-cep` 和 `job-risk-control` 模块 Maven 构建通过并重启运行。
+- 改密后现场检查确认 `streamlake-kline-aggregation`、`streamlake-whale-cep`、`streamlake-risk-control` 均为 RUNNING，Collector 进程存在，Doris `kline_1min` 新鲜度约几十秒，Spring API 固定 K 线查询返回 1 条。
+- 真实巡检发现 Flink REST 同名历史 CANCELED 作业会干扰当前状态选择；DataSentry 已新增回归测试并修正为优先选择 RUNNING 作业，提交 `abc671f fix: 修正Flink同名作业状态选择` 已推送到 DataSentry `main`。
+- StreamLake-Binance 改密源码提交 `3fdf9bb fix: 从环境变量读取作业密码` 已推送到 `feature/frontend-realtime-dashboard`，随后用户将该分支合并到 GitHub `main`，merge commit 为 `9123d01`。
+- 云端 `/opt/StreamLake-Binance` 已从 `feature/frontend-realtime-dashboard` 切换到 `main` 并同步 `origin/main`；`frontend/package-lock.json` 的现场差异已保存到 `stash@{0}`，两个改密回滚 `.bak` 文件已移出仓库到 `/root/streamlake-local-backups/20260630-password-rotation/`。
+- 后续 StreamLake 开发约定为本地开发验证、GitHub 合并、云端只拉取部署；云端不再作为开发工作区，真实秘密继续放在 `/root/.streamlake-secrets`，不进入 Git。
