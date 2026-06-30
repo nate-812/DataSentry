@@ -285,3 +285,10 @@
 - 本地 FastAPI M5 Alertmanager fixture smoke 通过：`POST /api/alertmanager/webhook` 返回 200 并创建 Incident `4d0261d3-8108-4ae9-8183-154f4f18ef00`，Incident 详情、时间线、相似事件、RCA 生成和 Markdown 导出接口均返回 200；仅保留 FastAPI TestClient 上游弃用 warning。
 - 运行事实补查确认 Flink REST 当前生效配置包括 RocksDB state backend、30s checkpoint、保留 3 个 checkpoint、`RETAIN_ON_CANCELLATION`、JM/TM bind-host 为 `0.0.0.0`；Doris 为 data1 FE + data2/data3 BE，`kline_1min` 为 `UNIQUE KEY(symbol, open_time)`、8 bucket、单副本、merge-on-write。Flink `/jobmanager/config` 会返回 OSS access key id 且仅掩码 secret，公网可读状态需视为安全风险。
 - 本地 M7 有限自治 API smoke 通过：`mock.restart_preview` 启用 shadow 后执行返回 `shadowed` 并记录自治 run；关闭 shadow 后因当前 UTC 时间超出默认维护窗口返回 `escalated`/`policy.maintenance_window_missed`，未创建 Operation，符合维护窗口拦截预期。
+- 用户确认新实例 `data1` 公网 IP `8.216.92.30` 的新 SSH host key 后，本机 DataSentry 专用 known_hosts 已加入该 IP；SSH 不再使用 `data1` 主机名，避免本机代理拦截。data1 可通过内网免密转接 data2/data3。
+- 已在 data1 创建 OS 用户 `datasentry-readonly`，仅属于自身用户组、无 sudoers 文件、密码登录已锁定，并复用当前巡检公钥；该用户可执行主机基础只读命令和 Kafka `data1:9092` Topic 只读查询。
+- 已创建并验证 MySQL、Redis 和 Doris 的 `datasentry_readonly` 只读账号；本地 ignored `config/targets.toml` 已临时切换到公网 IP、`datasentry-readonly` 和三个 `datasentry_readonly` 数据账号。使用这些只读身份执行 DataSentry K 线巡检，Inspection `b856a02e-9061-4b76-a2a2-b4a6fec97616` 完成且结论为“K线主链路当前正在推进”。
+- Redis `datasentry_readonly` ACL 已限制为巡检所需读命令和 `risk:blacklist:*` 范围，并通过 `CONFIG REWRITE` 持久化；MySQL `datasentry_readonly` 仅授予 `risk_control.*` 的 `SELECT, SHOW VIEW`；Doris `datasentry_readonly` 仅授予 `streamlake.*` 的 `SELECT_PRIV`。
+- Doris root 改密暂缓：Flink 三个 Job 源码默认 Doris `root` 空密码，运行中 sink 重连可能受影响；`job.sh` 会加载 `/root/.streamlake-secrets`，但 `spring.sh` 和 `ai.sh` 当前未 source 该文件。Doris root 改密需与 DORIS 环境变量注入、Spring/AI 脚本修正和 Flink Job 维护窗口重启一起执行。
+- 本机未安装或未配置云厂商 CLI（`aliyun`/`aws`/`gcloud`/`az` 均不可用），因此本次未直接修改云安全组；公网端口暴露风险仍需在云控制台或配置好 CLI 后收口。
+- 已确认旧改密备份未被 `/root/bin` 或 StreamLake 仓库引用，并删除 `/root/bin/job.sh.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/RiskControlJob.java.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/WhaleCepJob.java.bak-20260630-password-rotation`；复查无剩余旧改密备份文件。
