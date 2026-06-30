@@ -60,7 +60,7 @@ Collector进程与日志
 → Source/Window/Sink Vertex状态
 → Checkpoint与反压
 → Doris kline_1min最新open_time
-→ API /api/kline/latest
+→ API /api/kline/{symbol}
 ```
 
 ## 4. WhaleCepJob

@@ -44,6 +44,7 @@ class ApiHealthTool:
     """执行固定健康端点和最小只读业务探针。"""
 
     name = ToolName.GET_API_HEALTH
+    spring_kline_probe_path = "/api/kline/BTCUSDT?interval=1min&limit=1"
 
     def __init__(
         self,
@@ -80,7 +81,7 @@ class ApiHealthTool:
     def _spring(self, inspection_id: str, target: str) -> list[Observation]:
         health = _object(self._transport.get_json(target, "/actuator/health"))
         state = "RUNNING" if str(health.get("status", "")).upper() == "UP" else "FAILED"
-        probe_status = _probe_status(self._transport.get_json(target, "/api/kline/latest"))
+        probe_status = _probe_status(self._transport.get_json(target, self.spring_kline_probe_path))
         return [
             self._observation(
                 inspection_id,

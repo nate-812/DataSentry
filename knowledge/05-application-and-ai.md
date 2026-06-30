@@ -28,7 +28,8 @@ API职责：
 2026-06-25观察到：
 
 - `/actuator/health`返回`UP`。
-- `/api/kline/latest`可查询并随业务时间推进。
+- 2026-06-30复测确认真实 K 线查询接口为`/api/kline/{symbol}?interval=1min&limit=...`。
+- `/api/kline/latest`在当前 Spring 路由中会被解释为`symbol=latest`，不能作为 K 线新鲜度探针。
 
 ## 2. AI Engine
 

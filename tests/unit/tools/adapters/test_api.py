@@ -13,8 +13,10 @@ FIXTURES = Path(__file__).resolve().parents[3] / "fixtures/contracts/api"
 class FixtureTransport:
     def __init__(self, *, spring_probe_filename: str = "spring_kline_latest.json") -> None:
         self._spring_probe_filename = spring_probe_filename
+        self.requested_paths: list[tuple[str, str]] = []
 
     def get_json(self, target: str, path: str) -> JsonValue:
+        self.requested_paths.append((target, path))
         if target == "spring_api" and path == "/actuator/health":
             filename = "spring_health.json"
         elif target == "spring_api":
@@ -29,12 +31,17 @@ def _fact(observations: list, metric: str):
 
 
 def test_spring_health_includes_process_and_read_probe() -> None:
-    observations = ApiHealthTool(FixtureTransport(), clock=lambda: NOW).execute(
+    transport = FixtureTransport()
+    observations = ApiHealthTool(transport, clock=lambda: NOW).execute(
         inspection_id="inspection-1",
         target="spring_api",
         arguments={"service": "spring_api"},
     )
 
+    assert transport.requested_paths == [
+        ("spring_api", "/actuator/health"),
+        ("spring_api", "/api/kline/BTCUSDT?interval=1min&limit=1"),
+    ]
     assert _fact(observations, "service_state").value == {"state": "RUNNING"}
     assert _fact(observations, "api_read_probe").value == {
         "status": "ok",

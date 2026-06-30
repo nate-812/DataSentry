@@ -53,7 +53,7 @@ def build_streamlake_lineage() -> LineageGraph:
             "api.kline.latest",
             LineageNodeKind.API,
             "spring_api",
-            "/api/kline/latest",
+            "/api/kline/{symbol}",
         ),
     )
     edges = (
