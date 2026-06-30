@@ -20,6 +20,13 @@ JOB_FACTS = {
     "whale": "whale_job_state",
     "risk": "risk_job_state",
 }
+ACTIVE_JOB_STATES = {
+    "CREATED",
+    "SCHEDULED",
+    "DEPLOYING",
+    "INITIALIZING",
+    "RECONCILING",
+}
 
 
 class JsonHttpTransport(Protocol):
@@ -55,6 +62,33 @@ def _milliseconds_to_datetime(value: JsonValue) -> datetime | None:
     return datetime.fromtimestamp(value / 1000, tz=UTC)
 
 
+def _job_timestamp(job: dict[str, JsonValue]) -> int:
+    for field in ("start-time", "startTime", "last-modification", "lastModification"):
+        value = job.get(field)
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+    return 0
+
+
+def _job_state_rank(job: dict[str, JsonValue]) -> int:
+    state = job.get("state")
+    if state == "RUNNING":
+        return 0
+    if state in ACTIVE_JOB_STATES:
+        return 1
+    return 2
+
+
+def _select_preferred_job(
+    jobs: list[dict[str, JsonValue]],
+    expected_name: str,
+) -> dict[str, JsonValue] | None:
+    candidates = [item for item in jobs if item.get("name") == expected_name]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda job: (_job_state_rank(job), -_job_timestamp(job)))
+
+
 def _backpressure_level(value: dict[str, JsonValue]) -> JsonValue:
     return value.get("backpressure-level", value.get("backpressureLevel", "unknown"))
 
@@ -82,10 +116,7 @@ class _FlinkTool:
                 message="Flink Job 参数无效",
             ) from error
         expected_name = JOB_NAMES[alias]
-        job = next(
-            (item for item in self._jobs(target) if item.get("name") == expected_name),
-            None,
-        )
+        job = _select_preferred_job(self._jobs(target), expected_name)
         if job is None or not isinstance(job.get("jid"), str):
             raise ToolError(
                 code="tool.upstream_error",
@@ -128,10 +159,9 @@ class FlinkJobsTool(_FlinkTool):
                 message="Flink Job 列表工具不接受参数",
             )
         jobs = self._jobs(target)
-        by_name = {item.get("name"): item for item in jobs}
         observations: list[Observation] = []
         for alias, expected_name in JOB_NAMES.items():
-            job = by_name.get(expected_name)
+            job = _select_preferred_job(jobs, expected_name)
             value: JsonValue
             if job is None:
                 value = {

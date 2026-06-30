@@ -9,6 +9,7 @@ from datasentry.tools.adapters.flink import (
     FlinkBackpressureTool,
     FlinkCheckpointsTool,
     FlinkJobsTool,
+    FlinkJobTool,
 )
 
 NOW = datetime(2026, 6, 25, 12, 0, tzinfo=UTC)
@@ -30,6 +31,71 @@ class FixtureHttpTransport:
         else:
             filename = "job_details.json"
         return json.loads((FIXTURES / filename).read_text(encoding="utf-8"))
+
+
+class DuplicateJobHttpTransport:
+    def get_json(self, target: str, path: str) -> JsonValue:
+        del target
+        if path == "/jobs/overview":
+            return {
+                "jobs": [
+                    {
+                        "jid": "old-whale-job-id",
+                        "name": "streamlake-whale-cep",
+                        "state": "CANCELED",
+                        "start-time": 1_772_302_000_000,
+                    },
+                    {
+                        "jid": "new-whale-job-id",
+                        "name": "streamlake-whale-cep",
+                        "state": "RUNNING",
+                        "start-time": 1_772_303_000_000,
+                    },
+                    {
+                        "jid": "kline-job-id",
+                        "name": "streamlake-kline-aggregation",
+                        "state": "RUNNING",
+                        "start-time": 1_772_301_000_000,
+                    },
+                ]
+            }
+        if path == "/jobs/new-whale-job-id":
+            return {
+                "jid": "new-whale-job-id",
+                "name": "streamlake-whale-cep",
+                "state": "RUNNING",
+                "vertices": [],
+            }
+        raise AssertionError(f"unexpected path: {path}")
+
+
+class DuplicateJobListHttpTransport:
+    def get_json(self, target: str, path: str) -> JsonValue:
+        del target
+        if path == "/jobs/overview":
+            return {
+                "jobs": [
+                    {
+                        "jid": "new-whale-job-id",
+                        "name": "streamlake-whale-cep",
+                        "state": "RUNNING",
+                        "start-time": 1_772_303_000_000,
+                    },
+                    {
+                        "jid": "old-whale-job-id",
+                        "name": "streamlake-whale-cep",
+                        "state": "CANCELED",
+                        "start-time": 1_772_302_000_000,
+                    },
+                    {
+                        "jid": "kline-job-id",
+                        "name": "streamlake-kline-aggregation",
+                        "state": "RUNNING",
+                        "start-time": 1_772_301_000_000,
+                    },
+                ]
+            }
+        raise AssertionError(f"unexpected path: {path}")
 
 
 def _fact(observations: list, metric: str):
@@ -56,6 +122,29 @@ def test_get_flink_jobs_maps_known_jobs_and_missing_job() -> None:
         "job_name": "streamlake-risk-control",
         "state": "MISSING",
     }
+
+
+def test_get_flink_jobs_prefers_running_job_when_history_contains_same_name() -> None:
+    observations = FlinkJobsTool(
+        DuplicateJobListHttpTransport(),
+        clock=lambda: NOW,
+    ).execute(inspection_id="inspection-1", target="flink", arguments={})
+
+    assert _fact(observations, "whale_job_state").value == {
+        "job_id": "new-whale-job-id",
+        "job_name": "streamlake-whale-cep",
+        "state": "RUNNING",
+    }
+
+
+def test_get_flink_job_prefers_running_job_when_history_contains_same_name() -> None:
+    observations = FlinkJobTool(DuplicateJobHttpTransport(), clock=lambda: NOW).execute(
+        inspection_id="inspection-1",
+        target="flink",
+        arguments={"job": "whale"},
+    )
+
+    assert _fact(observations, "whale_job_details").value["job_id"] == "new-whale-job-id"
 
 
 def test_get_flink_checkpoints_maps_m1_failure_fact() -> None:
