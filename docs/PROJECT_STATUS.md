@@ -8,9 +8,9 @@
 |---|---|
 | 总体状态 | M7 有限自治本地控制层已完成阶段性实现 |
 | 当前阶段 | M7：有限自治本地 mock/shadow 闭环已实现 |
-| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；StreamLake Git 合并与上一实例云端 smoke 已收尾；用户已将该云端实例打镜像并释放，当前无在线云端进程 |
-| 下一里程碑 | 新会话从本地/GitHub `main` 作为事实来源继续开发；如需继续云端验证，先从镜像新建实例、更新公网 IP 映射，再只读 smoke |
-| 生产权限 | 上一可丢弃实例曾执行固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；当前实例已释放，不存在可操作云端；生产方案仍必须使用专用只读用户，写操作未实现 |
+| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；StreamLake Git 合并、只读账号与云端只读 smoke 已阶段性收尾 |
+| 下一里程碑 | 从本地/GitHub `main` 作为代码事实来源继续开发；云端验证按需通过 `sshdata1` 和只读账号现场确认后执行 |
+| 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
 | 最近状态更新时间 | 2026-07-01 |
@@ -39,7 +39,7 @@
 ## 正在进行
 
 - M7 有限自治本地控制层已实现；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
-- M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行，因开发验证不要求打开云实例。
+- M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 - 2026-06-30 已在可丢弃云实例上复跑 K 线真实只读巡检：主机、Collector、Kafka、Flink、Doris 和 Spring API 探测均成功；确认真实 Spring K 线接口为 `/api/kline/{symbol}?interval=1min&limit=...`，DataSentry 探针已从旧 `/api/kline/latest` 修正。
 - 2026-06-30 已按用户授权在可丢弃云实例上轮换 MySQL `root` 与 Redis `default` 密码，并通过 root-only `/root/.streamlake-secrets` 注入 StreamLake 作业运行环境；仓库文档和配置不保存真实密码。
@@ -48,16 +48,15 @@
 - StreamLake-Binance `feature/frontend-realtime-dashboard` 已合并到 GitHub `main`，merge commit 为 `9123d01`；其中改密源码提交为 `3fdf9bb`，只包含 Flink job 从环境变量读取 MySQL/Redis 密码的源码改动。
 - 云端 `/opt/StreamLake-Binance` 已切换并同步到 `main...origin/main`；改密回滚备份已移出 Git 仓库到 `/root/streamlake-local-backups/20260630-password-rotation/`，云端只剩 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 三类未跟踪现场运行文件。
 - 2026-06-30 已将云端 `/opt/StreamLake-Binance` fast-forward 到 GitHub `main` 的 `8033d63`，未重启服务；`ops/bin` 与 `ops/checks` 只读 smoke 通过，三条 Flink Job、Spring API、AI Engine、Kafka Topic、Redis 黑名单、MySQL 风控规则和 Doris freshness 均可查询。
-- 2026-07-01 用户说明：上一云端实例已打镜像并释放，当前没有任何云端进程运行；2026-06-30 的云端 smoke 仅作为历史验收证据，不能再当作当前在线状态。
 
 ## 下一步
 
-1. 新会话继续项目时，以本地/GitHub `main` 为事实来源；新改动使用新分支，本地开发验证后推送 GitHub，再由云端只执行部署拉取。
-2. 视需要创建 M7 PR，并在后续只读 smoke、测试环境和维护窗口中收集低风险 Runbook 人工审批执行样本。
-3. 如需要，先从镜像新建云实例并更新 `data1` 公网 IP 映射，再执行 Alertmanager fixture 或真实 Alertmanager 到 DataSentry API 的只读 smoke；不做任何生产写操作。
-4. 在具备 macOS 自动化窗口调整权限的环境补跑 M4/M5 移动宽度截图 QA。
-5. 人工复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；确认云端 root-only 改密备份文件无需回滚后可删除。
-6. 如果页面仍显示 K 线不更新，优先检查前端是否调用 `/api/kline/{symbol}?interval=1min&limit=...`，以及页面缓存、轮询和 symbol 选择；2026-06-30 现场证据显示 Collector → Kafka → Flink → Doris → Spring API 主链路正在推进。
+1. 先在本地 `main` 跑一次 DataSentry 基线验证；新改动使用新分支，本地验证后推送 GitHub，云端只执行拉取和部署验证。
+2. 通过 `sshdata1` 做只读现场确认：主机、Collector、Kafka、Flink、Doris、Redis、MySQL、Spring API 和 AI Engine；只使用固定白名单命令和专用只读账号。
+3. 补跑真实 Alertmanager → DataSentry API smoke，确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路在现场环境可闭合。
+4. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+5. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志。
+6. 收集 M7 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
 
 ## 阻塞与风险
 
@@ -68,8 +67,7 @@
 ### 已知风险
 
 - M3 合并后尚未进行真实部署验收；当前仅确认仓库内实现、PR checks 和本地验证。
-- 上一云端实例已释放，当前无在线进程；任何 `data1` 公网 IP、SSH host key、云端 smoke 和进程状态都需要在新实例创建后重新确认。
-- 上一实例 SSH 使用 root 仅因用户确认实例可丢弃；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
+- 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
 - 云端 `/root/bin` 和 StreamLake 作业源码的改密前备份文件仅 root 可读，短期用于回滚；其中仓库内 `.bak` 文件已移到 `/root/streamlake-local-backups/20260630-password-rotation/`，确认运行稳定后应删除这些包含旧默认密码的备份。
 - 云端 StreamLake 仓库已同步到 `main`，但 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 仍是未跟踪现场运行文件；后续应迁移到仓库外运行目录或明确纳入 `.gitignore`，避免云端工作区再次变脏。
@@ -77,7 +75,7 @@
 - Kafka 真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 - StreamLake 云端 smoke 发现 Doris freshness 延迟榜中个别交易对存在数十分钟延迟，最高样本为 `IMXUSDT` 约 69 分钟；需后续确认是否与风控黑名单、源数据活跃度或作业处理有关。
 - M3 目前只完成仓库内模板和本地模拟，尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
-- M5 已通过本地自动化验证，但尚未在云实例上执行真实 Alertmanager → DataSentry API smoke。
+- M5 已通过本地自动化验证，但尚未执行真实 Alertmanager → DataSentry API smoke。
 
 ## 已确认的关键决策
 
@@ -299,7 +297,3 @@
 - Doris root 改密暂缓：Flink 三个 Job 源码默认 Doris `root` 空密码，运行中 sink 重连可能受影响；`job.sh` 会加载 `/root/.streamlake-secrets`，但 `spring.sh` 和 `ai.sh` 当前未 source 该文件。Doris root 改密需与 DORIS 环境变量注入、Spring/AI 脚本修正和 Flink Job 维护窗口重启一起执行。
 - 本机未安装或未配置云厂商 CLI（`aliyun`/`aws`/`gcloud`/`az` 均不可用），因此本次未直接修改云安全组；公网端口暴露风险仍需在云控制台或配置好 CLI 后收口。
 - 已确认旧改密备份未被 `/root/bin` 或 StreamLake 仓库引用，并删除 `/root/bin/job.sh.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/RiskControlJob.java.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/WhaleCepJob.java.bak-20260630-password-rotation`；复查无剩余旧改密备份文件。
-
-### 2026-07-01
-
-- 用户说明上一云端实例已在 2026-06-30 smoke 后打镜像并释放；当前没有任何云端进程运行，后续云端验证必须从新实例、公网 IP、SSH host key 和只读账号连通性重新开始。
