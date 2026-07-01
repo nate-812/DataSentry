@@ -119,21 +119,25 @@ class KlineStalledAtFlinkRule:
                 created_at=context.created_at,
             )
         if (
-            kafka is not None
-            and kafka.value is True
-            and state == "RUNNING"
+            state == "RUNNING"
             and isinstance(freshness, (int, float))
             and not isinstance(freshness, bool)
             and freshness < 300
         ):
-            evidence = [
-                evidence_from_observation(kafka, claim="Kafka 原始 Topic 当前仍在推进"),
-                evidence_from_observation(flink, claim="Kline Job 当前正常运行"),
-                evidence_from_observation(
-                    doris,
-                    claim="Doris kline_1min 数据新鲜度正常",
-                ),
-            ]
+            evidence = []
+            if kafka is not None and kafka.value is True:
+                evidence.append(
+                    evidence_from_observation(kafka, claim="Kafka 原始 Topic 当前仍在推进")
+                )
+            evidence.extend(
+                [
+                    evidence_from_observation(flink, claim="Kline Job 当前正常运行"),
+                    evidence_from_observation(
+                        doris,
+                        claim="Doris kline_1min 数据新鲜度正常",
+                    ),
+                ]
+            )
             status = _finding_status(
                 evidence,
                 current_status=EvidenceStatus.CONFIRMED,

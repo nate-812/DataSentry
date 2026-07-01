@@ -39,7 +39,7 @@
 ## 正在进行
 
 - M7 有限自治本地控制层已实现；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
-- M5 已合并到 `main`；真实云端 Alertmanager smoke 尚未执行。
+- M5 已合并到 `main`；真实 Alertmanager → DataSentry API smoke 已复跑通过，Incident 建档、时间线、RCA 和 Markdown export 链路已闭合。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 - 2026-06-30 已在可丢弃云实例上复跑 K 线真实只读巡检：主机、Collector、Kafka、Flink、Doris 和 Spring API 探测均成功；确认真实 Spring K 线接口为 `/api/kline/{symbol}?interval=1min&limit=...`，DataSentry 探针已从旧 `/api/kline/latest` 修正。
 - 2026-06-30 已按用户授权在可丢弃云实例上轮换 MySQL `root` 与 Redis `default` 密码，并通过 root-only `/root/.streamlake-secrets` 注入 StreamLake 作业运行环境；仓库文档和配置不保存真实密码。
@@ -55,6 +55,8 @@
 - 2026-07-01 用户创建 `streamlake_writer` 并重新提交 Flink Job 后复查确认：`streamlake-kline-aggregation`、`streamlake-whale-cep` 和 `streamlake-risk-control` 均为 `RUNNING`，三个当前 Job 异常计数均为 0；旧 RESTARTING 作业已取消。Collector 为 active，Kafka Topic 可列出，Spring API 与 AI Engine 健康检查通过。
 - 2026-07-01 Doris 现场只读复查显示 `kline_1min` 与 `risk_trigger` 正在刷新，Spring API 固定 K 线查询可返回 BTCUSDT 最新样本；`whale_alert` 与 `ai_diagnosis` 的最新时间较旧，可能与事件触发条件或 AI 诊断链路有关，需后续单独确认。
 - 2026-07-01 DataSentry 真实只读巡检完成，Inspection `e028933e-16a2-4b95-a63a-01c5877d0246` 结论为“K线主链路当前正在推进”；主机、Collector、Kafka、Flink、Doris 和 Spring API 固定工具均成功，Kline checkpoint 连续失败 0、backpressure 为 ok、Kafka `binance.trade.raw` offset 正在推进、Doris `kline_1min` freshness 约 45 秒、API 固定读探针返回 ok。
+- 2026-07-01 Alertmanager → DataSentry API live smoke 首次完成 HTTP 闭环：`POST /api/alertmanager/webhook` 返回 200 并创建 Incident `15ed14ae-d2cb-4d24-8403-d0f81d2161d8`，Incident 详情、timeline、similar、RCA 和 Markdown export 均返回 200。该轮同时暴露 Kline 规则过度依赖 Kafka 短窗口 offset 推进：当 Flink RUNNING 且 Doris freshness 正常、但 Kafka 采样窗口未推进时，Finding 被误判为 unknown；已补充回归测试并修复规则。
+- 2026-07-01 修复后复跑 Alertmanager → DataSentry API live smoke 通过：`POST /api/alertmanager/webhook` 返回 200 并创建 Incident `b6dae561-9089-4f1d-aac2-6b88aa7c6afe`，Incident links 与 timeline 均包含“K线主链路当前正在推进”，RCA v1 与 Markdown export 返回 200 且包含该证据。
 
 ## 下一步
 
@@ -62,7 +64,7 @@
 2. 通过 `sshdata1` 做只读现场确认：主机、Collector、Kafka、Flink、Doris、Redis、MySQL、Spring API 和 AI Engine；只使用固定白名单命令和专用只读账号。
 3. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag 和 Collector 重连频率。
 4. 保留 DataSentry 真实只读巡检作为现场回归手段；后续复跑时重点观察 Flink checkpoint、Kafka offset、Doris freshness、Spring API 固定读探针和 AI 诊断链路。
-5. 补跑真实 Alertmanager → DataSentry API smoke，确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路在现场环境可闭合。
+5. 保留真实 Alertmanager → DataSentry API smoke 作为后续告警闭环回归；新增告警规则或 RCA 行为变化时需确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路。
 6. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 收集 M7 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
@@ -86,7 +88,7 @@
 - Kafka 真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 - StreamLake 云端 smoke 发现 Doris freshness 延迟榜中个别交易对存在数十分钟延迟，最高样本为 `IMXUSDT` 约 69 分钟；需后续确认是否与风控黑名单、源数据活跃度或作业处理有关。
 - M3 目前只完成仓库内模板和本地模拟，尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
-- M5 已通过本地自动化验证，但尚未执行真实 Alertmanager → DataSentry API smoke。
+- M5 已通过本地自动化验证；真实 Alertmanager → DataSentry API smoke 的 HTTP/RCA/export 闭环已复跑通过，Kline 诊断结论已不再被 Kafka 短窗口空闲采样误判为 unknown。
 
 ## 已确认的关键决策
 
