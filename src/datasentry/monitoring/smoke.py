@@ -10,6 +10,7 @@ from datasentry.monitoring.config import MonitoringEndpoints
 from datasentry.redaction import redact_text
 
 AlertSmokeStatus = Literal["passed", "failed"]
+DEFAULT_ALERT_SMOKE_TIMEOUT_SECONDS = 60.0
 
 
 class HttpSmokeResponse(DomainModel):
@@ -38,7 +39,7 @@ class HttpSmokeClient(Protocol):
 class HttpxSmokeClient:
     """基于 httpx 的真实 DataSentry API smoke client。"""
 
-    def __init__(self, *, timeout_seconds: float = 10.0) -> None:
+    def __init__(self, *, timeout_seconds: float = DEFAULT_ALERT_SMOKE_TIMEOUT_SECONDS) -> None:
         self._timeout_seconds = timeout_seconds
 
     def get(self, url: str) -> HttpSmokeResponse:

@@ -129,3 +129,31 @@ def test_deployment_check_fails_when_alertmanager_route_is_missing() -> None:
     assert report.status == "failed"
     assert route_check.status == "failed"
     assert route_check.summary == "Alertmanager 未配置 DataSentry Webhook 路由"
+
+
+def test_deployment_check_accepts_alertmanager_status_with_redacted_webhook_url() -> None:
+    responses = _successful_responses()
+    responses["http://alertmanager.example:9093/api/v2/status"] = HttpProbeResponse(
+        status_code=200,
+        json_body={
+            "config": {
+                "original": (
+                    "route:\n"
+                    "  receiver: datasentry-webhook\n"
+                    "receivers:\n"
+                    "- name: datasentry-webhook\n"
+                    "  webhook_configs:\n"
+                    "  - url: <secret>\n"
+                )
+            }
+        },
+    )
+
+    report = run_monitoring_deployment_check(
+        endpoints=_endpoints(),
+        client=FakeProbeClient(responses),
+    )
+
+    route_check = report.check_by_name("alertmanager_datasentry_route")
+    assert report.status == "passed"
+    assert route_check.status == "passed"

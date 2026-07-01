@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M8 监控部署闭环本地实现已补齐 |
+| 总体状态 | M8 监控部署闭环已完成云端首轮部署验收 |
 | 当前阶段 | M8：Prometheus/Grafana/Alertmanager 只读部署验收 + DataSentry 告警诊断闭环 smoke |
-| 当前工作 | 已增加 `datasentry monitoring deployment-check` 与 `datasentry monitoring alert-smoke`，可验证监控栈关键规则/路由和 Alertmanager → Incident/RCA/export 闭环；本轮现场只读探测显示实例当前未监听 Prometheus 9090/Grafana 3000，且未发现 Prometheus/Grafana/Alertmanager 进程 |
-| 下一里程碑 | 部署或确认 Prometheus/Grafana/Alertmanager 后复跑 M8 deployment-check 与 alert-smoke，保存本地证据文件但不提交真实地址、Token 或 secret |
+| 当前工作 | 已在 `data1:/opt/datasentry-monitoring` 通过 Docker Compose 部署 Prometheus、Grafana 和 Alertmanager；端口仅绑定云端 `127.0.0.1`，本地通过 SSH tunnel 完成 `deployment-check` 和 `alert-smoke` 验收 |
+| 下一里程碑 | 后续按需通过 SSH tunnel 查看 Grafana；若要让真实 Alertmanager 自动回调 DataSentry，需要部署云端 DataSentry API 或配置受控反向通道 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -41,8 +41,9 @@
 
 ## 正在进行
 
-- M8 监控部署闭环本地实现已补齐；首版仍保持 Mock/本地受控执行器和只读验收边界，真实生产写操作不在本地开发范围内。
-- 2026-07-01 M8 现场只读尝试显示：data1 未监听 Prometheus 9090 和 Grafana 3000，`pgrep -af prometheus/grafana/alertmanager` 均无结果；`datasentry monitoring deployment-check` 已返回结构化 failed 报告。
+- M8 监控部署闭环已完成云端首轮部署验收；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
+- 2026-07-01 M8 `deployment-check` 通过：Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
+- 2026-07-01 M8 `alert-smoke` 通过：本地 DataSentry API 使用 `var/datasentry-m8-smoke.db` 和 mock LLM，创建 Incident `692dd440-0b6b-452d-b0f1-0763d1b5cb60`，Incident detail、timeline、RCA 和 Markdown export 均返回 200。
 - M5 已合并到 `main`；真实 Alertmanager → DataSentry API smoke 已复跑通过，Incident 建档、时间线、RCA 和 Markdown export 链路已闭合。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 - 2026-06-30 已在可丢弃云实例上复跑 K 线真实只读巡检：主机、Collector、Kafka、Flink、Doris 和 Spring API 探测均成功；确认真实 Spring K 线接口为 `/api/kline/{symbol}?interval=1min&limit=...`，DataSentry 探针已从旧 `/api/kline/latest` 修正。
@@ -77,7 +78,7 @@
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
 9. 后续真实只读巡检若在本地运行，应先执行 `datasentry ops preflight`，再使用一次性环境变量或安全 secret 注入方式补齐 Doris/MySQL/Redis 密码，禁止将真实密码写入仓库文件或提交历史。
-10. 真实监控栈启动后，复制 `config/monitoring.example.toml` 为 ignored `config/monitoring.toml`，运行 `datasentry monitoring deployment-check` 与 `datasentry monitoring alert-smoke`，仅保存本地证据，不提交真实地址或内部响应。
+10. 后续查看 Grafana 时通过 SSH tunnel 访问云端 `127.0.0.1:3000`；不要把 Grafana、Prometheus 或 Alertmanager 直接暴露到公网。Grafana admin 密码存放在云端 root-only `/root/.datasentry-monitoring-secrets`，不要打印或提交。
 
 ## 阻塞与风险
 
@@ -87,7 +88,7 @@
 
 ### 已知风险
 
-- M8 工具已可执行监控栈只读部署验收，但真实 Prometheus/Grafana/Alertmanager 现场验收结果尚未写入项目状态；当前不能把本地模板验证当作真实监控栈在线事实。
+- 监控栈已完成首轮部署验收，但 Alertmanager 配置中的 DataSentry Webhook 当前指向预留云端端口 `host.docker.internal:18000`；若要接收真实告警，需要部署云端 DataSentry API 或建立受控反向通道。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
 - StreamLake 主链路已恢复并通过一次 DataSentry 真实只读巡检，但仍需持续观察 checkpoint、重启次数、Kafka lag、Doris freshness、Collector 重连频率和 AI 诊断链路；历史 smoke 不能替代后续现场状态。
@@ -335,4 +336,7 @@
 - M7.1 本地验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 338 个测试通过，覆盖率 91.39%，仅保留 FastAPI TestClient 上游弃用 warning。
 - 启动并完成 M8 本地实现：新增监控端点配置示例、Prometheus/Grafana/Alertmanager 只读部署验收、DataSentry Alertmanager smoke、Alertmanager 示例路由修正和 M8 运维手册；真实监控栈现场验收待使用实例地址复跑后记录。
 - M8 现场只读尝试未通过：本机 HTTP 探测 `data1:9090/-/ready`、`data1:9093/-/ready` 和 `data1:3000/api/health` 均不可用；只读 SSH 固定 `ss -ltn` 未见 9090/3000，`pgrep -af prometheus/grafana/alertmanager` 均无结果。使用本地 ignored `config/monitoring.toml` 运行 `datasentry monitoring deployment-check` 返回结构化 failed 报告，未读取或提交 secret。
-- M8 自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 均通过；pytest 为 350 个测试通过，覆盖率 90.66%，仅保留 FastAPI TestClient 上游弃用 warning。
+- M8 自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%，仅保留 FastAPI TestClient 上游弃用 warning。
+- 经用户批准在 `data1:/opt/datasentry-monitoring` 部署 Prometheus、Grafana 和 Alertmanager Docker Compose 栈；Prometheus 映射云端 `127.0.0.1:9090`，Grafana 映射云端 `127.0.0.1:3000`，Alertmanager 因 Kafka 已占用 9093 改映射云端 `127.0.0.1:19093`。Grafana admin 密码已改为 root-only secret 文件注入，未打印或提交。
+- M8 云端部署验收通过：通过 SSH tunnel 运行 `datasentry monitoring deployment-check`，Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均为 passed。现场发现 Alertmanager 0.29 在 `/api/v2/status` 中会将 webhook URL 脱敏为 `<secret>`，已补充回归测试并改为兼容 receiver/route 名称识别。
+- M8 告警诊断闭环 smoke 通过：本地 DataSentry API 使用 `var/datasentry-m8-smoke.db`、`config/targets.example.toml` 和 mock LLM，`datasentry monitoring alert-smoke` 创建 Incident `692dd440-0b6b-452d-b0f1-0763d1b5cb60`，Webhook、Incident detail、timeline、RCA 和 Markdown export 全部返回 200。同步诊断耗时超过原 10 秒 smoke timeout，已将 M8 smoke 默认超时调整为 60 秒并补充测试。

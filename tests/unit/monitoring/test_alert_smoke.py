@@ -1,5 +1,5 @@
 from datasentry.monitoring import MonitoringEndpoints, run_alertmanager_smoke
-from datasentry.monitoring.smoke import HttpSmokeResponse
+from datasentry.monitoring.smoke import DEFAULT_ALERT_SMOKE_TIMEOUT_SECONDS, HttpSmokeResponse
 
 
 class FakeSmokeClient:
@@ -107,3 +107,7 @@ def test_alertmanager_smoke_fails_without_leaking_payload_on_webhook_error() -> 
     assert report.steps[0].status == "failed"
     assert report.steps[0].details["status_code"] == 500
     assert "secret-value" not in report.model_dump_json()
+
+
+def test_alertmanager_smoke_default_timeout_allows_live_diagnosis() -> None:
+    assert DEFAULT_ALERT_SMOKE_TIMEOUT_SECONDS == 60.0

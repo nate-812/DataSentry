@@ -179,7 +179,7 @@ def _check_alertmanager_route(
 ) -> MonitoringCheckResult:
     response = client.get(f"{endpoints.alertmanager_base_url}/api/v2/status")
     original_config = _alertmanager_original_config(response.json_body)
-    if response.ok and DATASENTRY_ALERTMANAGER_ROUTE in original_config:
+    if response.ok and _has_datasentry_alertmanager_route(original_config):
         return MonitoringCheckResult(
             name="alertmanager_datasentry_route",
             status="passed",
@@ -222,3 +222,11 @@ def _alertmanager_original_config(payload: Any) -> str:
         return ""
     original = config.get("original")
     return original if isinstance(original, str) else ""
+
+
+def _has_datasentry_alertmanager_route(original_config: str) -> bool:
+    return (
+        DATASENTRY_ALERTMANAGER_ROUTE in original_config
+        or "receiver: datasentry-webhook" in original_config
+        or "name: datasentry-webhook" in original_config
+    )
