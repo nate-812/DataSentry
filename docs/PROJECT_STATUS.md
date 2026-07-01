@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M7.1 有限自治本地控制面已补齐 |
 | 当前阶段 | M7.1：自治统计、熔断控制与 mock/shadow 控制台已实现 |
-| 当前工作 | M7.1 已补齐自治统计 API、熔断 half-open/reset API 和 React 控制台统计展示；M7.1 合并后现场只读回归已复跑，云端 Doris 业务账号已验证可读，本地 DataSentry 巡检仍需补齐 Doris secret 注入 |
+| 当前工作 | M7.1 已补齐自治统计 API、熔断 half-open/reset API 和 React 控制台统计展示；M7.1 合并后现场只读回归已复跑，Doris freshness 证据已通过一次性环境变量注入闭合 |
 | 下一里程碑 | 从本地/GitHub `main` 作为代码事实来源继续开发；云端验证按需通过 `sshdata1` 和只读账号现场确认后执行 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -60,6 +60,7 @@
 - 2026-07-01 修复后复跑 Alertmanager → DataSentry API live smoke 通过：`POST /api/alertmanager/webhook` 返回 200 并创建 Incident `b6dae561-9089-4f1d-aac2-6b88aa7c6afe`，Incident links 与 timeline 均包含“K线主链路当前正在推进”，RCA v1 与 Markdown export 返回 200 且包含该证据。
 - 2026-07-01 M7.1 合并后复跑 DataSentry 真实只读巡检，Inspection `76c1a923-1489-4f14-b9da-0da6135c0739` 完成：主机、Collector、Flink、Kafka 和 Spring API 固定工具均成功，Kline Job 为 RUNNING，checkpoint 连续失败 0，backpressure 为 ok，Kafka `binance.trade.raw` offset 正在推进，Spring API 固定读探针返回 ok；Doris `kline_1min` freshness 因本地 DataSentry 进程缺少数据库 secret 配置返回 `tool.configuration`，因此本轮结论仍为“K线链路中断位置尚未确认”。
 - 2026-07-01 已按云端事实复核 `/opt/StreamLake-Binance`：业务源码和运行进程使用 `DORIS_USER`/`DORIS_PASSWORD`，`/root/.streamlake-secrets` 中存在这两个变量；用云端 mysql 客户端和 `streamlake_writer` 账号执行只读 freshness 查询成功，`kline_1min` freshness 约 35 秒。DataSentry 本地巡检的缺口是本地 secret/目标配置注入，不是云端 Doris 链路不可用。
+- 2026-07-01 使用一次性进程环境从云端 root-only secret 注入 Doris 密码后复跑 DataSentry 真实只读巡检，Inspection `fb2b2c2f-85d5-446b-83d8-a9af858ae641` 完成且结论为“K线主链路当前正在推进”：主机、Collector、Flink、Kafka、Doris 和 Spring API 固定工具均成功，Doris `kline_1min` freshness 约 73 秒，未打印、落盘或提交真实密码。
 
 ## 下一步
 
@@ -71,7 +72,7 @@
 6. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
-9. 下次真实只读巡检前明确 DataSentry Doris 目标账号：优先继续使用 `datasentry_readonly` 并补齐本地 `DATASENTRY_DORIS_PASSWORD`；如临时改用业务 `streamlake_writer`/`DORIS_PASSWORD`，需先确认这只是只读 smoke 的临时选择，再复跑 Kline 巡检确认 Doris freshness 证据闭合。
+9. 后续真实只读巡检若在本地运行，应使用一次性环境变量或安全 secret 注入方式补齐 Doris 密码，禁止将真实密码写入仓库文件或提交历史。
 
 ## 阻塞与风险
 
