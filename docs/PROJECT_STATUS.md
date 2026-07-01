@@ -62,6 +62,7 @@
 - 2026-07-01 M7.1 合并后复跑 DataSentry 真实只读巡检，Inspection `76c1a923-1489-4f14-b9da-0da6135c0739` 完成：主机、Collector、Flink、Kafka 和 Spring API 固定工具均成功，Kline Job 为 RUNNING，checkpoint 连续失败 0，backpressure 为 ok，Kafka `binance.trade.raw` offset 正在推进，Spring API 固定读探针返回 ok；Doris `kline_1min` freshness 因本地 DataSentry 进程缺少数据库 secret 配置返回 `tool.configuration`，因此本轮结论仍为“K线链路中断位置尚未确认”。
 - 2026-07-01 已按云端事实复核 `/opt/StreamLake-Binance`：业务源码和运行进程使用 `DORIS_USER`/`DORIS_PASSWORD`，`/root/.streamlake-secrets` 中存在这两个变量；用云端 mysql 客户端和 `streamlake_writer` 账号执行只读 freshness 查询成功，`kline_1min` freshness 约 35 秒。DataSentry 本地巡检的缺口是本地 secret/目标配置注入，不是云端 Doris 链路不可用。
 - 2026-07-01 使用一次性进程环境从云端 root-only secret 注入 Doris 密码后复跑 DataSentry 真实只读巡检，Inspection `fb2b2c2f-85d5-446b-83d8-a9af858ae641` 完成且结论为“K线主链路当前正在推进”：主机、Collector、Flink、Kafka、Doris 和 Spring API 固定工具均成功，Doris `kline_1min` freshness 约 73 秒，未打印、落盘或提交真实密码。
+- 2026-07-01 M7.2 现场自检完成：`datasentry ops preflight` 正确提示本地进程缺少 `DATASENTRY_DORIS_PASSWORD`、`DATASENTRY_MYSQL_PASSWORD` 和 `DATASENTRY_REDIS_PASSWORD`；随后仅用一次性进程环境注入 Doris secret 复跑 K 线 live smoke，Inspection `da8c32d2-932c-43cf-a3a7-0de3f8674e52` 完成且结论为“K线主链路当前正在推进”。主机、Collector、Flink、Kafka、Doris 和 Spring API 固定工具均成功，Kline checkpoint 连续失败 0、backpressure 为 ok、Kafka `binance.trade.raw` offset 正在推进、Doris `kline_1min` freshness 约 55 秒、API 固定读探针返回 ok；未打印、落盘或提交真实密码。
 
 ## 下一步
 
