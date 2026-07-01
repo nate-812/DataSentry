@@ -48,15 +48,18 @@
 - StreamLake-Binance `feature/frontend-realtime-dashboard` 已合并到 GitHub `main`，merge commit 为 `9123d01`；其中改密源码提交为 `3fdf9bb`，只包含 Flink job 从环境变量读取 MySQL/Redis 密码的源码改动。
 - 云端 `/opt/StreamLake-Binance` 已切换并同步到 `main...origin/main`；改密回滚备份已移出 Git 仓库到 `/root/streamlake-local-backups/20260630-password-rotation/`，云端只剩 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 三类未跟踪现场运行文件。
 - 2026-06-30 已将云端 `/opt/StreamLake-Binance` fast-forward 到 GitHub `main` 的 `8033d63`，未重启服务；`ops/bin` 与 `ops/checks` 只读 smoke 通过，三条 Flink Job、Spring API、AI Engine、Kafka Topic、Redis 黑名单、MySQL 风控规则和 Doris freshness 均可查询。
+- 2026-07-01 现场只读复查确认：`data1` 可通过 `datasentry-readonly` 与 root SSH 登录；MySQL 与 Redis 正在运行且只读账号可查询；`RECOVER_YOUR_DATA_info` 表名当前未查到；Kafka、Flink、Doris、Spring API 和 AI Engine 当前未运行，`streamlake-collector` 因 Kafka `192.168.1.10:9092` 不可达而循环重启。
+- 2026-07-01 现场启动前置复查发现：`/root/.streamlake-secrets` 当前只有 MySQL 与 Redis 密码变量，缺少 `DORIS_PASSWORD`；但 `spring.sh` 与三个 Flink Job 启动脚本要求 Doris 密码变量，恢复主链路前需明确 Doris 账号与密码注入策略。
 
 ## 下一步
 
 1. 先在本地 `main` 跑一次 DataSentry 基线验证；新改动使用新分支，本地验证后推送 GitHub，云端只执行拉取和部署验证。
 2. 通过 `sshdata1` 做只读现场确认：主机、Collector、Kafka、Flink、Doris、Redis、MySQL、Spring API 和 AI Engine；只使用固定白名单命令和专用只读账号。
-3. 补跑真实 Alertmanager → DataSentry API smoke，确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路在现场环境可闭合。
-4. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
-5. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志。
-6. 收集 M7 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
+3. 经用户确认后按依赖顺序恢复 StreamLake 主链路：Kafka → Doris FE/BE → Flink 集群 → Spring API/AI Engine → 三个 Flink Job → Collector，并在每一步执行状态验证。
+4. 补跑真实 Alertmanager → DataSentry API smoke，确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路在现场环境可闭合。
+5. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+6. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
+7. 收集 M7 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
 
 ## 阻塞与风险
 
@@ -69,6 +72,8 @@
 - M3 合并后尚未进行真实部署验收；当前仅确认仓库内实现、PR checks 和本地验证。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
+- StreamLake 主链路当前未运行，需恢复 Kafka、Doris、Flink、Spring API、AI Engine、Flink Job 和 Collector 后再重新判定 K 线链路状态；历史 smoke 不能替代本次现场状态。
+- `/root/.streamlake-secrets` 缺少 `DORIS_PASSWORD`，而 Spring API 与 Flink Job 启动脚本要求该变量；在明确 Doris 账号策略前，不能直接声称应用与作业可按新安全模型恢复。
 - 云端 `/root/bin` 和 StreamLake 作业源码的改密前备份文件仅 root 可读，短期用于回滚；其中仓库内 `.bak` 文件已移到 `/root/streamlake-local-backups/20260630-password-rotation/`，确认运行稳定后应删除这些包含旧默认密码的备份。
 - 云端 StreamLake 仓库已同步到 `main`，但 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 仍是未跟踪现场运行文件；后续应迁移到仓库外运行目录或明确纳入 `.gitignore`，避免云端工作区再次变脏。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
