@@ -4,6 +4,7 @@ import pytest
 from pymysql.err import OperationalError as MySqlOperationalError
 from pymysql.err import ProgrammingError as MySqlProgrammingError
 
+from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
     EnvironmentSecretResolver,
@@ -179,6 +180,9 @@ def test_mysql_transport_reports_missing_secret_as_configuration(
         transport.fetch_all("mysql", ReadOnlyQuery.MYSQL_RISK_RULES, (20,))
 
     assert raised.value.code == "tool.configuration"
+    cause = raised.value.__cause__
+    assert isinstance(cause, ConfigurationError)
+    assert cause.details == {"environment_variable": "TEST_MYSQL_PASSWORD"}
     assert called is False
 
 

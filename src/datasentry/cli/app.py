@@ -45,6 +45,7 @@ from datasentry.notifications import (
     NotificationService,
     parse_alertmanager_payload,
 )
+from datasentry.ops import build_ops_preflight_report
 from datasentry.storage import InspectionAggregate, SQLiteRepository, upgrade_database
 from datasentry.tools import (
     LiveInspectionResult,
@@ -147,9 +148,15 @@ notification_app = typer.Typer(
     add_completion=False,
     cls=ChineseTyperGroup,
 )
+ops_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    cls=ChineseTyperGroup,
+)
 app.add_typer(db_app, name="db")
 app.add_typer(inspection_app, name="inspection")
 app.add_typer(notification_app, name="notification")
+app.add_typer(ops_app, name="ops")
 
 
 class NotificationOutputFormat(StrEnum):
@@ -474,6 +481,24 @@ def inspection_run(
             return _live_inspection_payload(service.run(question))
 
     _run_json(run)
+
+
+@ops_app.command("preflight", cls=ChineseTyperCommand)
+def ops_preflight(
+    targets_file: TargetsFileOption = None,
+) -> None:
+    """检查 live smoke 目标配置和本地 secret 注入状态。"""
+    settings = Settings()
+    targets_path = targets_file or settings.targets_file
+
+    def preflight() -> dict[str, object]:
+        targets = TargetCatalog.load(targets_path)
+        return build_ops_preflight_report(
+            targets=targets,
+            targets_file=targets_path,
+        ).model_dump(mode="json")
+
+    _run_json(preflight)
 
 
 @notification_app.command("simulate", cls=ChineseTyperCommand)

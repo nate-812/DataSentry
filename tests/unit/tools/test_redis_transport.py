@@ -1,6 +1,7 @@
 import pytest
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
+from datasentry.errors import ConfigurationError
 from datasentry.tools.errors import ToolError
 from datasentry.tools.targets import (
     EnvironmentSecretResolver,
@@ -103,6 +104,9 @@ def test_redis_transport_reports_missing_secret_as_configuration(
         transport.client("redis")
 
     assert raised.value.code == "tool.configuration"
+    cause = raised.value.__cause__
+    assert isinstance(cause, ConfigurationError)
+    assert cause.details == {"environment_variable": "TEST_REDIS_PASSWORD"}
     assert called is False
 
 

@@ -6,9 +6,9 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M7.1 有限自治本地控制面已补齐 |
-| 当前阶段 | M7.1：自治统计、熔断控制与 mock/shadow 控制台已实现 |
-| 当前工作 | M7.1 已补齐自治统计 API、熔断 half-open/reset API 和 React 控制台统计展示；M7.1 合并后现场只读回归已复跑，Doris freshness 证据已通过一次性环境变量注入闭合 |
+| 总体状态 | M7.2 运维可用化已补齐 |
+| 当前阶段 | M7.2：live smoke 预检、secret 状态解释和运维手册已实现 |
+| 当前工作 | 已增加 `datasentry ops preflight`，用于在真实只读巡检前检查目标配置和本地 secret 注入状态；M7.1 合并后现场只读回归已复跑，Doris freshness 证据已通过一次性环境变量注入闭合 |
 | 下一里程碑 | 从本地/GitHub `main` 作为代码事实来源继续开发；云端验证按需通过 `sshdata1` 和只读账号现场确认后执行 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -36,10 +36,11 @@
 - 完成 M4 对话与 Web 控制台：FastAPI Agent、Chat API/SSE、Alertmanager API、OpenAI-compatible LLM 摘要、React Command Center、证据查看和本地模拟审批。
 - 完成 M6 审批式自动运维：Runbook 领域模型、SQLite 审计与锁、幂等、策略、mock 执行器、操作后验证、FastAPI API 和 React 审批操作台。
 - 完成 M7.1 有限自治控制面补齐：自治统计、成功率/样本准入、熔断 half-open/reset API 和 React 审批页展示。
+- 完成 M7.2 运维可用化：`datasentry ops preflight`、secret 状态只读预检、云端变量映射提示和 live smoke 运维手册。
 
 ## 正在进行
 
-- M7.1 有限自治本地控制面已补齐；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
+- M7.2 运维可用化已补齐；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
 - M5 已合并到 `main`；真实 Alertmanager → DataSentry API smoke 已复跑通过，Incident 建档、时间线、RCA 和 Markdown export 链路已闭合。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 - 2026-06-30 已在可丢弃云实例上复跑 K 线真实只读巡检：主机、Collector、Kafka、Flink、Doris 和 Spring API 探测均成功；确认真实 Spring K 线接口为 `/api/kline/{symbol}?interval=1min&limit=...`，DataSentry 探针已从旧 `/api/kline/latest` 修正。
@@ -72,7 +73,7 @@
 6. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
-9. 后续真实只读巡检若在本地运行，应使用一次性环境变量或安全 secret 注入方式补齐 Doris 密码，禁止将真实密码写入仓库文件或提交历史。
+9. 后续真实只读巡检若在本地运行，应先执行 `datasentry ops preflight`，再使用一次性环境变量或安全 secret 注入方式补齐 Doris/MySQL/Redis 密码，禁止将真实密码写入仓库文件或提交历史。
 
 ## 阻塞与风险
 
@@ -133,6 +134,7 @@
 | M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
+| M7.2 运维可用化 | 已完成 | live smoke 预检、secret 状态解释和运维手册 |
 
 ## 关键文档
 
@@ -150,6 +152,8 @@
 - [M5 事件记忆与 RCA 实施计划](superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
 - [M6 审批式自动运维实施计划](superpowers/plans/2026-06-28-m6-approval-runbooks.md)
 - [M7 有限自治实施计划](superpowers/plans/2026-06-29-m7-limited-autonomy.md)
+- [M7.2 运维可用化设计](superpowers/specs/2026-07-01-m7.2-ops-usability-design.md)
+- [M7.2 运维可用化实施计划](superpowers/plans/2026-07-01-m7.2-ops-usability.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)

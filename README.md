@@ -277,6 +277,29 @@ SQL 写入、Savepoint、补数、配置修改和删除数据仍被禁止。
 M7 开发不要求打开云实例。云端或测试环境只用于后续只读 smoke、人工审批低风险演练、
 成功率样本收集和生产自治评估。
 
+## M7.2 运维可用化
+
+M7.2 增加 live smoke 预检入口，用于在真实只读巡检前检查目标配置和本地 secret
+注入状态：
+
+```bash
+datasentry ops preflight \
+  --targets-file config/targets.toml
+```
+
+输出只包含目标别名、环境变量名、`configured`/`missing` 状态和云端常见变量名提示，
+不会打印 secret 值。Doris、MySQL、Redis 的云端作业变量与 DataSentry 本地巡检变量
+可能需要映射：
+
+| 云端变量 | DataSentry 变量 |
+|---|---|
+| `DORIS_PASSWORD` | `DATASENTRY_DORIS_PASSWORD` |
+| `MYSQL_PASSWORD` | `DATASENTRY_MYSQL_PASSWORD` |
+| `REDIS_PASSWORD` | `DATASENTRY_REDIS_PASSWORD` |
+
+完整 live smoke 操作方式见
+[`docs/operations/live-smoke.md`](docs/operations/live-smoke.md)。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -335,3 +358,5 @@ Agent 新会话按顺序读取：
 - [`M4 对话式 Agent 与 Web 控制台实施计划`](docs/superpowers/plans/2026-06-27-m4-dialog-web-console.md)
 - [`M5 事件记忆与 RCA 设计`](docs/superpowers/specs/2026-06-28-m5-incident-memory-rca-design.md)
 - [`M5 事件记忆与 RCA 实施计划`](docs/superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
+- [`M7.2 运维可用化设计`](docs/superpowers/specs/2026-07-01-m7.2-ops-usability-design.md)
+- [`M7.2 运维可用化实施计划`](docs/superpowers/plans/2026-07-01-m7.2-ops-usability.md)
