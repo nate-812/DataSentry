@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M7.2 运维可用化已补齐 |
-| 当前阶段 | M7.2：live smoke 预检、secret 状态解释和运维手册已实现 |
-| 当前工作 | 已增加 `datasentry ops preflight`，用于在真实只读巡检前检查目标配置和本地 secret 注入状态；M7.1 合并后现场只读回归已复跑，Doris freshness 证据已通过一次性环境变量注入闭合 |
-| 下一里程碑 | 从本地/GitHub `main` 作为代码事实来源继续开发；云端验证按需通过 `sshdata1` 和只读账号现场确认后执行 |
+| 总体状态 | M8 监控部署闭环本地实现已补齐 |
+| 当前阶段 | M8：Prometheus/Grafana/Alertmanager 只读部署验收 + DataSentry 告警诊断闭环 smoke |
+| 当前工作 | 已增加 `datasentry monitoring deployment-check` 与 `datasentry monitoring alert-smoke`，可验证监控栈关键规则/路由和 Alertmanager → Incident/RCA/export 闭环；本轮现场只读探测显示实例当前未监听 Prometheus 9090/Grafana 3000，且未发现 Prometheus/Grafana/Alertmanager 进程 |
+| 下一里程碑 | 部署或确认 Prometheus/Grafana/Alertmanager 后复跑 M8 deployment-check 与 alert-smoke，保存本地证据文件但不提交真实地址、Token 或 secret |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -37,10 +37,12 @@
 - 完成 M6 审批式自动运维：Runbook 领域模型、SQLite 审计与锁、幂等、策略、mock 执行器、操作后验证、FastAPI API 和 React 审批操作台。
 - 完成 M7.1 有限自治控制面补齐：自治统计、成功率/样本准入、熔断 half-open/reset API 和 React 审批页展示。
 - 完成 M7.2 运维可用化：`datasentry ops preflight`、secret 状态只读预检、云端变量映射提示和 live smoke 运维手册。
+- 完成 M8 监控部署闭环本地实现：监控端点配置、Prometheus/Grafana/Alertmanager 只读部署验收、Alertmanager → DataSentry API smoke、Alertmanager 示例路由修正和运维手册。
 
 ## 正在进行
 
-- M7.2 运维可用化已补齐；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
+- M8 监控部署闭环本地实现已补齐；首版仍保持 Mock/本地受控执行器和只读验收边界，真实生产写操作不在本地开发范围内。
+- 2026-07-01 M8 现场只读尝试显示：data1 未监听 Prometheus 9090 和 Grafana 3000，`pgrep -af prometheus/grafana/alertmanager` 均无结果；`datasentry monitoring deployment-check` 已返回结构化 failed 报告。
 - M5 已合并到 `main`；真实 Alertmanager → DataSentry API smoke 已复跑通过，Incident 建档、时间线、RCA 和 Markdown export 链路已闭合。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 - 2026-06-30 已在可丢弃云实例上复跑 K 线真实只读巡检：主机、Collector、Kafka、Flink、Doris 和 Spring API 探测均成功；确认真实 Spring K 线接口为 `/api/kline/{symbol}?interval=1min&limit=...`，DataSentry 探针已从旧 `/api/kline/latest` 修正。
@@ -75,6 +77,7 @@
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
 9. 后续真实只读巡检若在本地运行，应先执行 `datasentry ops preflight`，再使用一次性环境变量或安全 secret 注入方式补齐 Doris/MySQL/Redis 密码，禁止将真实密码写入仓库文件或提交历史。
+10. 真实监控栈启动后，复制 `config/monitoring.example.toml` 为 ignored `config/monitoring.toml`，运行 `datasentry monitoring deployment-check` 与 `datasentry monitoring alert-smoke`，仅保存本地证据，不提交真实地址或内部响应。
 
 ## 阻塞与风险
 
@@ -84,7 +87,7 @@
 
 ### 已知风险
 
-- M3 合并后尚未进行真实部署验收；当前仅确认仓库内实现、PR checks 和本地验证。
+- M8 工具已可执行监控栈只读部署验收，但真实 Prometheus/Grafana/Alertmanager 现场验收结果尚未写入项目状态；当前不能把本地模板验证当作真实监控栈在线事实。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
 - StreamLake 主链路已恢复并通过一次 DataSentry 真实只读巡检，但仍需持续观察 checkpoint、重启次数、Kafka lag、Doris freshness、Collector 重连频率和 AI 诊断链路；历史 smoke 不能替代后续现场状态。
@@ -94,7 +97,7 @@
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
 - Kafka 真实保留策略和部分 Doris/Flink 配置仍需后续现场确认。
 - StreamLake 云端 smoke 发现 Doris freshness 延迟榜中个别交易对存在数十分钟延迟，最高样本为 `IMXUSDT` 约 69 分钟；需后续确认是否与风控黑名单、源数据活跃度或作业处理有关。
-- M3 目前只完成仓库内模板和本地模拟，尚未真实部署 Prometheus、Grafana、Alertmanager，尚未发送真实企业微信或 Webhook 消息。
+- 真实企业微信或外部 Webhook 消息仍未发送；M8 只验证 DataSentry API smoke，不保存或使用真实通知 secret。
 - M5 已通过本地自动化验证；真实 Alertmanager → DataSentry API smoke 的 HTTP/RCA/export 闭环已复跑通过，Kline 诊断结论已不再被 Kafka 短窗口空闲采样误判为 unknown。
 
 ## 已确认的关键决策
@@ -136,6 +139,7 @@
 | M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
 | M7.2 运维可用化 | 已完成 | live smoke 预检、secret 状态解释和运维手册 |
+| M8 监控部署闭环 | 本地实现已完成 | Prometheus/Grafana/Alertmanager 真实部署验收入口和 DataSentry 告警诊断闭环 smoke |
 
 ## 关键文档
 
@@ -148,6 +152,7 @@
 - [M5 事件记忆与 RCA 设计](superpowers/specs/2026-06-28-m5-incident-memory-rca-design.md)
 - [M6 审批式自动运维设计](superpowers/specs/2026-06-28-m6-approval-runbooks-design.md)
 - [M7 有限自治设计](superpowers/specs/2026-06-29-m7-limited-autonomy-design.md)
+- [M8 监控部署闭环设计](superpowers/specs/2026-07-01-m8-monitoring-deployment-loop-design.md)
 - [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M4 对话式 Agent 与 Web 控制台实施计划](superpowers/plans/2026-06-27-m4-dialog-web-console.md)
 - [M5 事件记忆与 RCA 实施计划](superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
@@ -155,7 +160,9 @@
 - [M7 有限自治实施计划](superpowers/plans/2026-06-29-m7-limited-autonomy.md)
 - [M7.2 运维可用化设计](superpowers/specs/2026-07-01-m7.2-ops-usability-design.md)
 - [M7.2 运维可用化实施计划](superpowers/plans/2026-07-01-m7.2-ops-usability.md)
+- [M8 监控部署闭环实施计划](superpowers/plans/2026-07-01-m8-monitoring-deployment-loop.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
+- [M8 监控部署闭环运维手册](operations/monitoring-deployment.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
 - [工程协作规则](../AGENTS.md)
@@ -326,3 +333,6 @@
 - 在 `codex/m7-autonomy-completion` 补齐 M7.1 本地有限自治控制面：新增 `/api/autonomy/stats`、`/api/autonomy/circuit-breakers/{runbook_name}/half-open` 和 `/api/autonomy/circuit-breakers/{runbook_name}/reset`，React 审批页展示成功率、样本数、shadow/升级计数和准入状态。
 - M7.1 仍保持 mock/shadow 边界，不接入真实生产执行器，不开放真实 SSH、Shell、SQL 写入、Savepoint、补数、配置修改或删除数据。
 - M7.1 本地验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 338 个测试通过，覆盖率 91.39%，仅保留 FastAPI TestClient 上游弃用 warning。
+- 启动并完成 M8 本地实现：新增监控端点配置示例、Prometheus/Grafana/Alertmanager 只读部署验收、DataSentry Alertmanager smoke、Alertmanager 示例路由修正和 M8 运维手册；真实监控栈现场验收待使用实例地址复跑后记录。
+- M8 现场只读尝试未通过：本机 HTTP 探测 `data1:9090/-/ready`、`data1:9093/-/ready` 和 `data1:3000/api/health` 均不可用；只读 SSH 固定 `ss -ltn` 未见 9090/3000，`pgrep -af prometheus/grafana/alertmanager` 均无结果。使用本地 ignored `config/monitoring.toml` 运行 `datasentry monitoring deployment-check` 返回结构化 failed 报告，未读取或提交 secret。
+- M8 自动化验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90` 均通过；pytest 为 350 个测试通过，覆盖率 90.66%，仅保留 FastAPI TestClient 上游弃用 warning。

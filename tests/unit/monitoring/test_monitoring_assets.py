@@ -35,11 +35,13 @@ def test_prometheus_and_alertmanager_yaml_are_valid() -> None:
 def test_alertmanager_routes_to_datasentry_and_wecom_placeholders() -> None:
     path = ROOT / "monitoring/alertmanager/alertmanager.example.yml"
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
 
     receiver_names = {receiver["name"] for receiver in data["receivers"]}
     assert "datasentry-webhook" in receiver_names
     assert "wecom-robot-placeholder" in receiver_names
-    assert "<WECHAT_WORK_BOT_KEY>" in path.read_text(encoding="utf-8")
+    assert "/api/alertmanager/webhook" in text
+    assert "<WECHAT_WORK_BOT_KEY>" in text
 
 
 def test_alertmanager_routes_critical_alerts_to_datasentry_and_wecom() -> None:

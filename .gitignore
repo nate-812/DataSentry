@@ -7,6 +7,9 @@
 config/targets.toml
 config/targets.*.toml
 !config/targets.example.toml
+config/monitoring.toml
+config/monitoring.*.toml
+!config/monitoring.example.toml
 *.pem
 *.key
 

@@ -1,0 +1,10 @@
+[endpoints]
+prometheus_base_url = "http://prometheus.example:9090"
+grafana_base_url = "http://grafana.example:3000"
+alertmanager_base_url = "http://alertmanager.example:9093"
+datasentry_api_base_url = "http://datasentry.example:8000"
+expected_alerts = [
+  "FlinkJobNotRunning",
+  "KafkaConsumerLagHigh",
+  "KlineFreshnessStale",
+]

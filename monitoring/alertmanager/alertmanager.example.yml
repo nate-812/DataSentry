@@ -20,7 +20,7 @@ route:
 receivers:
   - name: datasentry-webhook
     webhook_configs:
-      - url: "http://datasentry:8000/api/alerts/alertmanager"
+      - url: "http://datasentry:8000/api/alertmanager/webhook"
         send_resolved: true
   - name: wecom-robot-placeholder
     webhook_configs:

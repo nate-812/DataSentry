@@ -300,6 +300,35 @@ datasentry ops preflight \
 完整 live smoke 操作方式见
 [`docs/operations/live-smoke.md`](docs/operations/live-smoke.md)。
 
+## M8 监控部署闭环
+
+M8 增加监控栈部署验收和 DataSentry 告警诊断闭环 smoke。监控栈仍由人工或现有运维
+流程部署，DataSentry 只做只读验收和本地 Incident/RCA 闭环验证。
+
+复制无 secret 配置示例：
+
+```bash
+cp config/monitoring.example.toml config/monitoring.toml
+```
+
+检查 Prometheus/Grafana/Alertmanager 真实部署状态：
+
+```bash
+datasentry monitoring deployment-check \
+  --config-file config/monitoring.toml
+```
+
+验证 Alertmanager payload 能驱动 DataSentry Incident、timeline、RCA 和 Markdown export：
+
+```bash
+datasentry monitoring alert-smoke \
+  --config-file config/monitoring.toml \
+  --payload-file tests/fixtures/alertmanager/kline_freshness_firing.json
+```
+
+完整操作方式见
+[`docs/operations/monitoring-deployment.md`](docs/operations/monitoring-deployment.md)。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -360,3 +389,5 @@ Agent 新会话按顺序读取：
 - [`M5 事件记忆与 RCA 实施计划`](docs/superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
 - [`M7.2 运维可用化设计`](docs/superpowers/specs/2026-07-01-m7.2-ops-usability-design.md)
 - [`M7.2 运维可用化实施计划`](docs/superpowers/plans/2026-07-01-m7.2-ops-usability.md)
+- [`M8 监控部署闭环设计`](docs/superpowers/specs/2026-07-01-m8-monitoring-deployment-loop-design.md)
+- [`M8 监控部署闭环实施计划`](docs/superpowers/plans/2026-07-01-m8-monitoring-deployment-loop.md)

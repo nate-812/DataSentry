@@ -40,6 +40,13 @@ from datasentry.knowledge import (
     build_streamlake_lineage,
 )
 from datasentry.logging import configure_logging, get_logger
+from datasentry.monitoring import (
+    AlertSmokeReport,
+    MonitoringDeploymentReport,
+    load_monitoring_deployment_config,
+    run_alertmanager_smoke,
+    run_monitoring_deployment_check,
+)
 from datasentry.notifications import (
     AlertmanagerPayload,
     NotificationService,
@@ -148,6 +155,11 @@ notification_app = typer.Typer(
     add_completion=False,
     cls=ChineseTyperGroup,
 )
+monitoring_app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    cls=ChineseTyperGroup,
+)
 ops_app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
@@ -156,6 +168,7 @@ ops_app = typer.Typer(
 app.add_typer(db_app, name="db")
 app.add_typer(inspection_app, name="inspection")
 app.add_typer(notification_app, name="notification")
+app.add_typer(monitoring_app, name="monitoring")
 app.add_typer(ops_app, name="ops")
 
 
@@ -214,6 +227,17 @@ PayloadFileOption = Annotated[
         dir_okay=False,
         readable=True,
         help="Alertmanager Webhook JSON 载荷文件。",
+    ),
+]
+MonitoringConfigFileOption = Annotated[
+    Path,
+    typer.Option(
+        "--config-file",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="监控部署验收配置 TOML。",
     ),
 ]
 
@@ -287,6 +311,24 @@ def _load_alertmanager_payload(path: Path) -> AlertmanagerPayload:
     return parse_alertmanager_payload(value)
 
 
+def _load_json_mapping(path: Path) -> dict[str, object]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, JSONDecodeError) as error:
+        raise DataSentryError(
+            code="configuration.json_invalid",
+            message="JSON 文件无效",
+            details={"path": str(path)},
+        ) from error
+    if not isinstance(value, dict):
+        raise DataSentryError(
+            code="configuration.json_invalid",
+            message="JSON 文件无效",
+            details={"path": str(path)},
+        )
+    return value
+
+
 def _build_notification_service(
     *,
     repository: SQLiteRepository,
@@ -306,6 +348,35 @@ def _build_notification_service(
 def _run_json(action: Callable[[], object]) -> None:
     try:
         _write_json(action())
+    except DataSentryError as error:
+        _write_json(error.to_dict(), error=True)
+        raise typer.Exit(code=2) from error
+    except Exception as error:
+        get_logger(__name__).error(
+            "cli.unexpected_error",
+            error_type=type(error).__name__,
+        )
+        _write_json(
+            {
+                "code": "internal.error",
+                "details": {},
+                "message": "发生未预期的内部错误",
+            },
+            error=True,
+        )
+        raise typer.Exit(code=1) from error
+
+
+def _run_status_report_json(
+    action: Callable[[], MonitoringDeploymentReport | AlertSmokeReport],
+) -> None:
+    try:
+        result = action()
+        _write_json(result.model_dump(mode="json"))
+        if result.status == "failed":
+            raise typer.Exit(code=2)
+    except typer.Exit:
+        raise
     except DataSentryError as error:
         _write_json(error.to_dict(), error=True)
         raise typer.Exit(code=2) from error
@@ -499,6 +570,37 @@ def ops_preflight(
         ).model_dump(mode="json")
 
     _run_json(preflight)
+
+
+@monitoring_app.command("deployment-check", cls=ChineseTyperCommand)
+def monitoring_deployment_check(
+    config_file: MonitoringConfigFileOption,
+) -> None:
+    """只读检查 Prometheus/Grafana/Alertmanager 部署状态。"""
+
+    def check() -> MonitoringDeploymentReport:
+        config = load_monitoring_deployment_config(config_file)
+        return run_monitoring_deployment_check(endpoints=config.endpoints)
+
+    _run_status_report_json(check)
+
+
+@monitoring_app.command("alert-smoke", cls=ChineseTyperCommand)
+def monitoring_alert_smoke(
+    config_file: MonitoringConfigFileOption,
+    payload_file: PayloadFileOption,
+) -> None:
+    """验证 Alertmanager Webhook 到 DataSentry Incident/RCA 的闭环。"""
+
+    def smoke() -> AlertSmokeReport:
+        config = load_monitoring_deployment_config(config_file)
+        payload = _load_json_mapping(payload_file)
+        return run_alertmanager_smoke(
+            endpoints=config.endpoints,
+            payload=payload,
+        )
+
+    _run_status_report_json(smoke)
 
 
 @notification_app.command("simulate", cls=ChineseTyperCommand)
