@@ -261,6 +261,9 @@ SQL 写入、Savepoint、补数、配置修改和删除数据仍被禁止。
 - `POST /api/autonomy/evaluate`：只评估候选，不创建 Operation。
 - `POST /api/autonomy/execute`：按策略记录 shadow、阻止、升级或执行本地 mock Operation。
 - `GET /api/autonomy/runs`：读取最近自治决策记录。
+- `GET /api/autonomy/stats`：按 Runbook 汇总自治样本、成功率、升级和准入状态。
+- `POST /api/autonomy/circuit-breakers/{runbook_name}/half-open`：将本地 mock 熔断状态切到 half-open。
+- `POST /api/autonomy/circuit-breakers/{runbook_name}/reset`：将本地 mock 熔断状态重置为 closed。
 
 本地演练流程：
 
@@ -269,6 +272,7 @@ SQL 写入、Savepoint、补数、配置修改和删除数据仍被禁止。
 3. 打开 `mock.restart_preview` 的 shadow 策略并执行演练。
 4. 确认页面只记录 shadow 决策，不创建 Operation。
 5. 关闭 shadow 后再次演练，确认仅本地 mock Operation 会自动创建、批准、执行和验证。
+6. 在自治统计中查看成功率、样本数和准入状态；必要时只对本地 mock 策略执行 half-open 或 reset。
 
 M7 开发不要求打开云实例。云端或测试环境只用于后续只读 smoke、人工审批低风险演练、
 成功率样本收集和生产自治评估。

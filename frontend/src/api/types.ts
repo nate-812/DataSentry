@@ -186,6 +186,25 @@ export type AutonomyPolicy = {
   failure_threshold: number;
 };
 
+export type AutonomyStats = {
+  runbook_name: string;
+  enabled: boolean;
+  shadow_mode: boolean;
+  circuit_breaker_state: "closed" | "open" | "half_open";
+  total_runs: number;
+  allowed_runs: number;
+  shadowed_runs: number;
+  blocked_runs: number;
+  escalated_runs: number;
+  successful_runs: number;
+  failed_runs: number;
+  success_rate: number | null;
+  min_success_rate: number;
+  min_success_samples: number;
+  ready_for_autonomy: boolean;
+  last_decision_at: string | null;
+};
+
 export type AutonomyDecision = {
   status: "allowed" | "shadowed" | "blocked" | "escalated";
   reason_code: string;

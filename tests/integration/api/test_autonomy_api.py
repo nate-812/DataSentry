@@ -1,7 +1,13 @@
 from fastapi.testclient import TestClient
 
 from datasentry.api import create_app
-from datasentry.autonomy import AutonomyPolicy, MaintenanceWindow
+from datasentry.autonomy import (
+    AutonomyDecisionStatus,
+    AutonomyPolicy,
+    AutonomyRunRecord,
+    CircuitBreakerState,
+    MaintenanceWindow,
+)
 from datasentry.config import Settings
 from datasentry.storage import SQLiteRepository
 
@@ -111,3 +117,76 @@ def test_execute_autonomy_candidate_creates_mock_operation_when_allowed(
     assert runs[0]["decision_status"] == "allowed"
     assert runs[0]["operation_id"] == payload["operation_id"]
     assert runs[0]["succeeded"] is True
+
+
+def test_autonomy_stats_summarize_policy_and_recent_runs(tmp_path, monkeypatch) -> None:
+    database_path = tmp_path / "datasentry.db"
+    monkeypatch.setenv("DATASENTRY_DATABASE_PATH", str(database_path))
+    with SQLiteRepository(database_path) as repository:
+        repository.save_autonomy_policy(
+            AutonomyPolicy(
+                runbook_name="mock.restart_preview",
+                enabled=True,
+                shadow_mode=False,
+            ),
+        )
+        repository.save_autonomy_run(
+            AutonomyRunRecord(
+                runbook_name="mock.restart_preview",
+                target="api",
+                operation_id="operation-1",
+                decision_status=AutonomyDecisionStatus.ALLOWED,
+                reason_code="policy.allowed",
+                reason="自治策略允许 mock 自动执行",
+                succeeded=True,
+            ),
+        )
+        repository.save_autonomy_run(
+            AutonomyRunRecord(
+                runbook_name="mock.restart_preview",
+                target="api",
+                decision_status=AutonomyDecisionStatus.SHADOWED,
+                reason_code="policy.shadow_mode",
+                reason="自治策略处于 shadow 模式，仅记录不执行",
+            ),
+        )
+    client = _client(tmp_path, monkeypatch)
+
+    response = client.get("/api/autonomy/stats")
+
+    assert response.status_code == 200
+    payload = response.json()
+    restart = next(item for item in payload if item["runbook_name"] == "mock.restart_preview")
+    assert restart["enabled"] is True
+    assert restart["shadow_mode"] is False
+    assert restart["allowed_runs"] == 1
+    assert restart["shadowed_runs"] == 1
+    assert restart["successful_runs"] == 1
+    assert restart["success_rate"] == 1.0
+    assert restart["ready_for_autonomy"] is False
+
+
+def test_autonomy_circuit_breaker_control_updates_policy_state(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    database_path = tmp_path / "datasentry.db"
+    monkeypatch.setenv("DATASENTRY_DATABASE_PATH", str(database_path))
+    with SQLiteRepository(database_path) as repository:
+        repository.save_autonomy_policy(
+            AutonomyPolicy(
+                runbook_name="mock.restart_preview",
+                enabled=True,
+                shadow_mode=False,
+                circuit_breaker_state=CircuitBreakerState.OPEN,
+            ),
+        )
+    client = _client(tmp_path, monkeypatch)
+
+    half_open = client.post("/api/autonomy/circuit-breakers/mock.restart_preview/half-open")
+    reset = client.post("/api/autonomy/circuit-breakers/mock.restart_preview/reset")
+
+    assert half_open.status_code == 200
+    assert half_open.json()["circuit_breaker_state"] == "half_open"
+    assert reset.status_code == 200
+    assert reset.json()["circuit_breaker_state"] == "closed"

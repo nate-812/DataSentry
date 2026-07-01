@@ -2,6 +2,7 @@ import type {
   AutonomyDecision,
   AutonomyPolicy,
   AutonomyRunRecord,
+  AutonomyStats,
   ChatSessionDetail,
   ChatRunResponse,
   ChatSession,
@@ -99,6 +100,7 @@ export const api = {
   operationEvents: (operationId: string) =>
     requestJson<OperationEvent[]>(`/api/operations/${operationId}/events`),
   autonomyPolicies: () => requestJson<AutonomyPolicy[]>("/api/autonomy/policies"),
+  autonomyStats: () => requestJson<AutonomyStats[]>("/api/autonomy/stats"),
   updateAutonomyPolicy: (
     runbookName: string,
     payload: { enabled?: boolean; shadow_mode?: boolean }
@@ -116,5 +118,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  autonomyRuns: () => requestJson<AutonomyRunRecord[]>("/api/autonomy/runs")
+  autonomyRuns: () => requestJson<AutonomyRunRecord[]>("/api/autonomy/runs"),
+  resetAutonomyCircuitBreaker: (runbookName: string) =>
+    requestJson<AutonomyPolicy>(`/api/autonomy/circuit-breakers/${runbookName}/reset`, {
+      method: "POST"
+    }),
+  halfOpenAutonomyCircuitBreaker: (runbookName: string) =>
+    requestJson<AutonomyPolicy>(`/api/autonomy/circuit-breakers/${runbookName}/half-open`, {
+      method: "POST"
+    })
 };

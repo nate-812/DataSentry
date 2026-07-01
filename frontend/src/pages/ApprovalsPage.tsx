@@ -1,4 +1,4 @@
-import { Ban, Check, Play, Plus, RefreshCw, X } from "lucide-react";
+import { Ban, Check, Gauge, Play, Plus, RefreshCw, RotateCcw, X } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { api } from "../api/client";
@@ -6,6 +6,7 @@ import type {
   AutonomyDecision,
   AutonomyPolicy,
   AutonomyRunRecord,
+  AutonomyStats,
   Operation,
   OperationEvent,
   Runbook
@@ -17,6 +18,7 @@ export function ApprovalsPage() {
   const [events, setEvents] = useState<OperationEvent[]>([]);
   const [autonomyPolicies, setAutonomyPolicies] = useState<AutonomyPolicy[]>([]);
   const [autonomyRuns, setAutonomyRuns] = useState<AutonomyRunRecord[]>([]);
+  const [autonomyStats, setAutonomyStats] = useState<AutonomyStats[]>([]);
   const [autonomyDecision, setAutonomyDecision] = useState<AutonomyDecision | null>(null);
   const [runbookName, setRunbookName] = useState("");
   const [target, setTarget] = useState("api-server");
@@ -35,6 +37,10 @@ export function ApprovalsPage() {
     () => operations.find((operation) => operation.id === selectedOperationId) ?? null,
     [operations, selectedOperationId]
   );
+  const statsByRunbook = useMemo(
+    () => new Map(autonomyStats.map((stats) => [stats.runbook_name, stats])),
+    [autonomyStats]
+  );
 
   async function refreshOperations(nextSelectedId?: string | null) {
     const items = await api.operations();
@@ -51,22 +57,29 @@ export function ApprovalsPage() {
   }
 
   async function refreshAutonomy() {
-    const [policies, runs] = await Promise.all([api.autonomyPolicies(), api.autonomyRuns()]);
+    const [policies, runs, stats] = await Promise.all([
+      api.autonomyPolicies(),
+      api.autonomyRuns(),
+      api.autonomyStats()
+    ]);
     setAutonomyPolicies(policies);
     setAutonomyRuns(runs);
+    setAutonomyStats(stats);
   }
 
   async function refreshAll() {
-    const [runbookItems, operationItems, policies, runs] = await Promise.all([
+    const [runbookItems, operationItems, policies, runs, stats] = await Promise.all([
       api.runbooks(),
       api.operations(),
       api.autonomyPolicies(),
-      api.autonomyRuns()
+      api.autonomyRuns(),
+      api.autonomyStats()
     ]);
     setRunbooks(runbookItems);
     setOperations(operationItems);
     setAutonomyPolicies(policies);
     setAutonomyRuns(runs);
+    setAutonomyStats(stats);
     setRunbookName((current) => current || runbookItems.find((item) => item.enabled)?.name || "");
     setSelectedOperationId((current) => current ?? operationItems[0]?.id ?? null);
   }
@@ -173,6 +186,20 @@ export function ApprovalsPage() {
     });
   }
 
+  async function halfOpenCircuitBreaker(runbookName: string) {
+    await runAction(async () => {
+      await api.halfOpenAutonomyCircuitBreaker(runbookName);
+      await refreshAutonomy();
+    });
+  }
+
+  async function resetCircuitBreaker(runbookName: string) {
+    await runAction(async () => {
+      await api.resetAutonomyCircuitBreaker(runbookName);
+      await refreshAutonomy();
+    });
+  }
+
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
     setError(null);
@@ -249,42 +276,80 @@ export function ApprovalsPage() {
           </button>
         </div>
         <div className="autonomy-grid">
-          {autonomyPolicies.map((policy) => (
-            <article className="autonomy-row" key={policy.runbook_name}>
-              <div>
-                <strong>{policy.runbook_name}</strong>
-                <span>{policy.circuit_breaker_state}</span>
-              </div>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={policy.enabled}
-                  onChange={(event) =>
-                    void updateAutonomyPolicy(policy.runbook_name, {
-                      enabled: event.target.checked
-                    })
-                  }
-                />
-                启用
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={policy.shadow_mode}
-                  onChange={(event) =>
-                    void updateAutonomyPolicy(policy.runbook_name, {
-                      shadow_mode: event.target.checked
-                    })
-                  }
-                />
-                Shadow
-              </label>
-              <button type="button" disabled={busy} onClick={() => void executeAutonomy(policy.runbook_name)}>
-                <Play size={16} aria-hidden="true" />
-                演练
-              </button>
-            </article>
-          ))}
+          {autonomyPolicies.map((policy) => {
+            const stats = statsByRunbook.get(policy.runbook_name);
+            return (
+              <article className="autonomy-row" key={policy.runbook_name}>
+                <div>
+                  <strong>{policy.runbook_name}</strong>
+                  <span>{policy.circuit_breaker_state}</span>
+                </div>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={policy.enabled}
+                    onChange={(event) =>
+                      void updateAutonomyPolicy(policy.runbook_name, {
+                        enabled: event.target.checked
+                      })
+                    }
+                  />
+                  启用
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={policy.shadow_mode}
+                    onChange={(event) =>
+                      void updateAutonomyPolicy(policy.runbook_name, {
+                        shadow_mode: event.target.checked
+                      })
+                    }
+                  />
+                  Shadow
+                </label>
+                <div className="autonomy-actions">
+                  <button
+                    type="button"
+                    title="演练"
+                    disabled={busy}
+                    onClick={() => void executeAutonomy(policy.runbook_name)}
+                  >
+                    <Play size={16} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    title="半开"
+                    disabled={busy}
+                    onClick={() => void halfOpenCircuitBreaker(policy.runbook_name)}
+                  >
+                    <Gauge size={16} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    title="重置熔断"
+                    disabled={busy}
+                    onClick={() => void resetCircuitBreaker(policy.runbook_name)}
+                  >
+                    <RotateCcw size={16} aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="autonomy-stats">
+                  <Metric label="成功率" value={formatRate(stats?.success_rate ?? null)} />
+                  <Metric
+                    label="样本"
+                    value={`${stats?.allowed_runs ?? 0}/${policy.min_success_samples}`}
+                  />
+                  <Metric label="Shadow" value={String(stats?.shadowed_runs ?? 0)} />
+                  <Metric label="升级" value={String(stats?.escalated_runs ?? 0)} />
+                  <Metric
+                    label="准入"
+                    value={stats?.ready_for_autonomy ? "ready" : "collecting"}
+                  />
+                </div>
+              </article>
+            );
+          })}
         </div>
         {autonomyDecision ? (
           <div className={`decision-banner decision-${autonomyDecision.status}`}>
@@ -419,4 +484,9 @@ function Metric({ label, value }: { label: string; value: string }) {
 function formatTime(value: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
+}
+
+function formatRate(value: number | null) {
+  if (value === null) return "-";
+  return `${Math.round(value * 100)}%`;
 }

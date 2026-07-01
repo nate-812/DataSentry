@@ -6,9 +6,9 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M7 有限自治本地控制层已完成阶段性实现 |
-| 当前阶段 | M7：有限自治本地 mock/shadow 闭环已实现 |
-| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；StreamLake Git 合并、只读账号、Flink Job 恢复与 DataSentry 真实只读巡检已阶段性收尾 |
+| 总体状态 | M7.1 有限自治本地控制面已补齐 |
+| 当前阶段 | M7.1：自治统计、熔断控制与 mock/shadow 控制台已实现 |
+| 当前工作 | M7.1 已补齐自治统计 API、熔断 half-open/reset API 和 React 控制台统计展示；StreamLake Git 合并、只读账号、Flink Job 恢复与 DataSentry 真实只读巡检已阶段性收尾 |
 | 下一里程碑 | 从本地/GitHub `main` 作为代码事实来源继续开发；云端验证按需通过 `sshdata1` 和只读账号现场确认后执行 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -35,10 +35,11 @@
 - 完成 M3 仓库内监控与通知基线：Prometheus 规则、Alertmanager 路由模板、Grafana dashboard、Alertmanager payload 解析、通知消息格式、本地模拟 CLI 和自监控指标。
 - 完成 M4 对话与 Web 控制台：FastAPI Agent、Chat API/SSE、Alertmanager API、OpenAI-compatible LLM 摘要、React Command Center、证据查看和本地模拟审批。
 - 完成 M6 审批式自动运维：Runbook 领域模型、SQLite 审计与锁、幂等、策略、mock 执行器、操作后验证、FastAPI API 和 React 审批操作台。
+- 完成 M7.1 有限自治控制面补齐：自治统计、成功率/样本准入、熔断 half-open/reset API 和 React 审批页展示。
 
 ## 正在进行
 
-- M7 有限自治本地控制层已实现；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
+- M7.1 有限自治本地控制面已补齐；首版仍保持 Mock/本地受控执行器边界，真实生产写操作不在本地开发范围内。
 - M5 已合并到 `main`；真实 Alertmanager → DataSentry API smoke 已复跑通过，Incident 建档、时间线、RCA 和 Markdown export 链路已闭合。
 - MySQL 异常表 `RECOVER_YOUR_DATA_info` 的根因仍需安全复盘，但不阻塞 M5 设计和仓库内工程启动。
 - 2026-06-30 已在可丢弃云实例上复跑 K 线真实只读巡检：主机、Collector、Kafka、Flink、Doris 和 Spring API 探测均成功；确认真实 Spring K 线接口为 `/api/kline/{symbol}?interval=1min&limit=...`，DataSentry 探针已从旧 `/api/kline/latest` 修正。
@@ -67,7 +68,7 @@
 5. 保留真实 Alertmanager → DataSentry API smoke 作为后续告警闭环回归；新增告警规则或 RCA 行为变化时需确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路。
 6. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
-8. 收集 M7 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
+8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
 
 ## 阻塞与风险
 
@@ -127,7 +128,7 @@
 | M4 对话与 Web | 已完成并合并 | FastAPI Agent、可插拔 LLM 和 React 控制台 |
 | M5 事件记忆与 RCA | 已完成并合并 | Incident 生命周期、历史检索和复盘 |
 | M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
-| M7 有限自治 | 本地 mock/shadow 闭环已实现 | 对长期验证的低风险操作开放自动执行 |
+| M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
 
 ## 关键文档
 
@@ -310,3 +311,9 @@
 - Doris root 改密暂缓：Flink 三个 Job 源码默认 Doris `root` 空密码，运行中 sink 重连可能受影响；`job.sh` 会加载 `/root/.streamlake-secrets`，但 `spring.sh` 和 `ai.sh` 当前未 source 该文件。Doris root 改密需与 DORIS 环境变量注入、Spring/AI 脚本修正和 Flink Job 维护窗口重启一起执行。
 - 本机未安装或未配置云厂商 CLI（`aliyun`/`aws`/`gcloud`/`az` 均不可用），因此本次未直接修改云安全组；公网端口暴露风险仍需在云控制台或配置好 CLI 后收口。
 - 已确认旧改密备份未被 `/root/bin` 或 StreamLake 仓库引用，并删除 `/root/bin/job.sh.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/RiskControlJob.java.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/WhaleCepJob.java.bak-20260630-password-rotation`；复查无剩余旧改密备份文件。
+
+### 2026-07-01
+
+- 在 `codex/m7-autonomy-completion` 补齐 M7.1 本地有限自治控制面：新增 `/api/autonomy/stats`、`/api/autonomy/circuit-breakers/{runbook_name}/half-open` 和 `/api/autonomy/circuit-breakers/{runbook_name}/reset`，React 审批页展示成功率、样本数、shadow/升级计数和准入状态。
+- M7.1 仍保持 mock/shadow 边界，不接入真实生产执行器，不开放真实 SSH、Shell、SQL 写入、Savepoint、补数、配置修改或删除数据。
+- M7.1 本地验证通过：`.venv/bin/ruff format --check .`、`.venv/bin/ruff check .`、`.venv/bin/mypy src`、`.venv/bin/pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run typecheck`、`cd frontend && npm run build` 均通过；pytest 为 338 个测试通过，覆盖率 91.39%，仅保留 FastAPI TestClient 上游弃用 warning。

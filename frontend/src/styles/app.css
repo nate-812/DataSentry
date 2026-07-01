@@ -385,7 +385,7 @@ h2 {
 
 .autonomy-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 84px 102px 96px;
+  grid-template-columns: minmax(0, 1fr) 84px 102px 128px;
   align-items: center;
   gap: 8px;
   min-height: 58px;
@@ -424,9 +424,33 @@ h2 {
   padding: 0;
 }
 
-.autonomy-row button {
+.autonomy-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 36px);
+  gap: 6px;
+}
+
+.autonomy-actions button {
   min-width: 0;
-  padding: 0 10px;
+  width: 36px;
+  padding: 0;
+}
+
+.autonomy-stats {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.autonomy-stats .metric-cell {
+  min-height: 62px;
+  padding: 9px;
+}
+
+.autonomy-stats .metric-cell strong {
+  margin-top: 6px;
+  font-size: 16px;
 }
 
 .decision-banner {
