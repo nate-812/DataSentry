@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M7 有限自治本地控制层已完成阶段性实现 |
 | 当前阶段 | M7：有限自治本地 mock/shadow 闭环已实现 |
-| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；StreamLake Git 合并、只读账号与云端只读 smoke 已阶段性收尾 |
+| 当前工作 | M7 已完成自治策略模型、策略评估、SQLite 记录、自治服务、FastAPI API 和 React 控制台；StreamLake Git 合并、只读账号、Flink Job 恢复与 DataSentry 真实只读巡检已阶段性收尾 |
 | 下一里程碑 | 从本地/GitHub `main` 作为代码事实来源继续开发；云端验证按需通过 `sshdata1` 和只读账号现场确认后执行 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -54,13 +54,14 @@
 - 2026-07-01 Flink Job 排查发现现场源码默认 Doris 用户已改为 `streamlake_writer`，但当前提交的 Job jar 仍包含旧默认 `root`；Doris 当前用户清单只有 `root`、`admin` 和 `datasentry_readonly`，未见 `streamlake_writer`，需统一“作业写入账号 + jar 构建产物 + secret 注入”后再重提作业。
 - 2026-07-01 用户创建 `streamlake_writer` 并重新提交 Flink Job 后复查确认：`streamlake-kline-aggregation`、`streamlake-whale-cep` 和 `streamlake-risk-control` 均为 `RUNNING`，三个当前 Job 异常计数均为 0；旧 RESTARTING 作业已取消。Collector 为 active，Kafka Topic 可列出，Spring API 与 AI Engine 健康检查通过。
 - 2026-07-01 Doris 现场只读复查显示 `kline_1min` 与 `risk_trigger` 正在刷新，Spring API 固定 K 线查询可返回 BTCUSDT 最新样本；`whale_alert` 与 `ai_diagnosis` 的最新时间较旧，可能与事件触发条件或 AI 诊断链路有关，需后续单独确认。
+- 2026-07-01 DataSentry 真实只读巡检完成，Inspection `e028933e-16a2-4b95-a63a-01c5877d0246` 结论为“K线主链路当前正在推进”；主机、Collector、Kafka、Flink、Doris 和 Spring API 固定工具均成功，Kline checkpoint 连续失败 0、backpressure 为 ok、Kafka `binance.trade.raw` offset 正在推进、Doris `kline_1min` freshness 约 45 秒、API 固定读探针返回 ok。
 
 ## 下一步
 
 1. 先在本地 `main` 跑一次 DataSentry 基线验证；新改动使用新分支，本地验证后推送 GitHub，云端只执行拉取和部署验证。
 2. 通过 `sshdata1` 做只读现场确认：主机、Collector、Kafka、Flink、Doris、Redis、MySQL、Spring API 和 AI Engine；只使用固定白名单命令和专用只读账号。
 3. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag 和 Collector 重连频率。
-4. 补跑 DataSentry 真实只读巡检，确认 Flink、Kafka、Doris、Redis、MySQL、Spring API 和主机证据在 Agent 内闭合。
+4. 保留 DataSentry 真实只读巡检作为现场回归手段；后续复跑时重点观察 Flink checkpoint、Kafka offset、Doris freshness、Spring API 固定读探针和 AI 诊断链路。
 5. 补跑真实 Alertmanager → DataSentry API smoke，确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路在现场环境可闭合。
 6. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
@@ -77,9 +78,8 @@
 - M3 合并后尚未进行真实部署验收；当前仅确认仓库内实现、PR checks 和本地验证。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
-- StreamLake 主链路当前未运行，需恢复 Kafka、Doris、Flink、Spring API、AI Engine、Flink Job 和 Collector 后再重新判定 K 线链路状态；历史 smoke 不能替代本次现场状态。
-- `/root/.streamlake-secrets` 缺少 `DORIS_PASSWORD`，而 Spring API 与 Flink Job 启动脚本要求该变量；在明确 Doris 账号策略前，不能直接声称应用与作业可按新安全模型恢复。
-- Flink Job 已恢复 RUNNING，但仍需持续观察 checkpoint、重启次数、Kafka lag 和 Doris freshness；避免在未取消旧作业或未确认幂等前重复提交同名 Job。
+- StreamLake 主链路已恢复并通过一次 DataSentry 真实只读巡检，但仍需持续观察 checkpoint、重启次数、Kafka lag、Doris freshness、Collector 重连频率和 AI 诊断链路；历史 smoke 不能替代后续现场状态。
+- DataSentry 本地 ignored `config/targets.toml` 已临时改用默认 `/Users/nate/.ssh/known_hosts`；专用 `/Users/nate/.ssh/datasentry_known_hosts` 中 `data1` 指纹已过期，后续应在确认真实指纹后清理。
 - 云端 `/root/bin` 和 StreamLake 作业源码的改密前备份文件仅 root 可读，短期用于回滚；其中仓库内 `.bak` 文件已移到 `/root/streamlake-local-backups/20260630-password-rotation/`，确认运行稳定后应删除这些包含旧默认密码的备份。
 - 云端 StreamLake 仓库已同步到 `main`，但 `ai-engine/docker-compose.yml`、`ai-engine/nohup.out` 和 `ai-engine/volumes/` 仍是未跟踪现场运行文件；后续应迁移到仓库外运行目录或明确纳入 `.gitignore`，避免云端工作区再次变脏。
 - `/root/bin` 运维脚本尚未完成源码级审计，不能进入自动执行白名单。
