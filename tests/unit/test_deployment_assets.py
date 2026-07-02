@@ -187,3 +187,64 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "生产写 Runbook 仍未开放",
     ]
     assert_contains_all(checklist, checklist_invariants)
+
+
+def test_m9_exposure_maintenance_plan_covers_offline_preparation() -> None:
+    plan = read_text("docs/operations/m9-exposure-maintenance-plan.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 使用场景",
+        "## 本地准备",
+        "## 维护窗口顺序",
+        "## 组件收口清单",
+        "## 回滚边界",
+        "## 证据记录模板",
+        "## 本地验证",
+    ]
+    assert_contains_all(plan, required_sections)
+
+    required_cloud_startup_checks = [
+        "datasentry-api",
+        "datasentry-alertmanager-proxy.socket",
+        "systemctl is-enabled",
+        "systemctl is-active",
+        "用户确认",
+        "disable",
+    ]
+    assert_contains_all(plan, required_cloud_startup_checks)
+
+    required_exposure_components = [
+        "Flink Web",
+        "Doris FE",
+        "MySQL",
+        "Redis",
+        "Spring API",
+        "AI Engine",
+    ]
+    assert_contains_all(plan, required_exposure_components)
+
+    required_safety_rules = [
+        "不开云端实例",
+        "不执行 SSH",
+        "不修改云安全组",
+        "不打印真实 secret",
+        "不开放生产写 Runbook",
+        "Doris root 改密",
+        "单独维护窗口",
+    ]
+    assert_contains_all(plan, required_safety_rules)
+
+    required_regression_commands = [
+        "datasentry monitoring deployment-check",
+        "datasentry monitoring alert-smoke",
+        "datasentry inspection run",
+        "datasentry ops preflight",
+        "curl -fsS http://127.0.0.1:18000/api/health",
+        "curl -fsS http://172.17.0.1:18000/api/health",
+    ]
+    assert_contains_all(plan, required_regression_commands)
+
+    assert "m9-exposure-maintenance-plan.md" in readme
+    assert "M9 暴露面维护预案" in status

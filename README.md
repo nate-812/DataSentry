@@ -341,6 +341,7 @@ Git 版本。
 - `deploy/systemd/datasentry-api.service.example`
 - `config/datasentry.env.example`
 - [`docs/operations/m9-production-deployment.md`](docs/operations/m9-production-deployment.md)
+- [`docs/operations/m9-exposure-maintenance-plan.md`](docs/operations/m9-exposure-maintenance-plan.md)
 - [`docs/operations/production-exposure-checklist.md`](docs/operations/production-exposure-checklist.md)
 
 M9 不开放任意 Shell、任意 SQL、生产写操作、自动重启、自动补数、自动改配置或自动

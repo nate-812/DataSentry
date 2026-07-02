@@ -2,6 +2,13 @@
 
 本文档用于 M9 和后续维护窗口的人工作业记录。它只描述检查项，不自动修改云安全组、主机防火墙或业务配置。
 
+## 维护窗口入口
+
+- [ ] 已确认本轮是否打开 `data1`；不开云端实例时只做本地文档、测试和计划准备。
+- [ ] 已阅读 `docs/operations/m9-exposure-maintenance-plan.md`，并按其中顺序准备证据记录。
+- [ ] 已确认每个生产写操作、systemd 变更、云安全组变更和账号权限变更都需要用户再次确认。
+- [ ] 已准备回滚记录位置，且不会把历史 smoke 包装为当前事实。
+
 ## 监听地址
 
 - [ ] DataSentry API 只监听 `127.0.0.1:18000`；若 Alertmanager 在 Docker 容器内运行，只额外允许 `172.17.0.1:18000` socket proxy。
@@ -21,6 +28,8 @@
 - [ ] Doris/MySQL 诊断账号仅允许 `SELECT`、`SHOW` 和 `DESCRIBE`。
 - [ ] Redis ACL 仅允许计划内只读命令，禁止 `KEYS`。
 - [ ] root 只用于维护窗口、部署和受限 secret 初始化。
+- [ ] Doris root 改密已作为单独维护窗口管理，不和网络暴露面收口混在同一步执行。
+- [ ] Spring API、Flink Job 和 AI Engine 使用的数据库账号与 secret 注入方式已记录，账号变更前已有回滚方案。
 
 ## secret 管理
 
@@ -31,6 +40,7 @@
 
 ## 回归证据
 
+- [ ] 已确认 `datasentry-api` 和 `datasentry-alertmanager-proxy.socket` 的 `systemctl is-enabled` 与 `systemctl is-active` 状态。
 - [ ] `systemctl status datasentry-api` 已检查。
 - [ ] `curl -fsS http://127.0.0.1:18000/api/health` 已通过。
 - [ ] 如启用 Docker bridge proxy，`systemctl status datasentry-alertmanager-proxy.socket` 和 `curl -fsS http://172.17.0.1:18000/api/health` 已通过。
@@ -39,9 +49,12 @@
 - [ ] 真实 Alertmanager API 投递已触发 DataSentry webhook 200，或失败项已记录。
 - [ ] 真实 K 线只读巡检已通过或失败项已记录。
 - [ ] AI Engine、MySQL 和 Redis 固定只读确认已执行或记录暂缓原因。
+- [ ] Flink Job checkpoint、重启次数、Kafka lag、Doris freshness、Collector 重连频率和 AI 诊断链路已记录或明确暂缓。
+- [ ] `get_kafka_topic` 对 `data1` 的 `tool.timeout` 已复查或作为遗留风险保留。
 
 ## 明确不在本轮处理
 
 - [ ] Doris root 改密已单独排期，不混入 M9 API 部署。
 - [ ] 云安全组变更已单独审批，不由 DataSentry 自动执行。
 - [ ] 生产写 Runbook 仍未开放。
+- [ ] 自动重启、自动补数、自动改配置、自动 Savepoint 恢复仍未开放。
