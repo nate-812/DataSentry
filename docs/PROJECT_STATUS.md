@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M8 监控部署闭环已完成云端复验，准备进入 M9 生产化与安全收口 |
-| 当前阶段 | M8 收尾完成：Prometheus/Grafana/Alertmanager 只读部署验收 + DataSentry 告警诊断闭环 smoke + 真实只读巡检复验 |
-| 当前工作 | 已通过用户建立的 SSH tunnel 复跑 `deployment-check` 和 `alert-smoke`；已复跑 K 线真实只读巡检，并补齐 AI Engine、MySQL、Redis 现场只读确认 |
-| 下一里程碑 | M9：部署或打通真实 DataSentry API 回调入口，收紧云端公网暴露面，固化只读账号、secret 注入和监控回归流程 |
+| 总体状态 | M9 生产化与安全收口已启动，首轮采用 `data1` 本机 DataSentry API 部署方案 |
+| 当前阶段 | M9 设计：DataSentry API 只监听云端 `127.0.0.1`，Alertmanager 本机回调，公网暴露面与 secret/只读账号收口 |
+| 当前工作 | 已确认 M9 方向并起草设计文档；后续先完成仓库内 systemd/env 示例、部署手册和回归 checklist，再经用户确认执行云端部署验证 |
+| 下一里程碑 | M9：在 `data1` 以 systemd 运行 DataSentry API，改造 Alertmanager 本机回调，复跑监控和真实只读巡检回归 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -42,6 +42,7 @@
 
 ## 正在进行
 
+- M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1`，Alertmanager 通过本机 URL 回调 `/api/alertmanager/webhook`。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
@@ -75,14 +76,14 @@
 
 ## 下一步
 
-1. 启动 M9 生产化与安全收口设计：确定真实 DataSentry API 部署方式，或建立受控反向通道，让 Alertmanager 能自动回调 DataSentry。
-2. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
-3. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag、Collector 重连频率和 AI 诊断链路。
-4. 保留 DataSentry 真实只读巡检作为现场回归手段；后续复跑时重点观察 Flink checkpoint、Kafka offset、Doris freshness、Spring API 固定读探针和 AI 诊断链路。
-5. 保留真实 Alertmanager → DataSentry API smoke 作为后续告警闭环回归；新增告警规则或 RCA 行为变化时需确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路。
-6. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
-7. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
-8. 后续真实只读巡检若在本地运行，应先执行 `datasentry ops preflight`，再使用一次性环境变量或安全 secret 注入方式补齐 Doris/MySQL/Redis 密码，禁止将真实密码写入仓库文件或提交历史。
+1. 完成 M9 实施计划：拆分 systemd service 示例、无 secret env 示例、部署/回滚手册、暴露面 checklist、回归命令和状态文档更新。
+2. 仓库内完成 M9 部署产物后，先运行最小相关验证和 secret 检查，再请用户确认是否进入 `data1` 云端部署。
+3. 云端部署验证阶段：以独立服务用户运行 DataSentry API，只监听 `127.0.0.1:18000`，Alertmanager 回调改为本机 `/api/alertmanager/webhook`。
+4. 复跑 M8/M9 回归：API health、`deployment-check`、`alert-smoke`、真实 K 线只读巡检、AI Engine/MySQL/Redis 固定只读确认。
+5. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+6. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag、Collector 重连频率和 AI 诊断链路。
+7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
+8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
 9. 后续查看 Grafana 时通过 SSH tunnel 访问云端 `127.0.0.1:3000`；不要把 Grafana、Prometheus 或 Alertmanager 直接暴露到公网。Grafana admin 密码存放在云端 root-only `/root/.datasentry-monitoring-secrets`，不要打印或提交。
 
 ## 阻塞与风险
@@ -94,6 +95,7 @@
 ### 已知风险
 
 - 监控栈已完成首轮部署验收，但 Alertmanager 配置中的 DataSentry Webhook 当前指向预留云端端口 `host.docker.internal:18000`；若要接收真实告警，需要部署云端 DataSentry API 或建立受控反向通道。
+- M9 首轮选择 `data1` 本机部署 DataSentry API，短期会让 Agent API 与监控栈同机运行；若 `data1` 故障，DataSentry 事件闭环会受影响，但基础 Alertmanager 通知链路应保留。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
 - StreamLake 主链路已恢复并通过一次 DataSentry 真实只读巡检，但仍需持续观察 checkpoint、重启次数、Kafka lag、Doris freshness、Collector 重连频率和 AI 诊断链路；历史 smoke 不能替代后续现场状态。
@@ -146,6 +148,7 @@
 | M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
 | M7.2 运维可用化 | 已完成 | live smoke 预检、secret 状态解释和运维手册 |
 | M8 监控部署闭环 | 已完成并云端复验 | Prometheus/Grafana/Alertmanager 真实部署验收入口和 DataSentry 告警诊断闭环 smoke |
+| M9 生产化与安全收口 | 设计中 | `data1` 本机部署 DataSentry API、Alertmanager 自动回调、暴露面和 secret/只读账号收口 |
 
 ## 关键文档
 
@@ -159,6 +162,7 @@
 - [M6 审批式自动运维设计](superpowers/specs/2026-06-28-m6-approval-runbooks-design.md)
 - [M7 有限自治设计](superpowers/specs/2026-06-29-m7-limited-autonomy-design.md)
 - [M8 监控部署闭环设计](superpowers/specs/2026-07-01-m8-monitoring-deployment-loop-design.md)
+- [M9 生产化与安全收口设计](superpowers/specs/2026-07-02-m9-production-hardening-design.md)
 - [M3 监控看板与通知实施计划](superpowers/plans/2026-06-26-m3-observability-notifications.md)
 - [M4 对话式 Agent 与 Web 控制台实施计划](superpowers/plans/2026-06-27-m4-dialog-web-console.md)
 - [M5 事件记忆与 RCA 实施计划](superpowers/plans/2026-06-28-m5-incident-memory-rca.md)
