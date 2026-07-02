@@ -9,7 +9,7 @@
 | 总体状态 | M9 生产化与安全收口云端首轮部署已完成，DataSentry API 已在 `data1` 以 systemd 运行 |
 | 当前阶段 | M9 云端回归与暴露面收口：DataSentry API 监听云端 `127.0.0.1:18000`，容器化 Alertmanager 通过 Docker bridge socket proxy 回调 |
 | 当前工作 | 已完成 `data1` 部署、systemd health、Alertmanager 真实投递、监控 smoke 和真实只读巡检；需后续维护窗口继续收口既有公网监听服务 |
-| 下一里程碑 | M9：将 Docker bridge proxy 资产、云端部署结果和残余风险同步到 GitHub，并排期 MySQL/Redis/AI/Flink/Spring/Doris 既有暴露面收口 |
+| 下一里程碑 | M9 后续维护：按需优雅关停云端验证环境，并排期 MySQL/Redis/AI/Flink/Spring/Doris 既有暴露面收口 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -81,7 +81,7 @@
 
 ## 下一步
 
-1. 将 M9 Docker bridge proxy 示例、部署手册、暴露面 checklist 和状态文档提交并推送到 GitHub 分支 `codex/m9-production-hardening`。
+1. 若用户准备关闭或释放 `data1`，先优雅停止 DataSentry API 与 Alertmanager Docker bridge proxy；如仍需继续收告警，则保留实例和服务运行。
 2. 复查 M9 云端服务稳定性：`datasentry-api`、`datasentry-alertmanager-proxy.socket`、真实 Alertmanager 投递、`deployment-check`、`alert-smoke` 和真实 K 线只读巡检。
 3. 优先收口既有公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 当前仍存在 `0.0.0.0` 或 `*` 监听；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
 4. 后续继续把开发、提交和版本管理留在本地仓库 + GitHub，云端只运行明确 Git 版本，不在云端保存完整开发环境。
