@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M9 生产化与安全收口开发、首轮云端验证和本地 `main` 合并已完成 |
 | 当前阶段 | M9 后续维护与暴露面收口：云端验证实例已由用户关闭，后续重开需确认 systemd 自启动状态 |
-| 当前工作 | 已完成 `data1` 部署、systemd health、Alertmanager 真实投递、监控 smoke、真实只读巡检、本地 `main` 合并和仓库收口；云端实例暂不开启时，先在本地准备 M9 暴露面维护预案、风险 backlog、云端脚本审计结论和回归保护 |
+| 当前工作 | 已完成 `data1` 部署、systemd health、Alertmanager 真实投递、监控 smoke、真实只读巡检、本地 `main` 合并和仓库收口；云端实例暂不开启时，先在本地准备 M9 暴露面维护预案、风险 backlog、云端脚本审计结论、人工启停总控脚本和回归保护 |
 | 下一里程碑 | 后续排期 MySQL/Redis/AI/Flink/Spring/Doris 既有暴露面收口 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -43,6 +43,7 @@
 - 完成 M9 暴露面维护预案本地准备：不开云端实例时先补齐维护窗口顺序、组件收口清单、回滚边界、证据记录模板和文档资产回归测试。
 - 完成 M9 风险 backlog 本地整理：将 Kafka timeout、Doris root 改密、AI Engine 运行方式、SSH 指纹、云端 AI 未跟踪文件、`/root/bin` 脚本、Doris freshness 和 MySQL 异常表复盘拆成可关闭条目。
 - 完成 `/root/bin` 云端脚本审计源码初审：基于用户提供脚本详情确认 `doris.sh`、`flink.sh`、`xcall`、`xsync` 等依赖 root 无密 SSH，`spring.sh` 和 `ai.sh` 以 root 权限运行应用，`job.sh` 缺乏幂等性；当前结论为不得进入 DataSentry 自动执行白名单。
+- 完成 StreamLake 人工启停总控脚本本地实现：新增 `deploy/ops/streamlake-startup.sh` 和使用手册，支持 `plan start`、`plan stop`、`status`、`start`、`stop`、`restart`，用于人工维护窗口，不进入 DataSentry 自动执行白名单。
 
 ## 正在进行
 
@@ -55,6 +56,7 @@
 - 2026-07-02 云端实例暂不开启期间，新增 M9 暴露面维护预案和 checklist 细化，明确下次维护窗口先只读确认自启动、监听、账号、secret 和回归证据，再逐组件收口；本地文档资产测试覆盖该入口。
 - 2026-07-02 继续新增 M9 风险 backlog，按优先级、当前证据、本地准备、云端只读验证、升级条件和关闭条件整理遗留风险；不开云端实例时不执行 SSH 或云端写操作。
 - 2026-07-02 根据用户提供的 `/root/bin` 脚本详情完成云端脚本审计初审并写入仓库文档；该审计基于源码快照，不代表当前云端实时状态，下次打开 `data1` 后仍需只读复核文件清单、权限、mtime 和哈希。
+- 2026-07-02 根据用户使用习惯设计并实现 StreamLake 启停总控脚本，取消额外确认参数；脚本保留 `plan` 预演和 `status` 查看，真正执行的 `start`、`stop`、`restart` 仅用于人工维护窗口。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
@@ -192,6 +194,7 @@
 - [M9 暴露面维护预案](operations/m9-exposure-maintenance-plan.md)
 - [M9 风险 backlog](operations/m9-risk-backlog.md)
 - [`/root/bin` 运维脚本审计结论](operations/root-bin-script-audit.md)
+- [StreamLake 启停总控脚本](operations/streamlake-startup.md)
 - [生产暴露面收口 checklist](operations/production-exposure-checklist.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -350,3 +351,62 @@ def test_root_bin_script_audit_records_automation_blockers() -> None:
     assert "已完成源码初审" in backlog
     assert "root-bin-script-audit.md" in readme
     assert "云端脚本审计" in status
+
+
+def test_streamlake_startup_script_documents_manual_start_stop_flow() -> None:
+    script_path = ROOT / "deploy/ops/streamlake-startup.sh"
+    script = script_path.read_text(encoding="utf-8")
+    guide = read_text("docs/operations/streamlake-startup.md")
+    readme = read_text("README.md")
+
+    assert script_path.stat().st_mode & 0o111
+    subprocess.run(["bash", "-n", str(script_path)], check=True)
+
+    required_commands = [
+        "plan start",
+        "plan stop",
+        "status",
+        "start",
+        "stop",
+        "restart",
+    ]
+    assert_contains_all(script, required_commands)
+    assert_contains_all(guide, required_commands)
+
+    start_order = [
+        "/root/bin/kafka.sh start",
+        "/root/bin/doris.sh start",
+        "/root/bin/flink.sh start",
+        "/root/bin/spring.sh start",
+        "/root/bin/ai.sh start",
+        "cd /opt/datasentry-monitoring && docker compose start",
+        "/root/bin/job.sh all",
+    ]
+    assert_contains_all(script, start_order)
+    assert_contains_all(guide, start_order)
+
+    stop_order = [
+        "cd /opt/datasentry-monitoring && docker compose stop",
+        "/root/bin/spring.sh stop",
+        "/root/bin/ai.sh stop",
+        "/root/bin/flink.sh stop",
+        "/root/bin/doris.sh stop",
+        "/root/bin/kafka.sh stop",
+    ]
+    assert_contains_all(script, stop_order)
+    assert_contains_all(guide, stop_order)
+
+    safety_boundaries = [
+        "人工维护窗口",
+        "不进入 DataSentry 自动执行白名单",
+        "不自动 cancel Flink Job",
+        "不打印真实 secret",
+        "STREAMLAKE_ROOT_BIN",
+        "STREAMLAKE_MONITORING_DIR",
+    ]
+    assert_contains_all(script, safety_boundaries)
+    assert_contains_all(guide, safety_boundaries)
+
+    assert "--confirm" not in script
+    assert "--confirm" not in guide
+    assert "streamlake-startup.md" in readme
