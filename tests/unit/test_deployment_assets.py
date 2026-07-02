@@ -248,3 +248,58 @@ def test_m9_exposure_maintenance_plan_covers_offline_preparation() -> None:
 
     assert "m9-exposure-maintenance-plan.md" in readme
     assert "M9 暴露面维护预案" in status
+
+
+def test_m9_risk_backlog_tracks_local_and_cloud_followups() -> None:
+    backlog = read_text("docs/operations/m9-risk-backlog.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 使用方式",
+        "## 风险分级",
+        "## 当前 Backlog",
+        "## 不开云端时可推进",
+        "## 开云端后的只读验证",
+        "## 退出条件",
+    ]
+    assert_contains_all(backlog, required_sections)
+
+    required_risks = [
+        "get_kafka_topic",
+        "tool.timeout",
+        "Doris root 改密",
+        "AI Engine",
+        "systemd",
+        "known_hosts",
+        "datasentry_known_hosts",
+        "ai-engine/docker-compose.yml",
+        "ai-engine/nohup.out",
+        "ai-engine/volumes/",
+        "/root/bin",
+        "Doris freshness",
+        "RECOVER_YOUR_DATA_info",
+    ]
+    assert_contains_all(backlog, required_risks)
+
+    required_fields = [
+        "优先级",
+        "当前证据",
+        "本地准备",
+        "云端只读验证",
+        "升级条件",
+        "关闭条件",
+    ]
+    assert_contains_all(backlog, required_fields)
+
+    required_boundaries = [
+        "不开云端实例",
+        "不执行 SSH",
+        "不打印真实 secret",
+        "不自动修改生产配置",
+        "不开放生产写 Runbook",
+    ]
+    assert_contains_all(backlog, required_boundaries)
+
+    assert "m9-risk-backlog.md" in readme
+    assert "M9 风险 backlog" in status

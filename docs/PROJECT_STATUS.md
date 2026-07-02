@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M9 生产化与安全收口开发、首轮云端验证和本地 `main` 合并已完成 |
 | 当前阶段 | M9 后续维护与暴露面收口：云端验证实例已由用户关闭，后续重开需确认 systemd 自启动状态 |
-| 当前工作 | 已完成 `data1` 部署、systemd health、Alertmanager 真实投递、监控 smoke、真实只读巡检、本地 `main` 合并和仓库收口；云端实例暂不开启时，先在本地准备 M9 暴露面维护预案和回归保护 |
+| 当前工作 | 已完成 `data1` 部署、systemd health、Alertmanager 真实投递、监控 smoke、真实只读巡检、本地 `main` 合并和仓库收口；云端实例暂不开启时，先在本地准备 M9 暴露面维护预案、风险 backlog 和回归保护 |
 | 下一里程碑 | 后续排期 MySQL/Redis/AI/Flink/Spring/Doris 既有暴露面收口 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -41,6 +41,7 @@
 - 完成 M8 云端复验：监控部署验收、Alertmanager → DataSentry API smoke、K 线真实只读巡检、AI Engine health、MySQL/Redis 服务状态和固定只读样本查询均已通过。
 - 完成 M9 仓库部署资产本地实现：`deploy/systemd/datasentry-api.service.example`、`config/datasentry.env.example`、M9 生产化部署手册、生产暴露面 checklist 和部署资产回归测试。
 - 完成 M9 暴露面维护预案本地准备：不开云端实例时先补齐维护窗口顺序、组件收口清单、回滚边界、证据记录模板和文档资产回归测试。
+- 完成 M9 风险 backlog 本地整理：将 Kafka timeout、Doris root 改密、AI Engine 运行方式、SSH 指纹、云端 AI 未跟踪文件、`/root/bin` 脚本、Doris freshness 和 MySQL 异常表复盘拆成可关闭条目。
 
 ## 正在进行
 
@@ -51,6 +52,7 @@
 - 2026-07-02 M9 固定只读确认完成：AI Engine `/health` 返回 ok；MySQL 与 Redis systemd 为 active；MySQL 只读样本返回 `risk_rules=5`、`whale_thresholds=7`；Redis 只读样本返回 dbsize 40、`risk:blacklist:*` 样本 key 数 5；未打印或提交真实 secret。AI Engine systemd 单元为 inactive，但 8000 服务健康，说明现场 AI Engine 仍由既有进程方式运行。
 - 2026-07-02 用户已关闭云端实例；由于部署时 `datasentry-api` 和 `datasentry-alertmanager-proxy.socket` 均设置为 enabled，后续若重开 `data1`，需先确认是否需要保留自启动；如不需要，按 M9 手册停止并 disable 这两个 systemd 单元。
 - 2026-07-02 云端实例暂不开启期间，新增 M9 暴露面维护预案和 checklist 细化，明确下次维护窗口先只读确认自启动、监听、账号、secret 和回归证据，再逐组件收口；本地文档资产测试覆盖该入口。
+- 2026-07-02 继续新增 M9 风险 backlog，按优先级、当前证据、本地准备、云端只读验证、升级条件和关闭条件整理遗留风险；不开云端实例时不执行 SSH 或云端写操作。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
@@ -86,7 +88,7 @@
 
 1. 若后续重开 `data1`，先确认是否需要 `datasentry-api` 与 `datasentry-alertmanager-proxy.socket` 自启动；如不需要，按 M9 手册停止并 disable。
 2. 优先收口既有公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 当前仍存在 `0.0.0.0` 或 `*` 监听；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
-3. 开云端前先按 M9 暴露面维护预案准备证据记录；不开云端实例时只推进本地文档、测试和计划，不执行 SSH 或云端写操作。
+3. 开云端前先按 M9 暴露面维护预案和 M9 风险 backlog 准备证据记录；不开云端实例时只推进本地文档、测试和计划，不执行 SSH 或云端写操作。
 4. 后续继续把开发、提交和版本管理留在本地仓库 + GitHub，云端只运行明确 Git 版本，不在云端保存完整开发环境。
 5. 排查真实巡检中 `get_kafka_topic` 对 `data1` 的 `tool.timeout`，确认是 Kafka CLI 偶发超时、broker 响应慢还是只读账号环境限制。
 6. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag、Collector 重连频率和 AI 诊断链路。
@@ -186,6 +188,7 @@
 - [M8 监控部署闭环运维手册](operations/monitoring-deployment.md)
 - [M9 生产化部署运维手册](operations/m9-production-deployment.md)
 - [M9 暴露面维护预案](operations/m9-exposure-maintenance-plan.md)
+- [M9 风险 backlog](operations/m9-risk-backlog.md)
 - [生产暴露面收口 checklist](operations/production-exposure-checklist.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
