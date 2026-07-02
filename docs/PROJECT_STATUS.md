@@ -8,7 +8,7 @@
 |---|---|
 | 总体状态 | M9 生产化与安全收口已启动，首轮采用 `data1` 本机 DataSentry API 部署方案 |
 | 当前阶段 | M9 设计：DataSentry API 只监听云端 `127.0.0.1`，Alertmanager 本机回调，公网暴露面与 secret/只读账号收口 |
-| 当前工作 | 已确认 M9 方向并起草设计文档；后续先完成仓库内 systemd/env 示例、部署手册和回归 checklist，再经用户确认执行云端部署验证 |
+| 当前工作 | 已确认 M9 方向并形成实施计划；后续先完成仓库内 systemd/env 示例、部署手册和回归 checklist，再经用户确认执行云端部署验证 |
 | 下一里程碑 | M9：在 `data1` 以 systemd 运行 DataSentry API，改造 Alertmanager 本机回调，复跑监控和真实只读巡检回归 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -43,6 +43,7 @@
 ## 正在进行
 
 - M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1`，Alertmanager 通过本机 URL 回调 `/api/alertmanager/webhook`。
+- 2026-07-02 M9 设计文档和实施计划已落地到仓库；本阶段尚未创建 systemd/env 示例、尚未修改云端 Alertmanager 配置、尚未执行 `data1` 云端部署。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
@@ -171,6 +172,7 @@
 - [M7.2 运维可用化设计](superpowers/specs/2026-07-01-m7.2-ops-usability-design.md)
 - [M7.2 运维可用化实施计划](superpowers/plans/2026-07-01-m7.2-ops-usability.md)
 - [M8 监控部署闭环实施计划](superpowers/plans/2026-07-01-m8-monitoring-deployment-loop.md)
+- [M9 生产化与安全收口实施计划](superpowers/plans/2026-07-02-m9-production-hardening.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [M8 监控部署闭环运维手册](operations/monitoring-deployment.md)
 - [知识导航](../knowledge/INDEX.md)
