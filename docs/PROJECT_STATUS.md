@@ -6,14 +6,14 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M8 监控部署闭环已完成云端首轮部署验收 |
-| 当前阶段 | M8：Prometheus/Grafana/Alertmanager 只读部署验收 + DataSentry 告警诊断闭环 smoke |
-| 当前工作 | 已在 `data1:/opt/datasentry-monitoring` 通过 Docker Compose 部署 Prometheus、Grafana 和 Alertmanager；端口仅绑定云端 `127.0.0.1`，本地通过 SSH tunnel 完成 `deployment-check` 和 `alert-smoke` 验收 |
-| 下一里程碑 | 后续按需通过 SSH tunnel 查看 Grafana；若要让真实 Alertmanager 自动回调 DataSentry，需要部署云端 DataSentry API 或配置受控反向通道 |
+| 总体状态 | M8 监控部署闭环已完成云端复验，准备进入 M9 生产化与安全收口 |
+| 当前阶段 | M8 收尾完成：Prometheus/Grafana/Alertmanager 只读部署验收 + DataSentry 告警诊断闭环 smoke + 真实只读巡检复验 |
+| 当前工作 | 已通过用户建立的 SSH tunnel 复跑 `deployment-check` 和 `alert-smoke`；已复跑 K 线真实只读巡检，并补齐 AI Engine、MySQL、Redis 现场只读确认 |
+| 下一里程碑 | M9：部署或打通真实 DataSentry API 回调入口，收紧云端公网暴露面，固化只读账号、secret 注入和监控回归流程 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
-| 最近状态更新时间 | 2026-07-01 |
+| 最近状态更新时间 | 2026-07-02 |
 
 ## 已完成
 
@@ -38,10 +38,16 @@
 - 完成 M7.1 有限自治控制面补齐：自治统计、成功率/样本准入、熔断 half-open/reset API 和 React 审批页展示。
 - 完成 M7.2 运维可用化：`datasentry ops preflight`、secret 状态只读预检、云端变量映射提示和 live smoke 运维手册。
 - 完成 M8 监控部署闭环本地实现：监控端点配置、Prometheus/Grafana/Alertmanager 只读部署验收、Alertmanager → DataSentry API smoke、Alertmanager 示例路由修正和运维手册。
+- 完成 M8 云端复验：监控部署验收、Alertmanager → DataSentry API smoke、K 线真实只读巡检、AI Engine health、MySQL/Redis 服务状态和固定只读样本查询均已通过。
 
 ## 正在进行
 
-- M8 监控部署闭环已完成云端首轮部署验收；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
+- M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
+- 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
+- 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
+- 2026-07-02 M8 `alert-smoke` 通过：本地 DataSentry API 使用 `var/datasentry-m8-smoke-20260702.db` 和 mock LLM，创建 Incident `0c17ee9a-033f-4c12-ba54-43762cbb323a`，Incident detail、timeline、RCA 和 Markdown export 均返回 200。
+- 2026-07-02 DataSentry 真实只读巡检完成，Inspection `b16ccb89-6737-4530-a6d1-2399a76ef14a` 结论为“K线主链路当前正在推进”：主机、Collector、Flink、Kafka、Doris 和 Spring API 固定工具均成功，Kline checkpoint 连续失败 0、backpressure 为 ok、Kafka `binance.trade.raw` offset 正在推进、Doris `kline_1min` freshness 约 34 秒、API 固定读探针返回 ok；本轮仅用一次性进程环境注入 Doris secret，未打印、落盘或提交真实密码。
+- 2026-07-02 AI Engine、MySQL 和 Redis 现场只读确认完成：AI Engine 服务状态和 `/health` 均为 RUNNING；MySQL 与 Redis 服务状态均为 RUNNING；固定 MySQL 样本查询返回 `risk_rules=5`、`whale_thresholds=7`，固定 Redis 只读采样返回 dbsize 39、`risk:blacklist:*` 样本 key 数 21，未打印业务值或 secret。
 - 2026-07-01 M8 `deployment-check` 通过：Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
 - 2026-07-01 M8 `alert-smoke` 通过：本地 DataSentry API 使用 `var/datasentry-m8-smoke.db` 和 mock LLM，创建 Incident `692dd440-0b6b-452d-b0f1-0763d1b5cb60`，Incident detail、timeline、RCA 和 Markdown export 均返回 200。
 - M5 已合并到 `main`；真实 Alertmanager → DataSentry API smoke 已复跑通过，Incident 建档、时间线、RCA 和 Markdown export 链路已闭合。
@@ -69,16 +75,15 @@
 
 ## 下一步
 
-1. 先在本地 `main` 跑一次 DataSentry 基线验证；新改动使用新分支，本地验证后推送 GitHub，云端只执行拉取和部署验证。
-2. 通过 `sshdata1` 做只读现场确认：主机、Collector、Kafka、Flink、Doris、Redis、MySQL、Spring API 和 AI Engine；只使用固定白名单命令和专用只读账号。
-3. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag 和 Collector 重连频率。
+1. 启动 M9 生产化与安全收口设计：确定真实 DataSentry API 部署方式，或建立受控反向通道，让 Alertmanager 能自动回调 DataSentry。
+2. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+3. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag、Collector 重连频率和 AI 诊断链路。
 4. 保留 DataSentry 真实只读巡检作为现场回归手段；后续复跑时重点观察 Flink checkpoint、Kafka offset、Doris freshness、Spring API 固定读探针和 AI 诊断链路。
 5. 保留真实 Alertmanager → DataSentry API smoke 作为后续告警闭环回归；新增告警规则或 RCA 行为变化时需确认 Incident 建档、时间线、相似事件、RCA 草稿和通知链路。
-6. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
-7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
-8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
-9. 后续真实只读巡检若在本地运行，应先执行 `datasentry ops preflight`，再使用一次性环境变量或安全 secret 注入方式补齐 Doris/MySQL/Redis 密码，禁止将真实密码写入仓库文件或提交历史。
-10. 后续查看 Grafana 时通过 SSH tunnel 访问云端 `127.0.0.1:3000`；不要把 Grafana、Prometheus 或 Alertmanager 直接暴露到公网。Grafana admin 密码存放在云端 root-only `/root/.datasentry-monitoring-secrets`，不要打印或提交。
+6. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
+7. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
+8. 后续真实只读巡检若在本地运行，应先执行 `datasentry ops preflight`，再使用一次性环境变量或安全 secret 注入方式补齐 Doris/MySQL/Redis 密码，禁止将真实密码写入仓库文件或提交历史。
+9. 后续查看 Grafana 时通过 SSH tunnel 访问云端 `127.0.0.1:3000`；不要把 Grafana、Prometheus 或 Alertmanager 直接暴露到公网。Grafana admin 密码存放在云端 root-only `/root/.datasentry-monitoring-secrets`，不要打印或提交。
 
 ## 阻塞与风险
 
@@ -140,7 +145,7 @@
 | M6 审批式自动运维 | 已完成并合并 | Runbook、审批、执行、审计和验证 |
 | M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
 | M7.2 运维可用化 | 已完成 | live smoke 预检、secret 状态解释和运维手册 |
-| M8 监控部署闭环 | 本地实现已完成 | Prometheus/Grafana/Alertmanager 真实部署验收入口和 DataSentry 告警诊断闭环 smoke |
+| M8 监控部署闭环 | 已完成并云端复验 | Prometheus/Grafana/Alertmanager 真实部署验收入口和 DataSentry 告警诊断闭环 smoke |
 
 ## 关键文档
 
@@ -328,6 +333,16 @@
 - Doris root 改密暂缓：Flink 三个 Job 源码默认 Doris `root` 空密码，运行中 sink 重连可能受影响；`job.sh` 会加载 `/root/.streamlake-secrets`，但 `spring.sh` 和 `ai.sh` 当前未 source 该文件。Doris root 改密需与 DORIS 环境变量注入、Spring/AI 脚本修正和 Flink Job 维护窗口重启一起执行。
 - 本机未安装或未配置云厂商 CLI（`aliyun`/`aws`/`gcloud`/`az` 均不可用），因此本次未直接修改云安全组；公网端口暴露风险仍需在云控制台或配置好 CLI 后收口。
 - 已确认旧改密备份未被 `/root/bin` 或 StreamLake 仓库引用，并删除 `/root/bin/job.sh.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/RiskControlJob.java.bak-20260630-password-rotation`、`/root/streamlake-local-backups/20260630-password-rotation/WhaleCepJob.java.bak-20260630-password-rotation`；复查无剩余旧改密备份文件。
+
+### 2026-07-02
+
+- 按用户已建立的 SSH tunnel 端口约定修正本地 ignored `config/monitoring.toml`：Prometheus 使用本地 `9090`，Grafana 使用本地 `3000`，Alertmanager 使用本地 `19093`；避免与此前 `19090/13000/19093` 的本地端口约定混淆。
+- 本地 `main` 基线验证通过：`python -m ruff format --check .`、`python -m ruff check .`、`python -m mypy src`、`python -m pytest tests -q -W error::ResourceWarning --cov=datasentry --cov-report=term-missing --cov-fail-under=90`、`cd frontend && npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
+- 复跑 M8 监控部署验收通过：Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均为 passed。
+- 复跑 M8 Alertmanager → DataSentry API smoke 通过：本地 API 使用 `var/datasentry-m8-smoke-20260702.db` 和 mock LLM，创建 Incident `0c17ee9a-033f-4c12-ba54-43762cbb323a`，Incident detail、timeline、RCA 和 Markdown export 均返回 200。
+- 使用一次性进程环境从云端 root-only secret 注入 Doris 密码后，复跑 DataSentry K 线真实只读巡检，Inspection `b16ccb89-6737-4530-a6d1-2399a76ef14a` 完成且结论为“K线主链路当前正在推进”；主机、Collector、Flink、Kafka、Doris 和 Spring API 固定工具均成功，Doris `kline_1min` freshness 约 34 秒。
+- AI Engine、MySQL 和 Redis 现场只读确认完成：AI Engine 服务状态和 `/health` 均为 RUNNING；MySQL 与 Redis 服务状态均为 RUNNING；固定 MySQL 样本查询返回 `risk_rules=5`、`whale_thresholds=7`，固定 Redis 只读采样返回 dbsize 39、`risk:blacklist:*` 样本 key 数 21；未打印、落盘或提交真实 secret。
+- M8 收口结论：监控部署闭环已完成云端复验，下一阶段建议进入 M9 生产化与安全收口，重点是 DataSentry API 真实回调入口、云端公网暴露面收紧、secret 注入固化和监控/巡检回归流程。
 
 ### 2026-07-01
 
