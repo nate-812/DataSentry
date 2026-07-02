@@ -28,9 +28,10 @@
 /var/log/datasentry/
 /etc/datasentry/datasentry.env
 /etc/datasentry/targets.toml
+/etc/datasentry/monitoring.toml
 ```
 
-`/etc/datasentry/datasentry.env` 和 `/etc/datasentry/targets.toml` 是云端真实配置，不提交到 Git。
+`/etc/datasentry/datasentry.env`、`/etc/datasentry/targets.toml` 和 `/etc/datasentry/monitoring.toml` 是云端真实配置，不提交到 Git。`monitoring.toml` 可从 `config/monitoring.example.toml` 首次初始化后按云端 loopback 地址调整；不要在其中写入 username、password、token、query 或 fragment。
 
 ## 仓库产物
 
@@ -83,19 +84,30 @@ git rev-parse --short HEAD
 test -x .venv/bin/uvicorn
 ```
 
-确认云端配置文件存在并由预期权限保护。`targets.toml` 只能保存目标、白名单和变量名引用，不应包含密码、token、Cookie、私钥或连接串等 secret 值：
+确认云端配置文件存在并由预期权限保护。`targets.toml` 只能保存目标、白名单和变量名引用，不应包含密码、token、Cookie、私钥或连接串等 secret 值。`monitoring.toml` 只保存 Prometheus、Grafana、Alertmanager 和 DataSentry API 的 base URL 与期望告警名，不应包含凭据、query 或 fragment：
 
 ```bash
 test -f /etc/datasentry/targets.toml
+test -f /etc/datasentry/monitoring.toml
 test -f /etc/datasentry/datasentry.env
-sudo chown root:datasentry /etc/datasentry/targets.toml /etc/datasentry/datasentry.env
-sudo chmod 0640 /etc/datasentry/targets.toml /etc/datasentry/datasentry.env
+sudo chown root:datasentry /etc/datasentry/targets.toml /etc/datasentry/monitoring.toml /etc/datasentry/datasentry.env
+sudo chmod 0640 /etc/datasentry/targets.toml /etc/datasentry/monitoring.toml /etc/datasentry/datasentry.env
+```
+
+首次准备 `monitoring.toml` 时，可以从仓库示例复制到临时文件后人工调整地址；如果 `/etc/datasentry/monitoring.toml` 已存在，不要覆盖，需人工对比保留现场地址：
+
+```bash
+test ! -e /etc/datasentry/monitoring.toml
+sudo cp -n config/monitoring.example.toml /etc/datasentry/monitoring.toml
+sudo chown root:datasentry /etc/datasentry/monitoring.toml
+sudo chmod 0640 /etc/datasentry/monitoring.toml
 ```
 
 最后确认服务用户能读取配置，并能写入 SQLite 和日志目录。示例中的临时文件只用于权限验证，完成后按维护窗口流程清理；不要把真实 secret 打印到终端、日志或工单中：
 
 ```bash
 sudo -u datasentry test -r /etc/datasentry/targets.toml
+sudo -u datasentry test -r /etc/datasentry/monitoring.toml
 sudo -u datasentry test -r /etc/datasentry/datasentry.env
 sudo -u datasentry test -w /var/lib/datasentry
 sudo -u datasentry test -w /var/log/datasentry

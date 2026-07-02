@@ -243,9 +243,10 @@ Create `docs/operations/m9-production-deployment.md` with:
 /var/log/datasentry/
 /etc/datasentry/datasentry.env
 /etc/datasentry/targets.toml
+/etc/datasentry/monitoring.toml
 ```
 
-`/etc/datasentry/datasentry.env` 和 `/etc/datasentry/targets.toml` 是云端真实配置，不提交到 Git。
+`/etc/datasentry/datasentry.env`、`/etc/datasentry/targets.toml` 和 `/etc/datasentry/monitoring.toml` 是云端真实配置，不提交到 Git。
 
 ## 仓库产物
 
@@ -273,13 +274,18 @@ git diff --check
 sudo install -o root -g root -m 0644 \
   deploy/systemd/datasentry-api.service.example \
   /etc/systemd/system/datasentry-api.service
-
-sudo install -o root -g datasentry -m 0640 \
-  config/datasentry.env.example \
-  /etc/datasentry/datasentry.env
 ```
 
-编辑 `/etc/datasentry/datasentry.env` 时只在云端受限文件中加入真实 secret。不要把真实值复制回仓库。
+Only initialize `/etc/datasentry/datasentry.env` from the example if the file does not already exist. Never overwrite an existing production env file:
+
+```bash
+test ! -e /etc/datasentry/datasentry.env
+sudo cp -n config/datasentry.env.example /etc/datasentry/datasentry.env
+sudo chown root:datasentry /etc/datasentry/datasentry.env
+sudo chmod 0640 /etc/datasentry/datasentry.env
+```
+
+编辑 `/etc/datasentry/datasentry.env` 时只在云端受限文件中加入真实 secret。不要把真实值复制回仓库。`/etc/datasentry/monitoring.toml` 也应从 `config/monitoring.example.toml` 首次初始化后人工调整；已存在时不得覆盖。
 
 ## 启动和健康检查
 

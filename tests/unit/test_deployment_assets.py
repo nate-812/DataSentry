@@ -60,6 +60,7 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "/etc/datasentry",
         "/etc/datasentry/datasentry.env",
         "/etc/datasentry/targets.toml",
+        "/etc/datasentry/monitoring.toml",
         "/opt/datasentry-agent",
         "/var/lib/datasentry",
         "/var/lib/datasentry/datasentry.db",
@@ -91,6 +92,8 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         guide,
     )
     assert "test ! -e /etc/datasentry/datasentry.env" in guide
+    assert "test ! -e /etc/datasentry/monitoring.toml" in guide
+    assert "config/monitoring.example.toml" in guide
 
     required_setup_commands = [
         "getent group datasentry",
@@ -103,6 +106,7 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "git rev-parse --short HEAD",
         "test -x .venv/bin/uvicorn",
         "test -f /etc/datasentry/targets.toml",
+        "test -f /etc/datasentry/monitoring.toml",
     ]
     assert_contains_all(guide, required_setup_commands)
 
