@@ -35,6 +35,7 @@
 ## 不开云端时可推进
 
 - 维护 `docs/operations/m9-exposure-maintenance-plan.md` 和 `docs/operations/production-exposure-checklist.md`，让下次维护窗口可照单执行。
+- 维护 `docs/operations/m9-component-runbooks.md`，把 P1/P2 风险拆成组件级只读确认、回滚边界和回归步骤。
 - 为本 backlog 补充测试，确保关键风险不从文档入口中消失。
 - 准备证据记录模板、只读验证顺序和回滚边界。
 - 将每个 P1/P2 风险拆成“本地准备”和“开云端后的只读验证”，避免云端打开后临场决策。

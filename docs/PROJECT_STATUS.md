@@ -45,6 +45,7 @@
 - 完成 `/root/bin` 云端脚本审计源码初审：基于用户提供脚本详情确认 `doris.sh`、`flink.sh`、`xcall`、`xsync` 等依赖 root 无密 SSH，`spring.sh` 和 `ai.sh` 以 root 权限运行应用，`job.sh` 缺乏幂等性；当前结论为不得进入 DataSentry 自动执行白名单。
 - 完成 StreamLake 人工启停总控脚本本地实现：新增 `deploy/ops/streamlake-startup.sh` 和使用手册，支持 `plan start`、`plan stop`、`status`、`start`、`stop`、`restart`，用于人工维护窗口，不进入 DataSentry 自动执行白名单。
 - 完成维护窗口证据记录模板本地准备：新增 `docs/operations/maintenance-evidence-record.md`，用于记录当前命令结果、用户确认、回滚动作、Incident/Inspection ID、未验证项和 secret 处理确认。
+- 完成 M9 组件级 runbook 本地准备：将 Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的只读确认、允许变更、回滚边界、回归步骤和暂缓条件拆分到 `docs/operations/m9-component-runbooks.md`。
 
 ## 正在进行
 
@@ -194,6 +195,7 @@
 - [M9 生产化部署运维手册](operations/m9-production-deployment.md)
 - [M9 暴露面维护预案](operations/m9-exposure-maintenance-plan.md)
 - [M9 风险 backlog](operations/m9-risk-backlog.md)
+- [M9 组件级维护 Runbook](operations/m9-component-runbooks.md)
 - [`/root/bin` 运维脚本审计结论](operations/root-bin-script-audit.md)
 - [StreamLake 启停总控脚本](operations/streamlake-startup.md)
 - [维护窗口证据记录模板](operations/maintenance-evidence-record.md)

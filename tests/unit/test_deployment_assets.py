@@ -351,6 +351,63 @@ def test_m9_risk_backlog_tracks_local_and_cloud_followups() -> None:
     assert "M9 风险 backlog" in status
 
 
+def test_m9_component_runbooks_split_p1_p2_risks_by_service() -> None:
+    runbook = read_text("docs/operations/m9-component-runbooks.md")
+    backlog = read_text("docs/operations/m9-risk-backlog.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 使用边界",
+        "## 通用执行顺序",
+        "## Flink Web",
+        "## Doris FE",
+        "## MySQL",
+        "## Redis",
+        "## Spring API",
+        "## AI Engine",
+        "## 全局回归",
+    ]
+    assert_contains_all(runbook, required_sections)
+
+    required_per_component_fields = [
+        "只读确认",
+        "变更前证据",
+        "允许变更",
+        "回滚边界",
+        "变更后回归",
+        "暂缓条件",
+    ]
+    for component in ["Flink Web", "Doris FE", "MySQL", "Redis", "Spring API", "AI Engine"]:
+        component_block = runbook.split(f"## {component}", maxsplit=1)[1].split("\n## ", maxsplit=1)[0]
+        assert_contains_all(component_block, required_per_component_fields)
+
+    required_risk_ids = ["M9-R1", "M9-R3", "M9-R4", "M9-R8", "M9-R9"]
+    assert_contains_all(runbook, required_risk_ids)
+
+    required_boundaries = [
+        "不开云端实例时不执行 SSH",
+        "每次只处理一个组件",
+        "不自动修改云安全组",
+        "不执行未确认的生产写操作",
+        "不开放生产写 Runbook",
+        "maintenance-evidence-record.md",
+    ]
+    assert_contains_all(runbook, required_boundaries)
+
+    required_regressions = [
+        "datasentry ops preflight",
+        "datasentry monitoring deployment-check",
+        "datasentry monitoring alert-smoke",
+        "datasentry inspection run",
+    ]
+    assert_contains_all(runbook, required_regressions)
+
+    assert "m9-component-runbooks.md" in backlog
+    assert "m9-component-runbooks.md" in readme
+    assert "组件级 runbook" in status
+
+
 def test_root_bin_script_audit_records_automation_blockers() -> None:
     audit = read_text("docs/operations/root-bin-script-audit.md")
     backlog = read_text("docs/operations/m9-risk-backlog.md")
