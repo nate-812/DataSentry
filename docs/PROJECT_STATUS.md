@@ -46,6 +46,7 @@
 - 完成 StreamLake 人工启停总控脚本本地实现：新增 `deploy/ops/streamlake-startup.sh` 和使用手册，支持 `plan start`、`plan stop`、`status`、`start`、`stop`、`restart`，用于人工维护窗口，不进入 DataSentry 自动执行白名单。
 - 完成维护窗口证据记录模板本地准备：新增 `docs/operations/maintenance-evidence-record.md`，用于记录当前命令结果、用户确认、回滚动作、Incident/Inspection ID、未验证项和 secret 处理确认。
 - 完成 M9 组件级 runbook 本地准备：将 Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的只读确认、允许变更、回滚边界、回归步骤和暂缓条件拆分到 `docs/operations/m9-component-runbooks.md`。
+- 完成 StreamLake 启停脚本测试保护强化：本地测试直接验证 `plan start`/`plan stop` 只做 dry-run，并扫描脚本禁止危险删除、历史重置、任意分发和 secret 文件读取。
 
 ## 正在进行
 

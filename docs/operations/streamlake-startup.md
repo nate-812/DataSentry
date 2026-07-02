@@ -90,6 +90,12 @@ STREAMLAKE_FLINK_BIN=/tmp/fake-flink \
 deploy/ops/streamlake-startup.sh plan start
 ```
 
+## 本地测试保护
+
+仓库测试会直接执行 `plan start` 和 `plan stop`，确认它们只打印预演顺序，不检查云端路径、不执行 `/root/bin` 脚本、不调用 `docker compose`，且不会输出 `==>` 执行步骤标记。
+
+测试还会扫描脚本内容，禁止出现危险删除、Git 历史重置、任意 SQL 删除、Redis 清库、`xcall`、`xsync` 和 `/root/.streamlake-secrets` 读取路径。`/root/.streamlake-secrets` 只能在本文档中作为“不得读取或展示”的边界说明出现。
+
 ## 安全边界
 
 - 只用于人工维护窗口。

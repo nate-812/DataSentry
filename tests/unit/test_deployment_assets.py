@@ -512,3 +512,46 @@ def test_streamlake_startup_script_documents_manual_start_stop_flow() -> None:
     assert "--confirm" not in script
     assert "--confirm" not in guide
     assert "streamlake-startup.md" in readme
+
+
+def test_streamlake_startup_plan_commands_are_dry_run_and_safe() -> None:
+    script_path = ROOT / "deploy/ops/streamlake-startup.sh"
+    script = script_path.read_text(encoding="utf-8")
+    guide = read_text("docs/operations/streamlake-startup.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    start_plan = subprocess.run(
+        [str(script_path), "plan", "start"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    stop_plan = subprocess.run(
+        [str(script_path), "plan", "stop"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "Start plan:" in start_plan.stdout
+    assert "Stop plan:" in stop_plan.stdout
+    assert "/root/bin/job.sh all only when none" in start_plan.stdout
+    assert "missing executable" not in start_plan.stderr
+    assert "missing executable" not in stop_plan.stderr
+    assert "==>" not in start_plan.stdout
+    assert "==>" not in stop_plan.stdout
+
+    forbidden_fragments = [
+        "rm -rf",
+        "git reset",
+        "DROP ",
+        "FLUSHALL",
+        "xcall",
+        "xsync",
+        "/root/.streamlake-secrets",
+    ]
+    for fragment in forbidden_fragments:
+        assert fragment not in script
+
+    assert "本地测试保护" in guide
+    assert "脚本测试保护" in status
