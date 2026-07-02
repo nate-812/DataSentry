@@ -379,7 +379,9 @@ def test_m9_component_runbooks_split_p1_p2_risks_by_service() -> None:
         "暂缓条件",
     ]
     for component in ["Flink Web", "Doris FE", "MySQL", "Redis", "Spring API", "AI Engine"]:
-        component_block = runbook.split(f"## {component}", maxsplit=1)[1].split("\n## ", maxsplit=1)[0]
+        component_block = runbook.split(f"## {component}", maxsplit=1)[1].split(
+            "\n## ", maxsplit=1
+        )[0]
         assert_contains_all(component_block, required_per_component_fields)
 
     required_risk_ids = ["M9-R1", "M9-R3", "M9-R4", "M9-R8", "M9-R9"]
