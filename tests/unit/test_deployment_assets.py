@@ -303,3 +303,50 @@ def test_m9_risk_backlog_tracks_local_and_cloud_followups() -> None:
 
     assert "m9-risk-backlog.md" in readme
     assert "M9 风险 backlog" in status
+
+
+def test_root_bin_script_audit_records_automation_blockers() -> None:
+    audit = read_text("docs/operations/root-bin-script-audit.md")
+    backlog = read_text("docs/operations/m9-risk-backlog.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 审计范围",
+        "## 总体结论",
+        "## 高风险阻断项",
+        "## 脚本逐项结论",
+        "## 自动化准入结论",
+        "## 后续整改顺序",
+    ]
+    assert_contains_all(audit, required_sections)
+
+    required_scripts = [
+        "init_data1.sh",
+        "job.sh",
+        "job.sh.bak-20260630-password-rotation",
+        "kafka.sh",
+        "spring.sh",
+        "ai.sh",
+        "doris.sh",
+        "flink.sh",
+        "xcall",
+        "xsync",
+    ]
+    assert_contains_all(audit, required_scripts)
+
+    required_blockers = [
+        "root 无密 SSH",
+        "root 权限运行应用",
+        "缺乏幂等性",
+        "现场编译",
+        "0.0.0.0:8000",
+        "/root/.streamlake-secrets",
+        "不得进入 DataSentry 自动执行白名单",
+        "不开放生产写 Runbook",
+    ]
+    assert_contains_all(audit, required_blockers)
+
+    assert "已完成源码初审" in backlog
+    assert "root-bin-script-audit.md" in readme
+    assert "云端脚本审计" in status
