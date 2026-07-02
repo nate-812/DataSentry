@@ -150,7 +150,7 @@
 | M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
 | M7.2 运维可用化 | 已完成 | live smoke 预检、secret 状态解释和运维手册 |
 | M8 监控部署闭环 | 已完成并云端复验 | Prometheus/Grafana/Alertmanager 真实部署验收入口和 DataSentry 告警诊断闭环 smoke |
-| M9 生产化与安全收口 | 设计中 | `data1` 本机部署 DataSentry API、Alertmanager 自动回调、暴露面和 secret/只读账号收口 |
+| M9 生产化与安全收口 | 仓库资产已完成，待云端部署验证 | `data1` 本机部署 DataSentry API、Alertmanager 自动回调、暴露面和 secret/只读账号收口 |
 
 ## 关键文档
 

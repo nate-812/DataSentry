@@ -1,10 +1,10 @@
 # DataSentry
 
-DataSentry 是面向 StreamLake-Binance 的证据驱动智能运维 Agent。当前 M2
-已完成真实只读工具和现场只读契约验证；M3 已完成仓库内监控模板、
-告警通知内核、本地模拟 CLI 和 DataSentry 自监控指标基线；M4 已完成
-FastAPI Agent、OpenAI-compatible LLM 摘要和 React Command Center；M5 已增加
-事件记忆、历史相似检索、RCA 草稿和 Incident 工作台。
+DataSentry 是面向 StreamLake-Binance 的证据驱动智能运维 Agent。当前已完成
+真实只读巡检、监控通知、FastAPI Agent、React Command Center、Incident/RCA、
+审批式 Runbook、有限自治控制面、M8 监控部署闭环复验；M9 正在收口
+DataSentry API 的 `data1` 本机 loopback 部署、Alertmanager 自动回调、secret
+与公网暴露面边界。
 
 > M2 只允许固定 HTTP GET、固定 SSH 命令、固定数据库 SELECT 和受限 Redis
 > 查询。项目不提供任意 Shell、任意 SQL、任意 URL 或任何生产写操作。
