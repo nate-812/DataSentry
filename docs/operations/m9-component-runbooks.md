@@ -79,7 +79,7 @@
 |---|---|
 | 只读确认 | 记录 Spring API 监听地址、health、K 线固定读接口、进程用户和 Doris/MySQL/Redis 变量依赖。 |
 | 变更前证据 | 记录 `/api/kline/{symbol}?interval=1min&limit=...` 固定读探针和脱敏错误，不记录响应中的敏感业务样本。 |
-| 允许变更 | 用户确认后收口公网入口或迁移启动方式；不现场编译未验证代码，不自动改数据库连接配置。 |
+| 允许变更 | 用户确认后按 `docs/operations/streamlake-service-hardening-plan.md` 收口公网入口或迁移启动方式；不现场编译未验证代码，不自动改数据库连接配置。 |
 | 回滚边界 | 恢复上一版入口规则或启动方式，随后复查 API health 和 K 线固定读探针。 |
 | 变更后回归 | 复跑 API health、K 线固定读探针、Doris freshness 和 DataSentry 真实只读巡检。 |
 | 暂缓条件 | 依赖变量不清、当前进程用户不明、API health 失败或变更需要重新构建产物时暂缓。 |
@@ -92,7 +92,7 @@
 |---|---|
 | 只读确认 | 记录 AI Engine 8000 监听、`/health`、systemd 状态、进程命令、进程用户和启动来源。 |
 | 变更前证据 | 区分 systemd、nohup、docker compose 和手工进程；记录脱敏命令摘要，不记录环境变量值。 |
-| 允许变更 | 用户确认后收口公网入口或迁移到受控启动方式；不自动拉起 root 进程，不打印模型或 API secret。 |
+| 允许变更 | 用户确认后按 `docs/operations/streamlake-service-hardening-plan.md` 收口公网入口或迁移到受控启动方式；不自动拉起 root 进程，不打印模型或 API secret。 |
 | 回滚边界 | 恢复上一版入口或进程管理方式，并复查 `/health` 与 DataSentry 固定 HTTP GET。 |
 | 变更后回归 | 复查 `/health`、监听地址、DataSentry 固定 HTTP 工具和告警 smoke 中的 RCA 生成链路。 |
 | 暂缓条件 | 进程来源不明、systemd 与实际进程冲突、secret 注入边界不清或 health 不稳定时暂缓。 |

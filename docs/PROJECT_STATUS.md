@@ -48,6 +48,7 @@
 - 完成 M9 组件级 runbook 本地准备：将 Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的只读确认、允许变更、回滚边界、回归步骤和暂缓条件拆分到 `docs/operations/m9-component-runbooks.md`。
 - 完成 StreamLake 启停脚本测试保护强化：本地测试直接验证 `plan start`/`plan stop` 只做 dry-run，并扫描脚本禁止危险删除、历史重置、任意分发和 secret 文件读取。
 - 完成 Kafka timeout 排查 playbook 本地准备：新增 `docs/operations/kafka-timeout-playbook.md`，为 M9-R2 固定 Topic 工具 timeout 准备候选原因、只读复查顺序、判定矩阵、替代证据和关闭条件。
+- 完成 Spring API 与 AI Engine 低权限 systemd 迁移方案本地准备：新增 `docs/operations/streamlake-service-hardening-plan.md`，明确专用服务用户、loopback 监听、EnvironmentFile、回滚边界和变更后验证。
 
 ## 正在进行
 
@@ -199,6 +200,7 @@
 - [M9 风险 backlog](operations/m9-risk-backlog.md)
 - [M9 组件级维护 Runbook](operations/m9-component-runbooks.md)
 - [Kafka timeout 排查 Playbook](operations/kafka-timeout-playbook.md)
+- [StreamLake 服务低权限迁移方案](operations/streamlake-service-hardening-plan.md)
 - [`/root/bin` 运维脚本审计结论](operations/root-bin-script-audit.md)
 - [StreamLake 启停总控脚本](operations/streamlake-startup.md)
 - [维护窗口证据记录模板](operations/maintenance-evidence-record.md)

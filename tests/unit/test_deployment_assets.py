@@ -459,6 +459,59 @@ def test_kafka_timeout_playbook_keeps_followup_readonly() -> None:
     assert "Kafka timeout 排查 playbook" in status
 
 
+def test_streamlake_service_hardening_plan_keeps_spring_ai_low_privilege() -> None:
+    plan = read_text("docs/operations/streamlake-service-hardening-plan.md")
+    component_runbooks = read_text("docs/operations/m9-component-runbooks.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 使用边界",
+        "## 迁移前只读确认",
+        "## Spring API 目标形态",
+        "## AI Engine 目标形态",
+        "## systemd 设计约束",
+        "## 回滚边界",
+        "## 变更后验证",
+    ]
+    assert_contains_all(plan, required_sections)
+
+    required_low_privilege_rules = [
+        "专用服务用户",
+        "User=streamlake-api",
+        "User=streamlake-ai",
+        "EnvironmentFile=",
+        "127.0.0.1",
+        "不以 root 长期运行",
+        "不现场编译",
+        "不打印真实 secret",
+    ]
+    assert_contains_all(plan, required_low_privilege_rules)
+
+    required_confirmations = [
+        "用户确认",
+        "当前进程命令",
+        "当前监听地址",
+        "构建产物路径",
+        "secret 注入方式",
+        "Spring API",
+        "AI Engine",
+    ]
+    assert_contains_all(plan, required_confirmations)
+
+    required_regressions = [
+        "curl -fsS http://127.0.0.1:8080",
+        "curl -fsS http://127.0.0.1:8000/health",
+        "datasentry monitoring alert-smoke",
+        "datasentry inspection run",
+    ]
+    assert_contains_all(plan, required_regressions)
+
+    assert "streamlake-service-hardening-plan.md" in component_runbooks
+    assert "streamlake-service-hardening-plan.md" in readme
+    assert "低权限 systemd 迁移方案" in status
+
+
 def test_root_bin_script_audit_records_automation_blockers() -> None:
     audit = read_text("docs/operations/root-bin-script-audit.md")
     backlog = read_text("docs/operations/m9-risk-backlog.md")
