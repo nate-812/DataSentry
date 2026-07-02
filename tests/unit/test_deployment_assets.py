@@ -251,6 +251,51 @@ def test_m9_exposure_maintenance_plan_covers_offline_preparation() -> None:
     assert "M9 暴露面维护预案" in status
 
 
+def test_maintenance_evidence_record_template_is_ready_for_windows() -> None:
+    template = read_text("docs/operations/maintenance-evidence-record.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 使用边界",
+        "## 空白记录",
+        "## 填写规则",
+        "## 复核清单",
+    ]
+    assert_contains_all(template, required_sections)
+
+    required_fields = [
+        "维护窗口",
+        "操作者",
+        "云端实例",
+        "Git commit",
+        "变更项",
+        "变更前状态",
+        "用户确认",
+        "执行动作",
+        "变更后验证",
+        "失败项",
+        "回滚动作",
+        "Incident id",
+        "Inspection id",
+        "未验证项",
+        "secret 处理确认",
+    ]
+    assert_contains_all(template, required_fields)
+
+    required_boundaries = [
+        "不记录真实 secret",
+        "不把历史 smoke 包装为当前事实",
+        "不执行未确认的生产写操作",
+        "不自动修改云安全组",
+        "不开放生产写 Runbook",
+    ]
+    assert_contains_all(template, required_boundaries)
+
+    assert "maintenance-evidence-record.md" in readme
+    assert "证据记录模板" in status
+
+
 def test_m9_risk_backlog_tracks_local_and_cloud_followups() -> None:
     backlog = read_text("docs/operations/m9-risk-backlog.md")
     readme = read_text("README.md")

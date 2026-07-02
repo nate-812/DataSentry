@@ -345,6 +345,7 @@ Git 版本。
 - [`docs/operations/m9-risk-backlog.md`](docs/operations/m9-risk-backlog.md)
 - [`docs/operations/root-bin-script-audit.md`](docs/operations/root-bin-script-audit.md)
 - [`docs/operations/streamlake-startup.md`](docs/operations/streamlake-startup.md)
+- [`docs/operations/maintenance-evidence-record.md`](docs/operations/maintenance-evidence-record.md)
 - [`docs/operations/production-exposure-checklist.md`](docs/operations/production-exposure-checklist.md)
 
 M9 不开放任意 Shell、任意 SQL、生产写操作、自动重启、自动补数、自动改配置或自动

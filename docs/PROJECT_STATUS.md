@@ -44,6 +44,7 @@
 - 完成 M9 风险 backlog 本地整理：将 Kafka timeout、Doris root 改密、AI Engine 运行方式、SSH 指纹、云端 AI 未跟踪文件、`/root/bin` 脚本、Doris freshness 和 MySQL 异常表复盘拆成可关闭条目。
 - 完成 `/root/bin` 云端脚本审计源码初审：基于用户提供脚本详情确认 `doris.sh`、`flink.sh`、`xcall`、`xsync` 等依赖 root 无密 SSH，`spring.sh` 和 `ai.sh` 以 root 权限运行应用，`job.sh` 缺乏幂等性；当前结论为不得进入 DataSentry 自动执行白名单。
 - 完成 StreamLake 人工启停总控脚本本地实现：新增 `deploy/ops/streamlake-startup.sh` 和使用手册，支持 `plan start`、`plan stop`、`status`、`start`、`stop`、`restart`，用于人工维护窗口，不进入 DataSentry 自动执行白名单。
+- 完成维护窗口证据记录模板本地准备：新增 `docs/operations/maintenance-evidence-record.md`，用于记录当前命令结果、用户确认、回滚动作、Incident/Inspection ID、未验证项和 secret 处理确认。
 
 ## 正在进行
 
@@ -195,6 +196,7 @@
 - [M9 风险 backlog](operations/m9-risk-backlog.md)
 - [`/root/bin` 运维脚本审计结论](operations/root-bin-script-audit.md)
 - [StreamLake 启停总控脚本](operations/streamlake-startup.md)
+- [维护窗口证据记录模板](operations/maintenance-evidence-record.md)
 - [生产暴露面收口 checklist](operations/production-exposure-checklist.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
