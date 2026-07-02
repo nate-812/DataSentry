@@ -44,7 +44,7 @@
 ## 正在进行
 
 - M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1`，Alertmanager 通过 `http://127.0.0.1:18000/api/alertmanager/webhook` 本机回调。
-- 2026-07-02 M9 设计文档、实施计划、systemd/env 无 secret 示例、部署手册、暴露面 checklist、README/项目状态入口和部署资产回归测试已落地到仓库；终审修复了 env 文件覆盖风险、补齐 `/etc/datasentry/monitoring.toml` 准备步骤，并将设计验收标准拆分为“仓库资产完成”和“云端部署验证”。本地验证通过：部署资产/监控聚焦测试 21 个通过，`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 均通过；全量 pytest 为 355 个测试通过，覆盖率 90.66%，仅有既有 StarletteDeprecationWarning。本阶段尚未修改云端 Alertmanager 配置、尚未创建 `data1` systemd 服务、尚未执行 M9 云端部署。
+- 2026-07-02 M9 设计文档、实施计划、systemd/env 无 secret 示例、部署手册、暴露面 checklist、README/项目状态入口和部署资产回归测试已落地到仓库；终审修复了 env 文件覆盖风险、补齐 `/etc/datasentry/monitoring.toml` 准备步骤，并将设计验收标准拆分为“仓库资产完成”和“云端部署验证”。本地验证通过：部署资产/监控聚焦测试 21 个通过，`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 均通过；全量 pytest 为 355 个测试通过，覆盖率 90.66%，仅有既有 StarletteDeprecationWarning。M9 本地仓库资产已推送到 GitHub 分支 `codex/m9-production-hardening`；本阶段尚未修改云端 Alertmanager 配置、尚未创建 `data1` systemd 服务、尚未执行 M9 云端部署。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
