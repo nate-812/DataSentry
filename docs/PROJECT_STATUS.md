@@ -7,8 +7,8 @@
 | 项目 | 当前状态 |
 |---|---|
 | 总体状态 | M9 生产化与安全收口已启动，首轮采用 `data1` 本机 DataSentry API 部署方案 |
-| 当前阶段 | M9 设计：DataSentry API 只监听云端 `127.0.0.1`，Alertmanager 本机回调，公网暴露面与 secret/只读账号收口 |
-| 当前工作 | 已确认 M9 方向并形成实施计划；后续先完成仓库内 systemd/env 示例、部署手册和回归 checklist，再经用户确认执行云端部署验证 |
+| 当前阶段 | M9 本地仓库产物收尾：DataSentry API 只监听云端 `127.0.0.1`，Alertmanager 本机回调，公网暴露面与 secret/只读账号收口 |
+| 当前工作 | M9 仓库内 systemd/env 无 secret 示例、部署手册、暴露面 checklist 和回归测试已实现，正在补齐 README 与项目状态入口；后续需经用户确认后再执行云端部署验证 |
 | 下一里程碑 | M9：在 `data1` 以 systemd 运行 DataSentry API，改造 Alertmanager 本机回调，复跑监控和真实只读巡检回归 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
@@ -39,11 +39,12 @@
 - 完成 M7.2 运维可用化：`datasentry ops preflight`、secret 状态只读预检、云端变量映射提示和 live smoke 运维手册。
 - 完成 M8 监控部署闭环本地实现：监控端点配置、Prometheus/Grafana/Alertmanager 只读部署验收、Alertmanager → DataSentry API smoke、Alertmanager 示例路由修正和运维手册。
 - 完成 M8 云端复验：监控部署验收、Alertmanager → DataSentry API smoke、K 线真实只读巡检、AI Engine health、MySQL/Redis 服务状态和固定只读样本查询均已通过。
+- 完成 M9 仓库部署资产本地实现：`deploy/systemd/datasentry-api.service.example`、`config/datasentry.env.example`、M9 生产化部署手册、生产暴露面 checklist 和部署资产回归测试。
 
 ## 正在进行
 
-- M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1`，Alertmanager 通过本机 URL 回调 `/api/alertmanager/webhook`。
-- 2026-07-02 M9 设计文档和实施计划已落地到仓库；本阶段尚未创建 systemd/env 示例、尚未修改云端 Alertmanager 配置、尚未执行 `data1` 云端部署。
+- M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1`，Alertmanager 通过 `http://127.0.0.1:18000/api/alertmanager/webhook` 本机回调。
+- 2026-07-02 M9 设计文档、实施计划、systemd/env 无 secret 示例、部署手册、暴露面 checklist 和部署资产回归测试已落地到仓库；README 与项目状态入口正在收尾。本阶段尚未修改云端 Alertmanager 配置、尚未创建 `data1` systemd 服务、尚未执行 M9 云端部署。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
@@ -77,11 +78,11 @@
 
 ## 下一步
 
-1. 完成 M9 实施计划：拆分 systemd service 示例、无 secret env 示例、部署/回滚手册、暴露面 checklist、回归命令和状态文档更新。
-2. 仓库内完成 M9 部署产物后，先运行最小相关验证和 secret 检查，再请用户确认是否进入 `data1` 云端部署。
-3. 云端部署验证阶段：以独立服务用户运行 DataSentry API，只监听 `127.0.0.1:18000`，Alertmanager 回调改为本机 `/api/alertmanager/webhook`。
-4. 复跑 M8/M9 回归：API health、`deployment-check`、`alert-smoke`、真实 K 线只读巡检、AI Engine/MySQL/Redis 固定只读确认。
-5. 优先收口公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 的安全组或账号权限；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+1. 完成 M9 README 和项目状态收尾后，运行最小相关验证与 diff 检查，确认仓库文档入口、无 secret 示例和部署资产回归测试一致。
+2. 经用户确认后再进入 `data1` 云端部署验证；云端阶段以独立服务用户运行 DataSentry API，只监听 `127.0.0.1:18000`，并将 Alertmanager 回调改为本机 `/api/alertmanager/webhook`。
+3. 复跑 M8/M9 回归：API health、`deployment-check`、`alert-smoke`、真实 K 线只读巡检、AI Engine/MySQL/Redis 固定只读确认。
+4. 优先收口公网暴露面：DataSentry API、Prometheus、Grafana、Alertmanager、Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 不应公网暴露；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+5. 云端部署完成前，继续把开发、提交和版本管理留在本地仓库 + GitHub，云端只运行明确 Git 版本，不在云端保存真实开发环境。
 6. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag、Collector 重连频率和 AI 诊断链路。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
@@ -95,7 +96,7 @@
 
 ### 已知风险
 
-- 监控栈已完成首轮部署验收，但 Alertmanager 配置中的 DataSentry Webhook 当前指向预留云端端口 `host.docker.internal:18000`；若要接收真实告警，需要部署云端 DataSentry API 或建立受控反向通道。
+- 监控栈已完成首轮部署验收，但云端 Alertmanager 配置尚未改为 `http://127.0.0.1:18000/api/alertmanager/webhook`；若要接收真实告警，需要先经用户确认部署云端 DataSentry API 并修改 Alertmanager 本机回调。
 - M9 首轮选择 `data1` 本机部署 DataSentry API，短期会让 Agent API 与监控栈同机运行；若 `data1` 故障，DataSentry 事件闭环会受影响，但基础 Alertmanager 通知链路应保留。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
@@ -175,6 +176,8 @@
 - [M9 生产化与安全收口实施计划](superpowers/plans/2026-07-02-m9-production-hardening.md)
 - [M2 当前交接与剩余事项](M2_HANDOFF.md)
 - [M8 监控部署闭环运维手册](operations/monitoring-deployment.md)
+- [M9 生产化部署运维手册](operations/m9-production-deployment.md)
+- [生产暴露面收口 checklist](operations/production-exposure-checklist.md)
 - [知识导航](../knowledge/INDEX.md)
 - [Agent 接入与查询规范](../knowledge/09-agent-integration.md)
 - [工程协作规则](../AGENTS.md)

@@ -329,6 +329,25 @@ datasentry monitoring alert-smoke \
 完整操作方式见
 [`docs/operations/monitoring-deployment.md`](docs/operations/monitoring-deployment.md)。
 
+## M9 生产化与安全收口
+
+M9 将 DataSentry API 作为 `data1` 本机 loopback 服务运行，Alertmanager 通过
+`http://127.0.0.1:18000/api/alertmanager/webhook` 回调，不把 DataSentry API
+暴露到公网。开发、提交和版本管理仍以本地仓库与 GitHub 为准；云端只运行明确的
+Git 版本。
+
+仓库提供以下无 secret 示例和运维入口：
+
+- `deploy/systemd/datasentry-api.service.example`
+- `config/datasentry.env.example`
+- [`docs/operations/m9-production-deployment.md`](docs/operations/m9-production-deployment.md)
+- [`docs/operations/production-exposure-checklist.md`](docs/operations/production-exposure-checklist.md)
+
+M9 不开放任意 Shell、任意 SQL、生产写操作、自动重启、自动补数、自动改配置或自动
+Savepoint 恢复。DataSentry API、Prometheus、Grafana、Alertmanager、Flink Web、
+Doris FE、MySQL、Redis、Spring API 和 AI Engine 均不应公网暴露；需要通过本机
+loopback、内网或受控 SSH tunnel 访问。
+
 ## 配置
 
 | 环境变量 | 默认值 | 用途 |
@@ -391,3 +410,7 @@ Agent 新会话按顺序读取：
 - [`M7.2 运维可用化实施计划`](docs/superpowers/plans/2026-07-01-m7.2-ops-usability.md)
 - [`M8 监控部署闭环设计`](docs/superpowers/specs/2026-07-01-m8-monitoring-deployment-loop-design.md)
 - [`M8 监控部署闭环实施计划`](docs/superpowers/plans/2026-07-01-m8-monitoring-deployment-loop.md)
+- [`M9 生产化与安全收口设计`](docs/superpowers/specs/2026-07-02-m9-production-hardening-design.md)
+- [`M9 生产化与安全收口实施计划`](docs/superpowers/plans/2026-07-02-m9-production-hardening.md)
+- [`M9 生产化部署运维手册`](docs/operations/m9-production-deployment.md)
+- [`生产暴露面收口 checklist`](docs/operations/production-exposure-checklist.md)
