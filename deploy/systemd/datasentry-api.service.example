@@ -1,0 +1,26 @@
+[Unit]
+Description=DataSentry API
+Documentation=https://github.com/nate-812/DataSentry
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=datasentry
+Group=datasentry
+WorkingDirectory=/opt/datasentry-agent
+EnvironmentFile=/etc/datasentry/datasentry.env
+ExecStart=/opt/datasentry-agent/.venv/bin/uvicorn datasentry.api:create_app --factory --host 127.0.0.1 --port 18000
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/datasentry /var/log/datasentry
+MemoryMax=768M
+CPUQuota=80%
+
+[Install]
+WantedBy=multi-user.target
