@@ -50,6 +50,58 @@ git diff --check
 
 记录将部署的 Git commit。不要部署未提交或来源不明的工作区。
 
+## 部署前手工检查和目录准备
+
+以下命令只作为人工执行示例，本仓库任务不会 SSH 到 `data1`，不会修改云资源，也不会写入真实 secret。任何云端写操作、账号创建、目录创建、权限变更、systemd 安装或 Alertmanager 配置变更，执行前都必须由用户再次确认。
+
+先确认服务账号存在；若不存在，再在维护窗口按需创建系统组和系统用户：
+
+```bash
+getent group datasentry
+id datasentry
+sudo groupadd --system datasentry
+sudo useradd --system --gid datasentry --home-dir /var/lib/datasentry --shell /usr/sbin/nologin datasentry
+```
+
+准备配置、数据和日志目录。`/etc/datasentry` 由 root 管理，服务用户只按文件权限读取配置；SQLite 和日志目录必须允许 `datasentry` 写入：
+
+```bash
+sudo install -d -o root -g datasentry -m 0750 /etc/datasentry
+sudo install -d -o datasentry -g datasentry -m 0750 /var/lib/datasentry
+sudo install -d -o datasentry -g datasentry -m 0750 /var/log/datasentry
+sudo chown root:datasentry /etc/datasentry
+sudo chown datasentry:datasentry /var/lib/datasentry /var/log/datasentry
+sudo chmod 0750 /etc/datasentry /var/lib/datasentry /var/log/datasentry
+```
+
+确认应用目录来自预期 Git 版本，并且虚拟环境入口存在。不要从未确认来源的工作区启动生产服务：
+
+```bash
+cd /opt/datasentry-agent
+git status --short --branch
+git rev-parse --short HEAD
+test -x .venv/bin/uvicorn
+```
+
+确认云端配置文件存在并由预期权限保护。`targets.toml` 只能保存目标、白名单和变量名引用，不应包含密码、token、Cookie、私钥或连接串等 secret 值：
+
+```bash
+test -f /etc/datasentry/targets.toml
+test -f /etc/datasentry/datasentry.env
+sudo chown root:datasentry /etc/datasentry/targets.toml /etc/datasentry/datasentry.env
+sudo chmod 0640 /etc/datasentry/targets.toml /etc/datasentry/datasentry.env
+```
+
+最后确认服务用户能读取配置，并能写入 SQLite 和日志目录。示例中的临时文件只用于权限验证，完成后按维护窗口流程清理；不要把真实 secret 打印到终端、日志或工单中：
+
+```bash
+sudo -u datasentry test -r /etc/datasentry/targets.toml
+sudo -u datasentry test -r /etc/datasentry/datasentry.env
+sudo -u datasentry test -w /var/lib/datasentry
+sudo -u datasentry test -w /var/log/datasentry
+sudo -u datasentry sh -c 'touch /var/lib/datasentry/.write-check /var/log/datasentry/.write-check'
+```
+
 ## systemd 安装
 
 以下命令展示步骤，不包含真实 secret。执行云端写操作前必须由用户再次确认。

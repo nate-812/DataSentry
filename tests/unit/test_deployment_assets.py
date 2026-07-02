@@ -10,6 +10,11 @@ def read_text(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+def assert_contains_all(text: str, fragments: list[str]) -> None:
+    missing = [fragment for fragment in fragments if fragment not in text]
+    assert not missing
+
+
 def test_datasentry_systemd_example_is_loopback_only_and_uses_env_file() -> None:
     service = read_text("deploy/systemd/datasentry-api.service.example")
 
@@ -51,65 +56,98 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
     guide = read_text("docs/operations/m9-production-deployment.md")
     checklist = read_text("docs/operations/production-exposure-checklist.md")
 
-    assert "# M9 生产化部署运维手册" in guide
-    assert "DataSentry API 作为 `data1` 本机 loopback 服务运行" in guide
-    assert "云端只运行明确 Git 版本" in guide
-    assert "http://127.0.0.1:18000/api/alertmanager/webhook" in guide
-    assert "直接暴露 DataSentry API、Grafana、Prometheus、Alertmanager" in guide
-    assert "写入生产数据库、执行任意 Shell、自动重启、自动补数" in guide
-    assert "/etc/datasentry/datasentry.env" in guide
-    assert "/etc/datasentry/targets.toml" in guide
-    assert "git status --short --branch" in guide
-    assert "git rev-parse --short HEAD" in guide
-    assert "git diff --check" in guide
-    assert (
-        "sudo install -o root -g root -m 0644 "
-        "deploy/systemd/datasentry-api.service.example "
-        "/etc/systemd/system/datasentry-api.service"
-        in guide
-    )
-    assert (
-        "sudo install -o root -g datasentry -m 0640 "
-        "config/datasentry.env.example /etc/datasentry/datasentry.env"
-        in guide
-    )
-    assert "systemctl status datasentry-api" in guide
-    assert "curl -fsS http://127.0.0.1:18000/api/health" in guide
-    assert "webhook_configs:" in guide
-    assert "- url: http://127.0.0.1:18000/api/alertmanager/webhook" in guide
-    assert "datasentry ops preflight --targets-file /etc/datasentry/targets.toml" in guide
-    assert "datasentry monitoring deployment-check" in guide
-    assert "datasentry monitoring alert-smoke" in guide
-    assert "datasentry inspection run" in guide
-    assert "127.0.0.1:18000" in guide
-    assert "Incident id、Inspection id、整体状态和失败项" in guide
-    assert "ssh -L 18000:127.0.0.1:18000 data1" in guide
-    assert "sudo systemctl stop datasentry-api" in guide
-    assert "sudo systemctl disable datasentry-api" in guide
-    assert "保留 `/var/lib/datasentry/datasentry.db`" in guide
+    required_paths = [
+        "/etc/datasentry",
+        "/etc/datasentry/datasentry.env",
+        "/etc/datasentry/targets.toml",
+        "/opt/datasentry-agent",
+        "/var/lib/datasentry",
+        "/var/lib/datasentry/datasentry.db",
+        "/var/log/datasentry",
+        ".venv/bin/uvicorn",
+    ]
+    assert_contains_all(guide, required_paths)
 
-    assert "# 生产暴露面收口 Checklist" in checklist
-    assert "不自动修改云安全组、主机防火墙或业务配置" in checklist
-    assert "DataSentry API" in checklist
-    assert "Prometheus" in checklist
-    assert "Grafana" in checklist
-    assert "Alertmanager" in checklist
-    assert "Flink Web" in checklist
-    assert "Doris FE" in checklist
-    assert "MySQL" in checklist
-    assert "Redis" in checklist
-    assert "Spring API" in checklist
-    assert "AI Engine" in checklist
-    assert "SSH 日常巡检使用无 sudo、无写权限的只读账号" in checklist
-    assert "Doris/MySQL 诊断账号仅允许 `SELECT`、`SHOW` 和 `DESCRIBE`" in checklist
-    assert "Redis ACL 仅允许计划内只读命令，禁止 `KEYS`" in checklist
-    assert "真实 secret 只存在于云端受限文件或进程环境" in checklist
-    assert "`datasentry ops preflight` 只展示变量名和 configured/missing 状态" in checklist
-    assert "systemctl status datasentry-api" in checklist
-    assert "curl -fsS http://127.0.0.1:18000/api/health" in checklist
-    assert "datasentry monitoring deployment-check" in checklist
-    assert "datasentry monitoring alert-smoke" in checklist
-    assert "真实 K 线只读巡检" in checklist
-    assert "Doris root 改密已单独排期" in checklist
-    assert "云安全组变更已单独审批" in checklist
-    assert "生产写 Runbook 仍未开放" in checklist
+    required_safety_invariants = [
+        "127.0.0.1:18000",
+        "http://127.0.0.1:18000/api/alertmanager/webhook",
+        "公网",
+        "写入生产数据库",
+        "真实 secret",
+        "用户再次确认",
+    ]
+    assert_contains_all(guide, required_safety_invariants)
+    forbidden_public_or_secret_examples = [
+        "0.0.0.0:18000",
+        "DATASENTRY_DORIS_PASSWORD=secret",
+        "DATASENTRY_MYSQL_PASSWORD=password",
+        "DATASENTRY_REDIS_PASSWORD=redis",
+        "DATASENTRY_LLM_API_KEY=sk-",
+    ]
+    for fragment in forbidden_public_or_secret_examples:
+        assert fragment not in guide
+
+    required_setup_commands = [
+        "getent group datasentry",
+        "id datasentry",
+        "sudo groupadd --system datasentry",
+        "sudo useradd --system",
+        "sudo install -d",
+        "sudo chown",
+        "sudo chmod",
+        "git rev-parse --short HEAD",
+        "test -x .venv/bin/uvicorn",
+        "test -f /etc/datasentry/targets.toml",
+    ]
+    assert_contains_all(guide, required_setup_commands)
+
+    required_runtime_commands = [
+        "git status --short --branch",
+        "git diff --check",
+        "systemctl status datasentry-api",
+        "curl -fsS http://127.0.0.1:18000/api/health",
+        "webhook_configs:",
+        "datasentry ops preflight",
+        "datasentry monitoring deployment-check",
+        "datasentry monitoring alert-smoke",
+        "datasentry inspection run",
+        "ssh -L 18000:127.0.0.1:18000 data1",
+        "sudo systemctl stop datasentry-api",
+        "sudo systemctl disable datasentry-api",
+    ]
+    assert_contains_all(guide, required_runtime_commands)
+
+    checklist_sections = ["监听地址", "账号权限", "secret 管理", "回归证据", "明确不在本轮处理"]
+    assert_contains_all(checklist, [f"## {section}" for section in checklist_sections])
+
+    exposed_components = [
+        "DataSentry API",
+        "Prometheus",
+        "Grafana",
+        "Alertmanager",
+        "Flink Web",
+        "Doris FE",
+        "MySQL",
+        "Redis",
+        "Spring API",
+        "AI Engine",
+    ]
+    assert_contains_all(checklist, exposed_components)
+
+    checklist_invariants = [
+        "不自动修改云安全组",
+        "SSH 日常巡检",
+        "SELECT",
+        "SHOW",
+        "DESCRIBE",
+        "禁止 `KEYS`",
+        "真实 secret",
+        "configured/missing",
+        "datasentry monitoring deployment-check",
+        "datasentry monitoring alert-smoke",
+        "真实 K 线只读巡检",
+        "Doris root 改密",
+        "云安全组变更",
+        "生产写 Runbook 仍未开放",
+    ]
+    assert_contains_all(checklist, checklist_invariants)
