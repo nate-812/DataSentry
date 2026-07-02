@@ -344,6 +344,7 @@ Git 版本。
 - [`docs/operations/m9-exposure-maintenance-plan.md`](docs/operations/m9-exposure-maintenance-plan.md)
 - [`docs/operations/m9-risk-backlog.md`](docs/operations/m9-risk-backlog.md)
 - [`docs/operations/m9-component-runbooks.md`](docs/operations/m9-component-runbooks.md)
+- [`docs/operations/kafka-timeout-playbook.md`](docs/operations/kafka-timeout-playbook.md)
 - [`docs/operations/root-bin-script-audit.md`](docs/operations/root-bin-script-audit.md)
 - [`docs/operations/streamlake-startup.md`](docs/operations/streamlake-startup.md)
 - [`docs/operations/maintenance-evidence-record.md`](docs/operations/maintenance-evidence-record.md)

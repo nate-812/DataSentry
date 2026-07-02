@@ -408,6 +408,57 @@ def test_m9_component_runbooks_split_p1_p2_risks_by_service() -> None:
     assert "组件级 runbook" in status
 
 
+def test_kafka_timeout_playbook_keeps_followup_readonly() -> None:
+    playbook = read_text("docs/operations/kafka-timeout-playbook.md")
+    backlog = read_text("docs/operations/m9-risk-backlog.md")
+    readme = read_text("README.md")
+    status = read_text("docs/PROJECT_STATUS.md")
+
+    required_sections = [
+        "## 适用范围",
+        "## 候选原因",
+        "## 只读复查顺序",
+        "## 判定矩阵",
+        "## 降级证据",
+        "## 关闭条件",
+    ]
+    assert_contains_all(playbook, required_sections)
+
+    required_causes = [
+        "broker 响应慢",
+        "Kafka CLI 环境限制",
+        "只读账号 PATH",
+        "网络抖动",
+        "Consumer Group coordinator",
+    ]
+    assert_contains_all(playbook, required_causes)
+
+    required_boundaries = [
+        "不开云端实例时不执行 SSH",
+        "不重启 Kafka",
+        "不修改 broker 配置",
+        "不删除 topic",
+        "不执行生产写操作",
+        "M9-R2",
+    ]
+    assert_contains_all(playbook, required_boundaries)
+
+    required_evidence = [
+        "命令耗时",
+        "退出码",
+        "脱敏 stderr",
+        "替代证据",
+        "Flink Job",
+        "Doris freshness",
+        "Spring API",
+    ]
+    assert_contains_all(playbook, required_evidence)
+
+    assert "kafka-timeout-playbook.md" in backlog
+    assert "kafka-timeout-playbook.md" in readme
+    assert "Kafka timeout 排查 playbook" in status
+
+
 def test_root_bin_script_audit_records_automation_blockers() -> None:
     audit = read_text("docs/operations/root-bin-script-audit.md")
     backlog = read_text("docs/operations/m9-risk-backlog.md")
