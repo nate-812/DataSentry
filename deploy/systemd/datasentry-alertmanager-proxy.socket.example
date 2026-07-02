@@ -1,0 +1,11 @@
+[Unit]
+Description=DataSentry Alertmanager Docker bridge callback socket
+Documentation=https://github.com/nate-812/DataSentry
+
+[Socket]
+ListenStream=172.17.0.1:18000
+NoDelay=true
+Service=datasentry-alertmanager-proxy.service
+
+[Install]
+WantedBy=sockets.target

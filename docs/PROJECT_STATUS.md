@@ -6,10 +6,10 @@
 
 | 项目 | 当前状态 |
 |---|---|
-| 总体状态 | M9 生产化与安全收口已启动，首轮采用 `data1` 本机 DataSentry API 部署方案 |
-| 当前阶段 | M9 本地仓库产物收尾：DataSentry API 只监听云端 `127.0.0.1`，Alertmanager 本机回调，公网暴露面与 secret/只读账号收口 |
-| 当前工作 | M9 仓库内 systemd/env 无 secret 示例、部署手册、暴露面 checklist、README/状态入口和回归测试已完成；后续需经用户确认后再执行云端部署验证 |
-| 下一里程碑 | M9：在 `data1` 以 systemd 运行 DataSentry API，改造 Alertmanager 本机回调，复跑监控和真实只读巡检回归 |
+| 总体状态 | M9 生产化与安全收口云端首轮部署已完成，DataSentry API 已在 `data1` 以 systemd 运行 |
+| 当前阶段 | M9 云端回归与暴露面收口：DataSentry API 监听云端 `127.0.0.1:18000`，容器化 Alertmanager 通过 Docker bridge socket proxy 回调 |
+| 当前工作 | 已完成 `data1` 部署、systemd health、Alertmanager 真实投递、监控 smoke 和真实只读巡检；需后续维护窗口继续收口既有公网监听服务 |
+| 下一里程碑 | M9：将 Docker bridge proxy 资产、云端部署结果和残余风险同步到 GitHub，并排期 MySQL/Redis/AI/Flink/Spring/Doris 既有暴露面收口 |
 | 生产权限 | 已验证固定 HTTP GET、固定 SSH 白名单命令和固定数据库/Redis 只读探测；生产方案仍必须使用专用只读用户，写操作未实现 |
 | 默认分支 | `main` |
 | 远端仓库 | `https://github.com/nate-812/DataSentry.git` |
@@ -43,8 +43,11 @@
 
 ## 正在进行
 
-- M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1`，Alertmanager 通过 `http://127.0.0.1:18000/api/alertmanager/webhook` 本机回调。
-- 2026-07-02 M9 设计文档、实施计划、systemd/env 无 secret 示例、部署手册、暴露面 checklist、README/项目状态入口和部署资产回归测试已落地到仓库；终审修复了 env 文件覆盖风险、补齐 `/etc/datasentry/monitoring.toml` 准备步骤，并将设计验收标准拆分为“仓库资产完成”和“云端部署验证”。本地验证通过：部署资产/监控聚焦测试 21 个通过，`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 均通过；全量 pytest 为 355 个测试通过，覆盖率 90.66%，仅有既有 StarletteDeprecationWarning。M9 本地仓库资产已推送到 GitHub 分支 `codex/m9-production-hardening`；本阶段尚未修改云端 Alertmanager 配置、尚未创建 `data1` systemd 服务、尚未执行 M9 云端部署。
+- M9 生产化与安全收口已启动；用户确认首轮不把完整开发环境搬到云端，而是在 `data1` 部署明确 Git 版本的 DataSentry API 实例，API 只监听 `127.0.0.1:18000`，容器化 Alertmanager 通过 Docker bridge socket proxy 回调到本机 API。
+- 2026-07-02 M9 设计文档、实施计划、systemd/env 无 secret 示例、部署手册、暴露面 checklist、README/项目状态入口和部署资产回归测试已落地到仓库；终审修复了 env 文件覆盖风险、补齐 `/etc/datasentry/monitoring.toml` 准备步骤，并将设计验收标准拆分为“仓库资产完成”和“云端部署验证”。本地验证通过：部署资产/监控聚焦测试 21 个通过，`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 均通过；全量 pytest 为 355 个测试通过，覆盖率 90.66%，仅有既有 StarletteDeprecationWarning。M9 本地仓库资产已推送到 GitHub 分支 `codex/m9-production-hardening`。
+- 2026-07-02 M9 云端首轮部署完成：`data1` 已创建 `datasentry` 服务用户和受限配置目录，`/opt/datasentry-agent` 部署 Git commit `d00b749`，`datasentry-api` systemd service 已 `active/enabled`，API health 返回 ok，监听为 `127.0.0.1:18000`。由于 Alertmanager 运行在 Docker 容器内，容器访问宿主机 loopback 需经 Docker bridge，已新增 `datasentry-alertmanager-proxy.socket`，仅监听 `172.17.0.1:18000` 并转发到 `127.0.0.1:18000`；真实 Alertmanager API 投递后 webhook 返回 200，历史重试告警也恢复成功。
+- 2026-07-02 M9 云端回归通过：`datasentry ops preflight` 显示 `DATASENTRY_DORIS_PASSWORD`、`DATASENTRY_MYSQL_PASSWORD` 和 `DATASENTRY_REDIS_PASSWORD` 均为 configured；`deployment-check` 为 passed；`alert-smoke` 为 passed，创建 Incident `35a993c4-0145-4a0c-ba3a-8ef0db1e24ae`；真实只读巡检 Inspection `0685ad47-4ebd-4862-8247-a7944aeebadc` 完成且结论为“K线主链路当前正在推进”。本轮巡检 9 个工具调用中 8 个 succeeded，`get_kafka_topic` 对 `data1` 返回 `tool.timeout`，但 Flink/Doris/API 等证据足以确认 K 线主链路推进，需后续观察 Kafka CLI 超时原因。
+- 2026-07-02 M9 固定只读确认完成：AI Engine `/health` 返回 ok；MySQL 与 Redis systemd 为 active；MySQL 只读样本返回 `risk_rules=5`、`whale_thresholds=7`；Redis 只读样本返回 dbsize 40、`risk:blacklist:*` 样本 key 数 5；未打印或提交真实 secret。AI Engine systemd 单元为 inactive，但 8000 服务健康，说明现场 AI Engine 仍由既有进程方式运行。
 - M8 监控部署闭环已完成云端复验；Prometheus、Grafana 和 Alertmanager 运行在 `data1:/opt/datasentry-monitoring`，端口仅绑定云端 `127.0.0.1`，Grafana admin 密码由 root-only secret 文件注入，未打印或提交。
 - 2026-07-02 本地 `main` 基线验证通过：`ruff format --check`、`ruff check`、`mypy src`、全量 pytest 和前端 `npm run build` 均通过；pytest 为 352 个测试通过，覆盖率 90.66%。
 - 2026-07-02 M8 `deployment-check` 通过：使用用户建立的 SSH tunnel，本地端口为 Prometheus `9090`、Grafana `3000`、Alertmanager `19093`；Prometheus readiness、关键 StreamLake 告警规则加载、Alertmanager readiness、DataSentry Webhook receiver/route 和 Grafana health 均通过。
@@ -78,11 +81,11 @@
 
 ## 下一步
 
-1. 经用户确认后再进入 `data1` 云端部署验证；云端阶段以独立服务用户运行 DataSentry API，只监听 `127.0.0.1:18000`，并将 Alertmanager 回调改为本机 `/api/alertmanager/webhook`。
-2. 复跑 M8/M9 回归：API health、`deployment-check`、`alert-smoke`、真实 K 线只读巡检、AI Engine/MySQL/Redis 固定只读确认。
-3. 优先收口公网暴露面：DataSentry API、Prometheus、Grafana、Alertmanager、Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 不应公网暴露；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
-4. 云端部署完成前，继续把开发、提交和版本管理留在本地仓库 + GitHub，云端只运行明确 Git 版本，不在云端保存真实开发环境。
-5. 云端验证完成后更新 `docs/PROJECT_STATUS.md`，记录部署 Git 版本、systemd/API health、Alertmanager smoke、Inspection id、暴露面 checklist 和 GitHub 同步状态。
+1. 将 M9 Docker bridge proxy 示例、部署手册、暴露面 checklist 和状态文档提交并推送到 GitHub 分支 `codex/m9-production-hardening`。
+2. 复查 M9 云端服务稳定性：`datasentry-api`、`datasentry-alertmanager-proxy.socket`、真实 Alertmanager 投递、`deployment-check`、`alert-smoke` 和真实 K 线只读巡检。
+3. 优先收口既有公网暴露面：Flink Web、Doris FE、MySQL、Redis、Spring API 和 AI Engine 当前仍存在 `0.0.0.0` 或 `*` 监听；Doris root 改密需放到维护窗口并同步修正 Spring/AI/Flink 环境变量注入。
+4. 后续继续把开发、提交和版本管理留在本地仓库 + GitHub，云端只运行明确 Git 版本，不在云端保存完整开发环境。
+5. 排查真实巡检中 `get_kafka_topic` 对 `data1` 的 `tool.timeout`，确认是 Kafka CLI 偶发超时、broker 响应慢还是只读账号环境限制。
 6. 继续观察当前三条 Flink Job 的稳定性，重点看 checkpoint、重启次数、Doris freshness、Kafka lag、Collector 重连频率和 AI 诊断链路。
 7. 持续复盘 MySQL `risk_control` 表异常原因，尤其是 `RECOVER_YOUR_DATA_info` 的来源、root 暴露面、安全组、备份和访问日志；当前表名已未查到，后续重点转向暴露面与访问日志复盘。
 8. 使用 M7.1 自治统计持续收集 shadow 与人工审批样本，验证低风险 Runbook 的成功率、熔断、升级和操作后验证，再评估是否进入真实有限自治。
@@ -96,7 +99,9 @@
 
 ### 已知风险
 
-- 监控栈已完成首轮部署验收，但云端 Alertmanager 配置尚未改为 `http://127.0.0.1:18000/api/alertmanager/webhook`；若要接收真实告警，需要先经用户确认部署云端 DataSentry API 并修改 Alertmanager 本机回调。
+- 容器化 Alertmanager 无法直接访问宿主机 `127.0.0.1:18000`；当前通过仅监听 `172.17.0.1:18000` 的 `datasentry-alertmanager-proxy.socket` 转发到 DataSentry API。若 Docker bridge 地址变化或 Alertmanager 网络形态变化，需要同步更新 socket proxy 与 receiver 配置。
+- M9 真实只读巡检整体完成且结论 confirmed，但 `get_kafka_topic` 对 `data1` 返回 `tool.timeout`，需后续排查 Kafka CLI 超时原因。
+- 端口复查显示 DataSentry API 未公网监听，Prometheus/Grafana/Alertmanager 仍为云端 `127.0.0.1` 绑定；但 MySQL `0.0.0.0:3306`、Redis `0.0.0.0:6379`、AI Engine `0.0.0.0:8000`、Flink Web `*:8081`、Spring API `*:8080` 和 Doris FE `*:9030` 仍存在既有暴露面风险，需单独维护窗口收口。
 - M9 首轮选择 `data1` 本机部署 DataSentry API，短期会让 Agent API 与监控栈同机运行；若 `data1` 故障，DataSentry 事件闭环会受影响，但基础 Alertmanager 通知链路应保留。
 - 早期 SSH 使用 root 仅限可丢弃验证场景；生产或长期实例必须切换到无 sudo、无写权限的只读用户。
 - MySQL `risk_control` 曾出现异常表名并丢失业务表，存在数据被异常改动或库名误配风险；MySQL/Redis 已轮换密码并拒绝无密码访问，但根因、入口来源、安全组和访问日志仍需安全复盘。
@@ -150,7 +155,7 @@
 | M7 有限自治 | M7.1 本地控制面已补齐 | 对长期验证的低风险操作开放自动执行 |
 | M7.2 运维可用化 | 已完成 | live smoke 预检、secret 状态解释和运维手册 |
 | M8 监控部署闭环 | 已完成并云端复验 | Prometheus/Grafana/Alertmanager 真实部署验收入口和 DataSentry 告警诊断闭环 smoke |
-| M9 生产化与安全收口 | 仓库资产已完成，待云端部署验证 | `data1` 本机部署 DataSentry API、Alertmanager 自动回调、暴露面和 secret/只读账号收口 |
+| M9 生产化与安全收口 | 云端首轮部署已完成，暴露面收口继续推进 | `data1` 本机部署 DataSentry API、Alertmanager 自动回调、暴露面和 secret/只读账号收口 |
 
 ## 关键文档
 

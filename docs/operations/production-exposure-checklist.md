@@ -4,7 +4,7 @@
 
 ## 监听地址
 
-- [ ] DataSentry API 只监听 `127.0.0.1:18000`。
+- [ ] DataSentry API 只监听 `127.0.0.1:18000`；若 Alertmanager 在 Docker 容器内运行，只额外允许 `172.17.0.1:18000` socket proxy。
 - [ ] Prometheus 只监听 `127.0.0.1` 或内网地址。
 - [ ] Grafana 只监听 `127.0.0.1` 或内网地址。
 - [ ] Alertmanager 只监听 `127.0.0.1` 或内网地址。
@@ -33,8 +33,10 @@
 
 - [ ] `systemctl status datasentry-api` 已检查。
 - [ ] `curl -fsS http://127.0.0.1:18000/api/health` 已通过。
+- [ ] 如启用 Docker bridge proxy，`systemctl status datasentry-alertmanager-proxy.socket` 和 `curl -fsS http://172.17.0.1:18000/api/health` 已通过。
 - [ ] `datasentry monitoring deployment-check` 已通过或失败项已记录。
 - [ ] `datasentry monitoring alert-smoke` 已通过或失败项已记录。
+- [ ] 真实 Alertmanager API 投递已触发 DataSentry webhook 200，或失败项已记录。
 - [ ] 真实 K 线只读巡检已通过或失败项已记录。
 - [ ] AI Engine、MySQL 和 Redis 固定只读确认已执行或记录暂缓原因。
 

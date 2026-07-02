@@ -1,0 +1,18 @@
+[Unit]
+Description=Proxy Alertmanager Docker bridge callbacks to local DataSentry API
+Documentation=https://github.com/nate-812/DataSentry
+Requires=datasentry-api.service
+After=datasentry-api.service
+
+[Service]
+Type=simple
+User=datasentry
+Group=datasentry
+ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:18000
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

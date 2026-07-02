@@ -29,6 +29,25 @@ def test_datasentry_systemd_example_is_loopback_only_and_uses_env_file() -> None
     assert "DATASENTRY_REDIS_PASSWORD" not in service
 
 
+def test_alertmanager_proxy_systemd_examples_are_bridge_only() -> None:
+    socket = read_text("deploy/systemd/datasentry-alertmanager-proxy.socket.example")
+    service = read_text("deploy/systemd/datasentry-alertmanager-proxy.service.example")
+
+    assert "ListenStream=172.17.0.1:18000" in socket
+    assert "Service=datasentry-alertmanager-proxy.service" in socket
+    assert "ListenStream=0.0.0.0:18000" not in socket
+    assert "ListenStream=*:18000" not in socket
+
+    assert "User=datasentry" in service
+    assert "Group=datasentry" in service
+    assert "Requires=datasentry-api.service" in service
+    assert "ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:18000" in service
+    assert "0.0.0.0" not in service
+    assert "DATASENTRY_DORIS_PASSWORD" not in service
+    assert "DATASENTRY_MYSQL_PASSWORD" not in service
+    assert "DATASENTRY_REDIS_PASSWORD" not in service
+
+
 def test_datasentry_env_example_contains_only_safe_placeholders() -> None:
     env = read_text("config/datasentry.env.example")
 
@@ -65,13 +84,16 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "/var/lib/datasentry",
         "/var/lib/datasentry/datasentry.db",
         "/var/log/datasentry",
+        "datasentry-alertmanager-proxy.socket",
+        "datasentry-alertmanager-proxy.service",
         ".venv/bin/uvicorn",
     ]
     assert_contains_all(guide, required_paths)
 
     required_safety_invariants = [
         "127.0.0.1:18000",
-        "http://127.0.0.1:18000/api/alertmanager/webhook",
+        "172.17.0.1:18000",
+        "http://host.docker.internal:18000/api/alertmanager/webhook",
         "公网",
         "写入生产数据库",
         "真实 secret",
@@ -115,6 +137,8 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "git diff --check",
         "systemctl status datasentry-api",
         "curl -fsS http://127.0.0.1:18000/api/health",
+        "systemctl status datasentry-alertmanager-proxy.socket",
+        "curl -fsS http://172.17.0.1:18000/api/health",
         "webhook_configs:",
         "datasentry ops preflight",
         "datasentry monitoring deployment-check",
@@ -123,6 +147,8 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "ssh -L 18000:127.0.0.1:18000 data1",
         "sudo systemctl stop datasentry-api",
         "sudo systemctl disable datasentry-api",
+        "sudo systemctl stop datasentry-alertmanager-proxy.socket",
+        "sudo systemctl disable datasentry-alertmanager-proxy.socket",
     ]
     assert_contains_all(guide, required_runtime_commands)
 
@@ -154,6 +180,7 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
         "configured/missing",
         "datasentry monitoring deployment-check",
         "datasentry monitoring alert-smoke",
+        "真实 Alertmanager API 投递",
         "真实 K 线只读巡检",
         "Doris root 改密",
         "云安全组变更",
