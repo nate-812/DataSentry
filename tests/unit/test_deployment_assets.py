@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -86,6 +87,11 @@ def test_m9_operations_docs_link_required_smoke_commands() -> None:
     ]
     for fragment in forbidden_public_or_secret_examples:
         assert fragment not in guide
+    assert not re.search(
+        r"sudo\s+install\b[^\n]*config/datasentry\.env\.example[^\n]*/etc/datasentry/datasentry\.env",
+        guide,
+    )
+    assert "test ! -e /etc/datasentry/datasentry.env" in guide
 
     required_setup_commands = [
         "getent group datasentry",

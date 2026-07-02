@@ -104,14 +104,22 @@ sudo -u datasentry sh -c 'touch /var/lib/datasentry/.write-check /var/log/datase
 
 ## systemd 安装
 
-以下命令展示步骤，不包含真实 secret。执行云端写操作前必须由用户再次确认。
+以下命令展示步骤，不包含真实 secret。执行云端写操作前必须由用户再次确认。service 文件可在审核后覆盖安装；env 文件包含生产 secret，必须按特殊规则处理，不能在重跑部署时覆盖。
 
 ```bash
 sudo install -o root -g root -m 0644 deploy/systemd/datasentry-api.service.example /etc/systemd/system/datasentry-api.service
-sudo install -o root -g datasentry -m 0640 config/datasentry.env.example /etc/datasentry/datasentry.env
 ```
 
-编辑 `/etc/datasentry/datasentry.env` 时只在云端受限文件中加入真实 secret。不要把真实值复制回仓库。
+仅当 `/etc/datasentry/datasentry.env` 不存在、且这是首次初始化时，才从示例文件引导创建 env 文件。下面的模式会先检查目标文件不存在；如果文件已经存在，命令会停止，不会复制示例覆盖真实生产配置：
+
+```bash
+test ! -e /etc/datasentry/datasentry.env
+sudo cp -n config/datasentry.env.example /etc/datasentry/datasentry.env
+sudo chown root:datasentry /etc/datasentry/datasentry.env
+sudo chmod 0640 /etc/datasentry/datasentry.env
+```
+
+如果 `/etc/datasentry/datasentry.env` 已存在，不要把 `config/datasentry.env.example` 复制到该路径。只允许人工对比示例文件和现有生产文件，补齐必要的非 secret 配置键，并保留现有真实 secret。编辑 `/etc/datasentry/datasentry.env` 时只在云端受限文件中加入真实 secret，不要把真实值复制回仓库。
 
 ## 启动和健康检查
 
